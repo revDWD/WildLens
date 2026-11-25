@@ -12,12 +12,16 @@ namespace WildLens.Wildlife
     /// Per-animal perception of the player: Calm → Aware → Alert → Fleeing.
     ///
     /// The animal accumulates <see cref="Suspicion"/> (0–1) while the player is inside its awareness radius.
-    /// The rate depends on:
+    /// The rate depends on a stimulus = noise × visibility:
+    ///   • noise        — footfall (<see cref="PlayerPresence.Noise"/>): still ≪ crouch-creeping &lt; walking ≪ sprinting,
+    ///   • visibility   — the player's silhouette (<see cref="PlayerPresence.Profile"/>, crouched ≈ half) if the animal
+    ///                    has line of sight to the player's head, otherwise 0.35 (heard, not seen). Crouching
+    ///                    lowers the head, so bushes and rocks hide a crouched player,
+    /// and on:
     ///   • proximity    — rises steeply as the player closes from the awareness radius toward the flee radius,
-    ///   • player noise — standing still ≪ creeping in camera mode &lt; walking ≪ sprinting (<see cref="PlayerPresence.Noise"/>),
-    ///   • line of sight — trees, bushes and rocks between animal and player cut it by ~65%,
-    ///   • memory       — an animal that fled recently is jumpier for a while.
-    /// Keeping still lets suspicion fade, so a patient photographer can wait an animal out.
+    ///   • memory       — ×1.3 for 20 s after the animal last fled.
+    /// Standing still lets suspicion fade at the species' decay rate, so a patient photographer can always wait
+    /// an animal out: that "it relaxed" moment is the core of a good encounter.
     ///
     /// States (with hysteresis so they don't flicker):
     ///   Aware   suspicion ≥ 0.25 inside the awareness radius — glances at the player, keeps doing what it was doing.
@@ -106,7 +110,7 @@ namespace WildLens.Wildlife
         {
             if (State != AwarenessState.Fleeing) return;
             Suspicion = 0.5f;
-            _spookMemory = 30f;
+            _spookMemory = 20f;
             SetState(AwarenessState.Aware);
         }
 
@@ -151,30 +155,30 @@ namespace WildLens.Wildlife
             }
 
             float noise = PlayerPresence.Noise;
+            float stimulus = noise * (_hasLineOfSight ? PlayerPresence.Profile : 0.35f);
             float aware = _species.awarenessRadius;
             float alert = _species.alertRadius;
             float flee = _species.fleeRadius * (Sheltered ? 0.4f : 1f);
 
             // Startle: a sprinting player crashing through nearby cover.
             if (!Sheltered && PlayerPresence.IsSprinting && d < alert * _species.startleSensitivity) { Flee(); return; }
-            // Too close: flee unless the animal is oblivious and the player is perfectly still.
-            if (d < flee && (noise >= 0.3f || Suspicion > AwareThreshold)) { Flee(); return; }
+            // Too close: flee, unless the animal hasn't noticed and the player is very quiet and hidden.
+            if (d < flee && (stimulus >= 0.15f || Suspicion > AwareThreshold)) { Flee(); return; }
 
             if (d < aware)
             {
                 float proximity = Mathf.InverseLerp(aware, flee, d);
-                float sight = _hasLineOfSight ? 1f : 0.35f;
                 float shelter = Sheltered ? 0.4f : 1f;
-                float memory = _spookMemory > 0f ? 1.6f : 1f;
-                float gain = _species.suspicionGain * noise * sight * shelter * memory * (0.25f + proximity * proximity * 1.75f);
+                float memory = _spookMemory > 0f ? 1.3f : 1f;
+                float gain = _species.suspicionGain * stimulus * shelter * memory * (0.25f + proximity * proximity * 1.75f);
                 // Once watching, patient species escalate slowly: a deer stares for a while, a rabbit barely at all.
                 if (State == AwarenessState.Alert) gain /= Mathf.Max(1f, _species.alertPatience);
-                float stillDecay = noise < 0.3f ? _species.suspicionDecay * 0.6f : 0f;
+                float stillDecay = PlayerPresence.IsStill ? _species.suspicionDecay : 0f;
                 Suspicion += (gain - stillDecay) * dt;
             }
             else
             {
-                Suspicion -= _species.suspicionDecay * dt;
+                Suspicion -= _species.suspicionDecay * 1.5f * dt;
             }
             // Escalation goes through Alert: a distant animal can be wary but only one that is
             // watching from inside its alert radius can talk itself into fleeing.

@@ -14,6 +14,8 @@ namespace WildLens.Journal
         public SpeciesDefinition species;
         public PhotoSubject subject;
         public bool isNewSpecies;
+        /// <summary>First photograph of a species that may already be known from observation.</summary>
+        public bool isFirstPhoto;
         public bool isNewBest;
     }
 
@@ -56,6 +58,52 @@ namespace WildLens.Journal
         }
 
         /// <summary>
+        /// Identifies a species by observation (watched steadily through the camera). Returns true if this is a
+        /// new journal entry; for known species it only notes the behaviour.
+        /// </summary>
+        public bool RecordObservation(string speciesId, string activity, string locationLabel)
+        {
+            if (_database == null || _database.Get(speciesId) == null) return false;
+            if (_byId.TryGetValue(speciesId, out var existing))
+            {
+                NoteBehavior(existing, activity, true);
+                return false;
+            }
+
+            var entry = NewRecord(speciesId, IdentificationMethod.Observation, DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                locationLabel, activity, null);
+            NoteBehavior(entry, activity, false);
+            Save();
+            Changed?.Invoke();
+            return true;
+        }
+
+        private SpeciesRecord NewRecord(string speciesId, string method, string whenUtc, string location, string activity, string photoId)
+        {
+            var entry = new SpeciesRecord
+            {
+                speciesId = speciesId,
+                identifiedBy = method,
+                firstSightedUtc = whenUtc,
+                firstSightingLocation = location,
+                firstSightingActivity = activity,
+                firstPhotoId = photoId,
+            };
+            _data.species.Add(entry);
+            _byId[speciesId] = entry;
+            return entry;
+        }
+
+        private void NoteBehavior(SpeciesRecord entry, string activity, bool saveIfChanged)
+        {
+            if (string.IsNullOrEmpty(activity)) return;
+            if (entry.observedBehaviors == null) entry.observedBehaviors = new List<string>();
+            if (entry.observedBehaviors.Contains(activity)) return;
+            entry.observedBehaviors.Add(activity);
+            if (saveIfChanged) Save();
+        }
+
+        /// <summary>
         /// Adds a photograph. <paramref name="record"/>.subjects should hold at most one entry per species
         /// (the best-scoring individual), which is what <see cref="Photography.PhotoAnalyzer"/> produces.
         /// </summary>
@@ -71,18 +119,10 @@ namespace WildLens.Journal
 
                 bool isNew = !_byId.TryGetValue(subject.speciesId, out var entry);
                 if (isNew)
-                {
-                    entry = new SpeciesRecord
-                    {
-                        speciesId = subject.speciesId,
-                        firstSightedUtc = record.takenAtUtc,
-                        firstSightingLocation = record.locationLabel,
-                        firstSightingActivity = subject.activity,
-                        firstPhotoId = record.photoId,
-                    };
-                    _data.species.Add(entry);
-                    _byId[entry.speciesId] = entry;
-                }
+                    entry = NewRecord(subject.speciesId, IdentificationMethod.Photograph, record.takenAtUtc,
+                        record.locationLabel, subject.activity, record.photoId);
+                if (string.IsNullOrEmpty(entry.firstPhotoId)) entry.firstPhotoId = record.photoId;
+                NoteBehavior(entry, subject.activity, false);
 
                 entry.photoCount++;
                 // Better quality class wins; within a class, the higher internal rating.
@@ -99,7 +139,8 @@ namespace WildLens.Journal
 
                 results.Add(new SpeciesIdentification
                 {
-                    species = species, subject = subject, isNewSpecies = isNew, isNewBest = newBest && !isNew
+                    species = species, subject = subject, isNewSpecies = isNew,
+                    isFirstPhoto = entry.photoCount == 1, isNewBest = newBest && entry.photoCount > 1
                 });
             }
 
@@ -127,7 +168,12 @@ namespace WildLens.Journal
             }
 
             foreach (var s in _data.species)
-                if (s != null && !string.IsNullOrEmpty(s.speciesId)) _byId[s.speciesId] = s;
+            {
+                if (s == null || string.IsNullOrEmpty(s.speciesId)) continue;
+                if (s.observedBehaviors == null) s.observedBehaviors = new List<string>();
+                if (string.IsNullOrEmpty(s.identifiedBy)) s.identifiedBy = IdentificationMethod.Photograph;
+                _byId[s.speciesId] = s;
+            }
             Changed?.Invoke();
         }
 

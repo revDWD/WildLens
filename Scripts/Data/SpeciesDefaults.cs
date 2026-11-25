@@ -25,11 +25,18 @@ namespace WildLens.Data
         }
 
         /// <summary>
-        /// Copies the fields introduced in data version 2 (awareness, behaviour set, run legs, photo clarity)
-        /// from <paramref name="source"/>, leaving identity, visuals and population untouched.
+        /// Copies the gameplay tuning that has changed since data version 1 (awareness, behaviour set, run legs,
+        /// photo requirements, observation, habitat hotspots, group size) from <paramref name="source"/>,
+        /// leaving identity, visuals, prefab and movement untouched.
         /// </summary>
-        public static void ApplyVersion2Tuning(SpeciesDefinition target, SpeciesDefinition source)
+        public static void ApplyTuning(SpeciesDefinition target, SpeciesDefinition source)
         {
+            target.photoSizeScale = source.photoSizeScale;
+            target.observationTime = source.observationTime;
+            target.preferredHotspots = source.preferredHotspots;
+            target.hotspotAffinity = source.hotspotAffinity;
+            target.groupCount = source.groupCount;
+            target.groupSize = source.groupSize;
             target.awarenessRadius = source.awarenessRadius;
             target.alertRadius = source.alertRadius;
             target.fleeRadius = source.fleeRadius;
@@ -77,15 +84,16 @@ namespace WildLens.Data
             s.secondaryColor = new Color(0.88f, 0.84f, 0.77f);
             s.accentColor = new Color(0.12f, 0.09f, 0.07f);
             s.habitat = HabitatPreference.OpenMeadow;
-            s.groupCount = 3; s.groupSize = new Vector2Int(1, 3);
+            s.groupCount = 3; s.groupSize = new Vector2Int(2, 3);
             s.spawnDistanceFromTrail = new Vector2(14f, 45f);
+            s.preferredHotspots = HotspotType.Meadow; s.hotspotAffinity = 0.8f;
             s.gait = GaitStyle.Walk;
             s.walkSpeed = 1.1f; s.runSpeed = 9f; s.turnSpeed = 80f; s.gaitFrequency = 1.4f;
             s.wanderRadius = 30f; s.behaviorChance = 0.8f; s.runLegChance = 0.07f;
-            // Notices from far away, but watches for a long time before deciding to bolt.
-            Awareness(s, aware: 38f, alert: 24f, flee: 11f, gain: 0.7f, decay: 0.3f, patience: 6f, startle: 0.9f);
-            s.fleeDistanceRange = new Vector2(25f, 40f);
-            s.idealFrameCoverage = 0.14f; s.clearPhotoDistance = 55f;
+            // Notices you from far away, then watches for a long time; freeze and it settles.
+            Awareness(s, aware: 36f, alert: 24f, flee: 10f, gain: 0.8f, decay: 0.08f, patience: 6f, startle: 0.9f);
+            s.fleeDistanceRange = new Vector2(18f, 28f);
+            s.photoSizeScale = 1f; s.clearPhotoDistance = 30f; s.observationTime = 1.2f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grazing, 5f, 6f, 14f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2.5f, 3f, 6f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.8f, 3f, 5f));
@@ -102,15 +110,16 @@ namespace WildLens.Data
             s.secondaryColor = new Color(0.92f, 0.9f, 0.86f);
             s.accentColor = new Color(0.2f, 0.16f, 0.13f);
             s.habitat = HabitatPreference.OpenMeadow;
-            s.groupCount = 6; s.groupSize = new Vector2Int(1, 1);
+            s.groupCount = 7; s.groupSize = new Vector2Int(1, 1);
             s.spawnDistanceFromTrail = new Vector2(5f, 22f);
+            s.preferredHotspots = HotspotType.BrushPile | HotspotType.Meadow; s.hotspotAffinity = 0.75f;
             s.gait = GaitStyle.Hop;
             s.walkSpeed = 0.9f; s.runSpeed = 7f; s.turnSpeed = 220f; s.gaitFrequency = 2.2f;
             s.wanderRadius = 12f; s.behaviorChance = 0.85f;
-            // Small radii, but suspicion builds fast and patience is short.
-            Awareness(s, aware: 18f, alert: 11f, flee: 5f, gain: 1.6f, decay: 0.5f, patience: 1.2f, startle: 1.3f);
-            s.fleeDistanceRange = new Vector2(8f, 15f);
-            s.idealFrameCoverage = 0.07f; s.clearPhotoDistance = 25f;
+            // Suspicion builds quickly, but like real cottontails it freezes (long Alert) rather than bolting.
+            Awareness(s, aware: 16f, alert: 10f, flee: 4f, gain: 1.3f, decay: 0.12f, patience: 3f, startle: 1.2f);
+            s.fleeDistanceRange = new Vector2(6f, 10f);
+            s.photoSizeScale = 0.7f; s.clearPhotoDistance = 12f; s.observationTime = 1f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grazing, 4f, 3f, 8f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 2.5f, 3f, 7f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 2f, 4f));
@@ -131,12 +140,13 @@ namespace WildLens.Data
             s.habitat = HabitatPreference.ForestEdge;
             s.groupCount = 2; s.groupSize = new Vector2Int(1, 1);
             s.spawnDistanceFromTrail = new Vector2(10f, 35f);
+            s.preferredHotspots = HotspotType.BrushPile | HotspotType.Meadow; s.hotspotAffinity = 0.6f;
             s.gait = GaitStyle.Walk;
             s.walkSpeed = 1.5f; s.runSpeed = 8f; s.turnSpeed = 120f; s.gaitFrequency = 2.4f;
             s.wanderRadius = 55f; s.behaviorChance = 0.6f; s.runLegChance = 0.04f;
-            Awareness(s, aware: 28f, alert: 16f, flee: 9f, gain: 0.9f, decay: 0.35f, patience: 3f, startle: 1f);
-            s.fleeDistanceRange = new Vector2(20f, 35f);
-            s.idealFrameCoverage = 0.08f; s.clearPhotoDistance = 40f;
+            Awareness(s, aware: 26f, alert: 15f, flee: 8f, gain: 0.9f, decay: 0.1f, patience: 4f, startle: 1f);
+            s.fleeDistanceRange = new Vector2(14f, 22f);
+            s.photoSizeScale = 0.85f; s.clearPhotoDistance = 25f; s.observationTime = 1.2f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 3f, 2f, 5f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 1f, 4f, 8f));
@@ -158,14 +168,15 @@ namespace WildLens.Data
             s.locomotion = LocomotionType.Flying;
             s.groupCount = 2; s.groupSize = new Vector2Int(1, 1);
             s.spawnDistanceFromTrail = new Vector2(0f, 40f);
+            s.preferredHotspots = HotspotType.Perch; s.hotspotAffinity = 0.8f;
             s.gait = GaitStyle.Fly;
             s.walkSpeed = 8f; s.runSpeed = 14f; s.turnSpeed = 45f; s.gaitFrequency = 3f;
             s.wanderRadius = 90f;
             // Awareness applies while perched; a flying hawk ignores the observer.
-            Awareness(s, aware: 35f, alert: 22f, flee: 12f, gain: 0.8f, decay: 0.3f, patience: 3f, startle: 1f);
-            s.idealFrameCoverage = 0.05f; s.clearPhotoDistance = 70f;
+            Awareness(s, aware: 40f, alert: 26f, flee: 14f, gain: 0.9f, decay: 0.08f, patience: 3f, startle: 1f);
+            s.photoSizeScale = 0.8f; s.clearPhotoDistance = 45f; s.observationTime = 1.5f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 3f, 20f, 40f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 2.5f, 12f, 25f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 3f, 15f, 30f));
             return s;
         }
 
@@ -181,12 +192,14 @@ namespace WildLens.Data
             s.habitat = HabitatPreference.Trees;
             s.groupCount = 6; s.groupSize = new Vector2Int(1, 1);
             s.spawnDistanceFromTrail = new Vector2(4f, 20f);
+            s.preferredHotspots = HotspotType.MatureTree; s.hotspotAffinity = 0.8f;
             s.gait = GaitStyle.Bursty;
             s.walkSpeed = 1.6f; s.runSpeed = 4.5f; s.turnSpeed = 360f; s.gaitFrequency = 4f;
             s.wanderRadius = 12f; s.behaviorChance = 0.8f; s.maxSlope = 50f;
-            Awareness(s, aware: 14f, alert: 8f, flee: 4f, gain: 1.3f, decay: 0.6f, patience: 1.5f, startle: 1.2f);
-            s.fleeDistanceRange = new Vector2(6f, 10f);
-            s.idealFrameCoverage = 0.05f; s.clearPhotoDistance = 20f;
+            // Tolerant of a quiet observer; when pushed it shoots up the trunk and watches from there.
+            Awareness(s, aware: 12f, alert: 7f, flee: 3.5f, gain: 0.9f, decay: 0.15f, patience: 2.5f, startle: 1.2f);
+            s.fleeDistanceRange = new Vector2(5f, 8f);
+            s.photoSizeScale = 0.6f; s.clearPhotoDistance = 10f; s.observationTime = 1f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 4f, 2f, 5f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 2f, 2f, 4f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1.5f, 1f, 3f));

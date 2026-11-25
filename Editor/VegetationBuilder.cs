@@ -12,7 +12,7 @@ namespace WildLens.EditorTools
     /// kept as open meadow and the trail corridor is kept clear, giving readable sight-lines for photography.
     /// Uses assigned prefabs or terrain tree prototypes where available, otherwise generated placeholders.
     /// </summary>
-    public class VegetationBuilder
+    public partial class VegetationBuilder
     {
         private readonly Terrain _terrain;
         private readonly TrailPath _trail;
@@ -28,6 +28,7 @@ namespace WildLens.EditorTools
         private Mesh _cone, _cylinder;
         private Mesh[] _canopies, _rocks;
         private Material[] _bark, _conifer, _leaf, _bush, _stone;
+        private readonly List<GameObject> _treeObjects = new List<GameObject>();
 
         public int TreesPlaced { get; private set; }
         public int BushesPlaced { get; private set; }
@@ -223,6 +224,7 @@ namespace WildLens.EditorTools
                 MakeStatic(tree);
                 Occupy(p);
                 TreesPlaced++;
+                _treeObjects.Add(tree);
             }
         }
 
@@ -452,23 +454,17 @@ namespace WildLens.EditorTools
             };
             var buffers = new Dictionary<Vector3Int, MeshBuffer>(); // (chunkX, chunkZ, type)
 
-            int attempts = _s.grassTuftCount * 4;
-            while (GrassPlaced < _s.grassTuftCount && attempts-- > 0)
+            void AddTuft(Vector3 p, float f, float flowerChance)
             {
-                Vector3 p = RandomPoint();
-                if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.25f) continue;
-                float f = Forest(p);
-                if (R() > 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.3f, 0.75f, f)) * 0.85f) continue;
-                if (TerrainUtil.SlopeDegrees(p) > 40f) continue;
-
                 float dryness = Mathf.PerlinNoise(_noiseOffset + p.x * 0.04f, p.z * 0.04f);
-                int type = R() < 0.05f ? (R() < 0.6f ? 2 : 3) : (dryness > 0.6f ? 1 : 0);
+                int type = R() < flowerChance ? (R() < 0.6f ? 2 : 3) : (dryness > 0.6f ? 1 : 0);
                 var key = new Vector3Int(Mathf.FloorToInt(p.x / chunk), Mathf.FloorToInt(p.z / chunk), type);
                 if (!buffers.TryGetValue(key, out var buf)) buffers[key] = buf = new MeshBuffer();
 
                 Vector3 origin = new Vector3(key.x * chunk, 0f, key.y * chunk);
                 Vector3 local = p - origin + Vector3.down * 0.03f;
-                float scale = R(0.7f, 1.3f) * (1f - f * 0.3f);
+                // Kept below ~0.5 m: grass doesn't block photo line-of-sight, so it mustn't visually hide rabbits.
+                float scale = R(0.6f, 1.1f) * (1f - f * 0.3f);
                 if (type >= 2)
                 {
                     float h = R(0.3f, 0.5f);
@@ -482,12 +478,37 @@ namespace WildLens.EditorTools
                     for (int b = 0; b < blades; b++)
                     {
                         Vector2 o = new Vector2(R(-1f, 1f), R(-1f, 1f)) * 0.12f;
-                        float h = R(0.22f, 0.55f) * scale;
+                        float h = R(0.22f, 0.5f) * scale;
                         Vector3 lean = new Vector3(R(-1f, 1f), 0f, R(-1f, 1f)) * h * 0.25f;
                         buf.Blade(local + new Vector3(o.x, 0f, o.y), R(0f, Mathf.PI), h, R(0.035f, 0.06f), lean);
                     }
                 }
                 GrassPlaced++;
+            }
+
+            int attempts = _s.grassTuftCount * 4;
+            int target = _s.grassTuftCount;
+            while (GrassPlaced < target && attempts-- > 0)
+            {
+                Vector3 p = RandomPoint();
+                if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.25f) continue;
+                float f = Forest(p);
+                if (R() > 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.3f, 0.75f, f)) * 0.85f) continue;
+                if (TerrainUtil.SlopeDegrees(p) > 40f) continue;
+                AddTuft(p, f, 0.05f);
+            }
+
+            // Meadow hotspots: lusher, flower-rich grass. The visual cue players learn means "deer country".
+            foreach (var m in _meadows)
+            {
+                int extra = Mathf.RoundToInt(_s.grassTuftCount * 0.06f);
+                for (int i = 0; i < extra; i++)
+                {
+                    float a = R(0f, Mathf.PI * 2f), r = Mathf.Sqrt(R()) * m.radius;
+                    Vector3 p = TerrainUtil.Ground(m.center + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
+                    if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.25f || TerrainUtil.SlopeDegrees(p) > 40f) continue;
+                    AddTuft(p, 0f, 0.22f);
+                }
             }
 
             // All grass meshes live as sub-assets of one container asset.

@@ -29,19 +29,21 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 | Input | Action |
 |---|---|
 | WASD / Shift | Walk / sprint |
+| **C** | Crouch (toggle; Left Ctrl hold also works in builds) |
 | Mouse | Look |
 | **Hold RMB** | Camera mode: raise the camera (slower, steadier, viewfinder) |
-| Scroll (in camera mode) | Zoom 1× / 2× / 4× / 8× |
+| Scroll | Zoom 1× / 2× / 4× / 8× / 16× (works lowered too, to preselect) |
 | LMB or F (in camera mode) | Take photo |
 | J or Tab | Field journal (pauses the world) · W/S to browse |
 | H | Toggle control hints |
 | Esc | Release mouse / close journal |
 
-**Approaching wildlife:** animals notice you, then stop and watch you (Alert), then flee. Walking makes noise,
-creeping in camera mode is quieter, and standing still is quietest; trees and bushes hide you. When an animal
-stops and stares, freeze and let it settle. Photos are graded **Poor / Good / Excellent** on how visible, large,
-centred and close the subject is. See [`Documentation~/Systems.md`](Documentation~/Systems.md) for how every
-system works and where to tune it.
+**Finding and approaching wildlife:** deer graze in flower meadows, rabbits and foxes stay near brush piles,
+squirrels live around big old trees, and hawks perch on dead snags at meadow edges. Raise the camera and hold an
+animal in the viewfinder to **identify** it (no photo needed). Then **crouch** and creep closer. When it stops and
+stares, freeze until it relaxes. The viewfinder brackets turn green (Good) or gold (Excellent) when the shot is
+right. See [`Documentation~/Systems.md`](Documentation~/Systems.md) for how every system works and where to
+tune it.
 
 ## Architecture
 
@@ -50,22 +52,25 @@ system works and where to tune it.
   package.json
   Scripts/  (WildLens.Runtime.asmdef)
     CameraSystem/  CameraModeController (RMB camera mode), ZoomLens (FOV + zoom levels), CameraAudio
+    Observation/   ObservationTracker (identify species by watching)
     Core/          WildLensGame (composition root, UI pause state), GameInput (input backend abstraction),
                    PlayerPresence (what wildlife can perceive), TerrainUtil, MaterialLibrary, PrimitiveMeshes, SceneQuery
     Data/          SpeciesDefinition (ScriptableObject), SpeciesDatabase, SpeciesDefaults, AnimalActivity
-    Environment/   TrailPath (loop centre-line, location labels), EnvironmentFeature (tags trees/rocks for wildlife)
+    Environment/   TrailPath (loop centre-line, location labels), EnvironmentFeature (tags trees/rocks for wildlife),
+                   HabitatHotspot (meadow / brush pile / mature tree / perch)
     Player/        FirstPersonController, PlayerCameraRig (head-bob, raise dip, handheld sway)
     Wildlife/      AnimalAgent (base brain) → GroundAnimal, FlyingAnimal
                    Awareness/WildlifeAwareness (Calm → Aware → Alert → Fleeing),
                    WildlifeWorld (spatial queries: trees, perches), WildlifeSpawner,
                    PlaceholderAnimalBuilder, AnimalRig, ProceduralAnimalAnimator, AnimalAnimatorBridge
     Photography/   PhotoCamera (shutter → capture → journal), PhotoAnalyzer (detection),
-                   PhotoQualityEvaluator (Poor/Good/Excellent), Photographable, PhotoStorage
+                   PhotoQualityEvaluator (Poor/Good/Excellent), FramingAssistant (subject tracking),
+                   Photographable, PhotoStorage
     Journal/       JournalService (plain C#, JSON persistence), JournalData (save model)
-    UI/            HudController → ViewfinderView, ShutterEffectView, PhotoPreviewView; JournalUI; UIFactory
+    UI/            HudController → ViewfinderView, ShutterEffectView, PhotoPreviewView, NoticeView; JournalUI; UIFactory
                    (built from code, no prefabs, no EventSystem)
   Editor/   (WildLens.Editor.asmdef)
-    WildLensBuilderWindow, WildLensSliceBuilder, SpeciesAssetMigrator, TrailBuilder, VegetationBuilder, PropBuilder,
+    WildLensBuilderWindow, WildLensSliceBuilder, SpeciesAssetMigrator, HabitatHotspotBuilder, TrailBuilder, VegetationBuilder, PropBuilder,
     ProceduralMeshes, GeneratedAssets, SliceBuildSettings
 
 Written into your project (editable):

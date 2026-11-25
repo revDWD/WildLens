@@ -15,6 +15,8 @@ namespace WildLens.Photography
         public PhotoRecord record;
         public List<SpeciesIdentification> identifications;
         public Texture2D thumbnail;
+        /// <summary>When nothing was identified: why the nearest candidate didn't count.</summary>
+        public MissReason nearMiss;
     }
 
     /// <summary>
@@ -24,8 +26,7 @@ namespace WildLens.Photography
     /// grabs the screen at end of frame → raises <see cref="CaptureFinished"/> (shutter blackout) → saves the
     /// image, registers it in the journal and raises <see cref="PhotoTaken"/> (preview card).
     /// The shutter is audible: nearby wildlife gets a little more suspicious.
-    ///
-    /// While the camera is raised it also runs a cheap focus check (<see cref="SubjectInFocus"/>) for the viewfinder.
+    /// Live subject tracking for the viewfinder lives in <see cref="FramingAssistant"/>.
     /// </summary>
     public class PhotoCamera : MonoBehaviour
     {
@@ -47,12 +48,10 @@ namespace WildLens.Photography
         public event Action<PhotoResult> PhotoTaken;
 
         public bool IsCapturing { get; private set; }
-        public bool SubjectInFocus { get; private set; }
         public Camera ViewCamera => viewCamera;
 
         private CameraModeController _mode;
         private float _nextAllowedTime;
-        private float _focusTimer;
 
         /// <summary>Set by the player controller when a click was used to capture the mouse cursor.</summary>
         public static int ClickConsumedFrame = -1;
@@ -66,7 +65,11 @@ namespace WildLens.Photography
         private void Awake()
         {
             if (viewCamera == null) viewCamera = GetComponent<Camera>();
-            if (ignoreRoot == null) ignoreRoot = transform.root;
+            if (ignoreRoot == null)
+            {
+                var body = GetComponentInParent<CharacterController>();
+                ignoreRoot = body != null ? body.transform : transform.parent;
+            }
         }
 
         private void Start() => _mode = GetComponent<CameraModeController>();
@@ -76,26 +79,15 @@ namespace WildLens.Photography
             var game = WildLensGame.Instance;
             bool ready = _mode != null && _mode.IsReady && (game == null || !game.IsUiOpen);
 
-            UpdateFocus(ready);
-
             if (!ready || Cursor.lockState != CursorLockMode.Locked || ClickConsumedFrame == Time.frameCount) return;
             if (!GameInput.ShutterPressed || IsCapturing || Time.unscaledTime < _nextAllowedTime) return;
             StartCoroutine(Capture());
         }
 
-        private void UpdateFocus(bool active)
-        {
-            if (!active) { SubjectInFocus = false; return; }
-            _focusTimer -= Time.unscaledDeltaTime;
-            if (_focusTimer > 0f) return;
-            _focusTimer = 0.1f;
-            SubjectInFocus = PhotoAnalyzer.HasSubjectInFocus(viewCamera, maxDistance, ignoreRoot);
-        }
-
         private IEnumerator Capture()
         {
             IsCapturing = true;
-            var subjects = PhotoAnalyzer.Analyze(viewCamera, maxDistance, ignoreRoot);
+            var analysis = PhotoAnalyzer.Analyze(viewCamera, maxDistance, ignoreRoot);
             Vector3 cameraPosition = viewCamera.transform.position;
 
             CaptureStarting?.Invoke();
@@ -119,12 +111,12 @@ namespace WildLens.Photography
                 imagePath = path,
                 cameraPosition = cameraPosition,
                 locationLabel = trail != null ? trail.DescribeLocation(cameraPosition) : "",
-                subjects = subjects,
+                subjects = analysis.subjects,
             };
 
             var game = WildLensGame.Instance;
             var ids = game != null ? game.Journal.RegisterPhoto(record) : new List<SpeciesIdentification>();
-            PhotoTaken?.Invoke(new PhotoResult { record = record, identifications = ids, thumbnail = thumbnail });
+            PhotoTaken?.Invoke(new PhotoResult { record = record, identifications = ids, thumbnail = thumbnail, nearMiss = analysis.nearMiss });
 
             _nextAllowedTime = Time.unscaledTime + cooldown;
             IsCapturing = false;

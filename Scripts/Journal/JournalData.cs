@@ -36,14 +36,31 @@ namespace WildLens.Journal
         public List<PhotoSubject> subjects = new List<PhotoSubject>();
     }
 
-    /// <summary>Per-species journal entry. Exists only once a species has been photographed.</summary>
+    /// <summary>How a species first entered the journal.</summary>
+    public static class IdentificationMethod
+    {
+        public const string Observation = "observation";
+        public const string Photograph = "photograph";
+    }
+
+    /// <summary>
+    /// Per-species journal entry. Exists once a species has been identified, either by observing it through
+    /// the camera or by photographing it.
+    /// </summary>
     [Serializable]
     public class SpeciesRecord
     {
         public string speciesId;
         public int photoCount;
+        /// <summary><see cref="IdentificationMethod"/> value.</summary>
+        public string identifiedBy;
+        /// <summary>
+        /// Distinct behaviours (AnimalActivity names) seen through the camera or in photos. Recorded now so that
+        /// future behaviour photography and field notes have history to work with; not displayed yet.
+        /// </summary>
+        public List<string> observedBehaviors = new List<string>();
 
-        // First sighting = first photograph that identified this species.
+        // First sighting = first identification (observation or photograph).
         public string firstSightedUtc;
         public string firstSightingLocation;
         public string firstSightingActivity;
@@ -61,7 +78,7 @@ namespace WildLens.Journal
     [Serializable]
     public class JournalSaveData
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
         public int version = CurrentVersion;
         public List<SpeciesRecord> species = new List<SpeciesRecord>();
         public List<PhotoRecord> photos = new List<PhotoRecord>();

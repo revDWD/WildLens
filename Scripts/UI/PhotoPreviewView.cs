@@ -53,6 +53,8 @@ namespace WildLens.UI
             if (result.identifications == null || result.identifications.Count == 0)
             {
                 sb.Append("<i>No wildlife identified</i>");
+                string reason = PhotoAnalyzer.Describe(result.nearMiss);
+                if (!string.IsNullOrEmpty(reason)) sb.Append("\n<size=16><color=#6B6458>").Append(reason).Append("</color></size>");
             }
             else
             {
@@ -64,6 +66,8 @@ namespace WildLens.UI
                     sb.Append("<b>").Append(id.species.displayName).Append("</b>  <color=#")
                       .Append(ColorUtility.ToHtmlStringRGB(QualityColor(q))).Append('>').Append(id.subject.quality).Append("</color>");
                     if (id.isNewSpecies) sb.Append("  <color=#3E7A2E><size=17>new</size></color>");
+                    else if (id.isFirstPhoto) sb.Append("  <color=#3E7A2E><size=17>first photo</size></color>");
+                    else if (id.isNewBest) sb.Append("  <color=#3E7A2E><size=17>new best</size></color>");
                     if (!string.IsNullOrEmpty(id.subject.hint))
                         sb.Append("\n<size=16><color=#6B6458>").Append(id.subject.hint).Append("</color></size>");
                     sb.Append('\n');

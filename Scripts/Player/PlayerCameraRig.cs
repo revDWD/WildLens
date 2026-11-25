@@ -1,5 +1,6 @@
 using UnityEngine;
 using WildLens.CameraSystem;
+using WildLens.Observation;
 using WildLens.Photography;
 
 namespace WildLens.Player
@@ -23,8 +24,8 @@ namespace WildLens.Player
 
         [Header("Camera mode handling")]
         [SerializeField] private float raiseDip = 0.025f;
-        [Tooltip("Handheld sway in degrees at 1×; grows gently with zoom.")]
-        [SerializeField] private float handheldSway = 0.05f;
+        [Tooltip("Handheld sway in degrees at 1×; grows gently with zoom, settles when still or crouched.")]
+        [SerializeField] private float handheldSway = 0.035f;
 
         private CameraModeController _mode;
         private ZoomLens _lens;
@@ -53,6 +54,8 @@ namespace WildLens.Player
             _mode = GetComponent<CameraModeController>();
             if (_mode == null) _mode = gameObject.AddComponent<CameraModeController>();
             if (GetComponent<PhotoCamera>() == null) gameObject.AddComponent<PhotoCamera>();
+            if (GetComponent<FramingAssistant>() == null) gameObject.AddComponent<FramingAssistant>();
+            if (GetComponent<ObservationTracker>() == null) gameObject.AddComponent<ObservationTracker>();
             if (GetComponent<CameraAudio>() == null) gameObject.AddComponent<CameraAudio>();
         }
 
@@ -69,7 +72,8 @@ namespace WildLens.Player
             float cameraBlend = _mode.Blend;
 
             // Head bob, mostly suppressed while holding the camera to the eye.
-            float targetWeight = Mathf.Clamp01(speed / 3f) * Mathf.Lerp(1f, 0.2f, cameraBlend);
+            float crouch = controller != null ? controller.CrouchBlend : 0f;
+            float targetWeight = Mathf.Clamp01(speed / 3f) * Mathf.Lerp(1f, 0.2f, cameraBlend) * Mathf.Lerp(1f, 0.6f, crouch);
             _bobWeight = Mathf.Lerp(_bobWeight, targetWeight, 1f - Mathf.Exp(-6f * dt));
             _bobPhase += dt * bobFrequency * Mathf.Lerp(1f, 1.5f, Mathf.Clamp01((speed - 3f) / 3f)) * Mathf.PI * 2f;
             Vector3 bob = new Vector3(Mathf.Cos(_bobPhase * 0.5f) * bobAmplitude * 0.5f,
@@ -85,7 +89,9 @@ namespace WildLens.Player
             // Handheld sway: noticeable only zoomed in, and settles after standing still for a moment.
             _stillTime = speed < 0.1f ? _stillTime + dt : 0f;
             float steadiness = Mathf.Lerp(1f, 0.35f, Mathf.Clamp01(_stillTime / 1.5f));
-            float amp = handheldSway * cameraBlend * steadiness * (1f + Mathf.Log(Mathf.Max(1f, _lens.CurrentMagnification), 2f) * 0.5f);
+            // Grows gently per zoom doubling; crouching braces the camera a little.
+            float amp = handheldSway * cameraBlend * steadiness * Mathf.Lerp(1f, 0.8f, crouch)
+                        * (1f + Mathf.Log(Mathf.Max(1f, _lens.CurrentMagnification), 2f) * 0.25f);
             float t = Time.time * 0.6f;
             transform.localRotation = Quaternion.Euler(
                 (Mathf.PerlinNoise(_seed, t) * 2f - 1f) * amp,

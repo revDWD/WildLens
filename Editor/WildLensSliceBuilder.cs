@@ -84,6 +84,8 @@ namespace WildLens.EditorTools
                 veg.BuildLogs(Child(env, "Logs"));
                 Progress("Bushes", 0.6f);
                 veg.BuildBushes(Child(env, "Bushes"));
+                Progress("Habitat hotspots", 0.65f);
+                veg.BuildHotspots(Child(env, "Habitat"));
                 Progress("Grass", 0.7f);
                 veg.BuildGrass(Child(env, "Grass"));
 
@@ -101,7 +103,7 @@ namespace WildLens.EditorTools
                 Selection.activeGameObject = root;
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +
-                          $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.GrassPlaced} grass tufts. " +
+                          $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.GrassPlaced} grass tufts, {veg.HotspotsPlaced} habitat hotspots. " +
                           "Save the scene, then press Play.");
             }
             finally
@@ -293,6 +295,8 @@ namespace WildLens.EditorTools
             camGo.AddComponent<ZoomLens>();
             camGo.AddComponent<CameraModeController>();
             var photo = camGo.AddComponent<PhotoCamera>();
+            camGo.AddComponent<FramingAssistant>();
+            camGo.AddComponent<WildLens.Observation.ObservationTracker>();
             camGo.AddComponent<CameraAudio>();
             var rig = camGo.AddComponent<PlayerCameraRig>();
             var controller = player.AddComponent<FirstPersonController>();

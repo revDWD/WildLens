@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0] Encounters
+### Added
+- Crouch (C toggle; Left Ctrl hold): half speed, half footfall noise, smaller silhouette, lower head hidden by
+  cover, smooth camera transition, headroom check.
+- Observation identification: hold an animal in the viewfinder to identify it and add it to the journal without
+  a photo; chime and notice.
+- Framing assistant: viewfinder brackets track the subject nearest centre and show the grade a photo would get.
+- 16x zoom step (about 410 mm equivalent), focal-length readout, zoom preselect while the camera is lowered,
+  vignette that deepens with zoom.
+- Habitat hotspots (meadows, brush piles, mature trees, dead-snag perches) with visible landscape cues; species
+  favour them; derived automatically in scenes built without them.
+- "Why nothing was identified" feedback on photos.
+
+### Changed
+- Photo grading uses linear frame fill with clear thresholds instead of area against per-species ideals; thirds
+  composition can be Excellent. Much higher success rate at every zoom level.
+- Awareness tuned for "approachable realism": standing still always lets animals settle; shorter flee runs and a
+  longer look back; softer post-flee memory; per-species tuning (see Documentation~/Systems.md).
+- Species assets upgrade automatically (data version 3); journal save version 3.
+
 ## [0.2.0] Camera & Wildlife Awareness
 ### Added
 - Camera Mode (hold RMB): reduced movement and look speed, narrower FOV, viewfinder overlay, raise transition with

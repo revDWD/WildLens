@@ -6,10 +6,15 @@ using WildLens.Photography;
 namespace WildLens.Player
 {
     /// <summary>
-    /// First-person walking controller: mouse look, walk/sprint with smoothed acceleration, gravity and
-    /// ground snapping. In camera mode (<see cref="CameraModeController"/>) it creeps at a reduced speed, can't
-    /// sprint, and look input is damped and lightly smoothed so the camera feels like it has weight.
-    /// Reports itself to wildlife through <see cref="PlayerPresence"/>.
+    /// First-person controller: mouse look, walk / sprint / crouch with smoothed acceleration, gravity and
+    /// ground snapping. Reports itself to wildlife through <see cref="PlayerPresence"/>.
+    ///
+    /// Crouch (C toggles, hold Left Ctrl) is the stalking tool: half speed, half the footfall noise, a smaller
+    /// silhouette, and a lower head that bushes and rocks can hide. The capsule and camera lower smoothly; the
+    /// player won't stand up under something solid. Sprinting cancels crouch.
+    ///
+    /// In camera mode (<see cref="CameraModeController"/>) speed is further reduced, sprint is unavailable, and
+    /// look input is damped and lightly smoothed so the camera feels like it has weight.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class FirstPersonController : MonoBehaviour
@@ -21,8 +26,16 @@ namespace WildLens.Player
         [Header("Movement")]
         [SerializeField] private float walkSpeed = 3.0f;
         [SerializeField] private float sprintSpeed = 6.0f;
+        [SerializeField] private float crouchSpeed = 1.5f;
         [SerializeField] private float acceleration = 10f;
         [SerializeField] private float gravity = -20f;
+
+        [Header("Crouch")]
+        [SerializeField] private float standingHeight = 1.8f;
+        [SerializeField] private float crouchHeight = 1.1f;
+        [Tooltip("Camera pivot sits this far below the top of the capsule.")]
+        [SerializeField] private float eyeOffsetFromTop = 0.15f;
+        [SerializeField] private float crouchTransitionTime = 0.18f;
 
         [Header("Look")]
         [SerializeField] private float lookSensitivity = 2f;
@@ -37,7 +50,13 @@ namespace WildLens.Player
         private Vector2 _smoothedLook, _lookVelocity;
         private CameraModeController _mode;
 
+        private bool _crouchToggled;
+        private float _height, _heightVelocity;
+
         public bool IsSprinting { get; private set; }
+        public bool IsCrouching { get; private set; }
+        /// <summary>0 standing … 1 fully crouched (animated).</summary>
+        public float CrouchBlend => Mathf.InverseLerp(standingHeight, crouchHeight, _height);
         public float CurrentSpeed => _horizontalVelocity.magnitude;
         public bool IsGrounded => _controller.isGrounded;
         public float SprintSpeed => sprintSpeed;
@@ -53,6 +72,8 @@ namespace WildLens.Player
             _controller = GetComponent<CharacterController>();
             _yaw = transform.eulerAngles.y;
             if (cameraPivot != null) _pitch = NormalizePitch(cameraPivot.localEulerAngles.x);
+            _height = standingHeight;
+            ApplyHeight();
         }
 
         private void Start()
@@ -73,11 +94,55 @@ namespace WildLens.Player
             if (!uiOpen && (game == null || game.UiClosedFrame != Time.frameCount)) HandleCursor();
             bool canControl = !uiOpen && Cursor.lockState == CursorLockMode.Locked;
 
+            bool wantSprint = canControl && GameInput.SprintHeld && !raised;
+            if (canControl) UpdateCrouch(wantSprint);
             if (canControl) Look();
-            Move(canControl ? GameInput.Move : Vector2.zero, canControl && GameInput.SprintHeld && !raised, raised);
+            Move(canControl ? GameInput.Move : Vector2.zero, wantSprint && !IsCrouching, raised);
+            AnimateHeight();
 
-            PlayerPresence.Report(transform, transform.position, CurrentSpeed, IsSprinting, raised);
+            float eye = _height - eyeOffsetFromTop;
+            PlayerPresence.Report(transform, transform.position, CurrentSpeed, IsSprinting, IsCrouching, raised, eye);
         }
+
+        // ------------------------------------------------------------------ crouch
+
+        private void UpdateCrouch(bool wantSprint)
+        {
+            if (GameInput.CrouchTogglePressed) _crouchToggled = !_crouchToggled;
+            if (wantSprint && GameInput.Move.y > 0.1f) _crouchToggled = false; // sprinting stands you up
+
+            bool want = _crouchToggled || GameInput.CrouchHeld;
+            if (!want && IsCrouching && !HasHeadroom()) want = true; // can't stand under a log or branch
+            IsCrouching = want;
+        }
+
+        private bool HasHeadroom()
+        {
+            float radius = _controller.radius * 0.9f;
+            Vector3 bottom = transform.position + Vector3.up * (_height - radius);
+            float distance = standingHeight - _height + 0.05f;
+            return !Physics.SphereCast(bottom, radius, Vector3.up, out _, distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        }
+
+        private void AnimateHeight()
+        {
+            float target = IsCrouching ? crouchHeight : standingHeight;
+            _height = Mathf.SmoothDamp(_height, target, ref _heightVelocity, crouchTransitionTime);
+            ApplyHeight();
+        }
+
+        private void ApplyHeight()
+        {
+            _controller.height = _height;
+            _controller.center = new Vector3(0f, _height * 0.5f, 0f);
+            if (cameraPivot != null)
+            {
+                Vector3 p = cameraPivot.localPosition;
+                cameraPivot.localPosition = new Vector3(p.x, _height - eyeOffsetFromTop, p.z);
+            }
+        }
+
+        // ------------------------------------------------------------------ cursor & look
 
         private void HandleCursor()
         {
@@ -110,14 +175,17 @@ namespace WildLens.Player
             if (cameraPivot != null) cameraPivot.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
         }
 
+        // ------------------------------------------------------------------ movement
+
         private void Move(Vector2 input, bool sprint, bool raised)
         {
             float dt = Time.deltaTime;
             IsSprinting = sprint && input.y > 0.1f;
-            float speed = raised ? walkSpeed * _mode.MovementSpeedMultiplier : (IsSprinting ? sprintSpeed : walkSpeed);
+            float baseSpeed = IsCrouching ? crouchSpeed : walkSpeed;
+            float speed = raised && _mode != null ? baseSpeed * _mode.MovementSpeedMultiplier : (IsSprinting ? sprintSpeed : baseSpeed);
 
             Vector3 wish = (transform.right * input.x + transform.forward * input.y) * speed;
-            _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, wish, acceleration * speed * dt);
+            _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, wish, acceleration * Mathf.Max(speed, walkSpeed) * dt);
 
             if (_controller.isGrounded && _verticalVelocity < 0f) _verticalVelocity = -2f; // keep snapped to slopes
             _verticalVelocity += gravity * dt;

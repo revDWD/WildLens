@@ -4,99 +4,121 @@ How the gameplay systems fit together, and where to tune them. Values live on co
 the species assets in `Assets/WildLens/Data/Species/`.
 
 ```
-Input ─► CameraModeController ─► ZoomLens (FOV)        ─► PlayerCameraRig (bob, raise dip, handheld sway)
-               │                    │
-               ▼                    ▼
-        FirstPersonController   HudController ─► ViewfinderView / ShutterEffectView / PhotoPreviewView
-               │                    ▲
-               ▼                    │ events
-        PlayerPresence ──► WildlifeAwareness ──► GroundAnimal / FlyingAnimal ──► ProceduralAnimalAnimator
-                                                         ▲
-        PhotoCamera ──► PhotoAnalyzer ──► PhotoQualityEvaluator ──► JournalService
-            └──── shutter sound ──► WildlifeAwareness.EmitSound
+Input ─► FirstPersonController (walk / sprint / crouch) ──► PlayerPresence (noise, silhouette, head height)
+     └─► CameraModeController ─► ZoomLens (FOV)                         │
+                 │                    │                                  ▼
+                 │                    │              WildlifeAwareness ──► GroundAnimal / FlyingAnimal
+                 ▼                    ▼                                  ▲            ▲
+          FramingAssistant ──► ObservationTracker ──► JournalService     │     WildlifeWorld (trees,
+                 │                                          ▲            │     perches, hotspots)
+                 ▼                                          │      shutter sound
+          PhotoCamera ──► PhotoAnalyzer ──► PhotoQualityEvaluator
+                 └──────────────── events ──► HudController (Viewfinder / Shutter / Preview / Notice views)
 ```
 
-## Camera Mode — `Scripts/CameraSystem/`
+## The encounter loop this is tuned for
+
+Spot an animal → raise the camera (RMB) → zoom (scroll) → the viewfinder brackets it; hold it there and it is
+**identified by observation** → **crouch** (C) and approach → it becomes Alert and stares → **freeze**; it
+relaxes → brackets turn green (Good) or gold (Excellent) → take the photograph.
+
+## Camera — `Scripts/CameraSystem/`
 
 | Component | Responsibility |
 |---|---|
-| `CameraModeController` | Hold **RMB** to enter, release to exit. Exposes `IsActive`, an eased `Blend` (0 lowered → 1 at the eye, ~0.22 s), `IsReady` (raised enough to shoot), `MovementSpeedMultiplier` (0.45) and `LookSensitivityScale` (0.8, then scaled by zoom). Raises `Entered` / `Exited`. |
-| `ZoomLens` | The only thing that writes the camera's FOV. Walking 65°; camera mode 1× = 50°. Scroll steps through `zoomLevels` (1×, 2×, 4×, 8×), smoothed in log space so each step feels equally quick. The level is remembered between raises. Raises `LevelChanged`. |
-| `CameraAudio` | Shutter (on the press, so it feels instant), zoom detent tick, raise rustle. Clips are synthesised at start; assign authored clips in the Inspector to replace them. |
-| `PlayerCameraRig` (Player) | Physical motion only: head-bob (suppressed in camera mode), a small spring dip when raising, and subtle handheld sway that grows with zoom and settles after ~1.5 s of standing still. Adds any missing camera components at start-up (keeps older scenes working). |
-
-Photos can only be taken in camera mode. That's deliberate: framing is the action, the shutter confirms it.
+| `CameraModeController` | Hold **RMB**. `IsActive`, eased `Blend` (~0.22 s), `IsReady` (can shoot), movement ×0.5, look ×0.8 (then scaled by zoom). Events `Entered` / `Exited`. |
+| `ZoomLens` | Sole owner of FOV. Walking 65°; camera 1× = 50° (≈26 mm). Steps **1× 2× 4× 8× 16×** (16× ≈ 410 mm), smoothed in log space. The wheel also works with the camera lowered: it **preselects** the lens (a notice confirms it). Exposes `EquivalentFocalLength` for the readout. |
+| `CameraAudio` | Shutter, zoom detent, raise rustle, identification chime (synthesised; assign clips to replace). |
+| `PlayerCameraRig` (Player) | Head-bob (reduced in camera mode and crouched), raise dip, handheld sway (+25% per zoom doubling, settles when still or crouched). Adds any missing camera components at start-up. |
 
 ## Photography — `Scripts/Photography/`
 
-1. **`PhotoCamera`**: on LMB/F while `IsReady`, it analyses the frame, raises `CaptureStarting` (sound plays, HUD hides),
-   grabs the screen at end of frame, raises `CaptureFinished` (shutter blackout), saves the JPG, registers it in
-   the journal and raises `PhotoTaken` (preview card). The shutter is audible to animals within 12 m.
-   While raised it also runs a 10 Hz focus check (`SubjectInFocus`) that tints the viewfinder brackets green.
-   The check says nothing about species.
-2. **`PhotoAnalyzer`**: detection. A subject counts if it is in front of the camera, at least 30% of its sample points
-   are in frame and unobstructed (trees, bushes and rocks occlude; the player never does), and it covers at least 2% of
-   its species' ideal frame size. Produces `SubjectMeasurements`.
-3. **`PhotoQualityEvaluator`**: classification, with explicit rules (first failing factor becomes the hint):
+* **`PhotoAnalyzer.TryMeasure`** measures one subject from the live projection, so zoom is accounted for automatically:
+  * **frame fill**: the larger of subject-height/frame-height and subject-width/frame-width, so it doubles when the zoom doubles
+  * **visibility**: 9 points inside the body that are in frame and unobstructed
+  * **centring**: per-axis offset from centre; 0.33 means on a third
+  * **distance**: relative to the species' `clearPhotoDistance`
+* **`PhotoQualityEvaluator`** applies the rules (fills are × the species' `photoSizeScale`: deer 1, fox 0.85, hawk 0.8, rabbit 0.7, squirrel 0.6):
 
-   | Class | Visibility | Size vs ideal | Centre offset | Distance vs clear distance |
-   |---|---|---|---|---|
-   | Excellent | ≥ 85% | ≥ 55% | ≤ 0.22 | ≤ 1.0× |
-   | Good | ≥ 50% | ≥ 22% | ≤ 0.45 | ≤ 1.8× |
-   | Poor | anything else identified | | | |
+  | | Fill | Visibility | Centre offset | Distance |
+  |---|---|---|---|---|
+  | Identified | ≥ 2.5% | ≥ 30% | | |
+  | Good | ≥ 10% | ≥ 45% | ≤ 0.75 | ≤ 2.5 × clear |
+  | Excellent | ≥ 25% | ≥ 75% | ≤ 0.4 (thirds count) | ≤ clear |
 
-   *Size* comes from zoom and distance; *distance* is about clarity: beyond a species' `clearPhotoDistance` haze
-   softens detail even at 8×, so getting physically closer still matters. There is no score shown to the player;
-   an internal rating only breaks ties when choosing a species' best photo.
+  Below Excellent, a hint names the first thing to fix: *too close, zoom out* · *partly hidden* · *small in frame,
+  zoom in* · *too far for fine detail, get closer* · *off-centre*. A photo that identifies nothing says why the
+  nearest animal didn't count (*too small: zoom in*, *view blocked*, *too close*).
+* **`FramingAssistant`** (subject tracking, 10 Hz): picks the subject nearest the frame centre (sticky), measures it with
+  the same code as a photo and previews its class. The viewfinder draws brackets around it: dim if it can't be
+  identified, then white/green/gold for Poor/Good/Excellent.
+* **`PhotoCamera`**: shutter only in camera mode; capture flow and events as before; the shutter is audible to
+  animals within 12 m.
+
+### Why the old rules failed (0.2.0 → 0.3.0)
+0.2.0 measured **area** coverage against a demanding per-species ideal. Area falls with distance², so at 1×
+nearly nothing beyond an animal's flee distance could be identified, and 8× was the only zoom that worked.
+Linear fill with species-independent thresholds makes every zoom step change the result, while the clarity
+distance keeps the best photos tied to a careful approach.
+
+## Observation — `Scripts/Observation/ObservationTracker.cs`
+
+Keep a tracked, identifiable subject within half-frame of centre and ≥1.5× the minimum identifiable size for its
+species' `observationTime` (1–1.5 s) and it is identified: journal entry, notice and chime, with no photo needed.
+Brief interruptions are forgiven (0.5 s) and progress drains instead of resetting. Watching known species records
+their behaviours (`SpeciesRecord.observedBehaviors`).
+
+## Crouch — `Scripts/Player/FirstPersonController.cs`
+
+**C** toggles (Left Ctrl hold also works in builds). 1.5 m/s (0.75 in camera mode), smooth capsule/camera
+lowering (1.65 → 0.95 m eye height), won't stand up under cover, sprinting stands you up.
+Effect on wildlife (`PlayerPresence`): footfall noise ×0.5, silhouette ×0.55, and the lower head is hidden by
+bushes, brush piles and rocks.
 
 ## Wildlife Awareness — `Scripts/Wildlife/Awareness/WildlifeAwareness.cs`
 
-Each animal accumulates **suspicion** (0–1) while the player is within its **awareness radius**:
-
-`gain/s = suspicionGain × playerNoise × lineOfSight × shelter × memory × (0.25 + 1.75 × proximity²)`
-
-* **playerNoise** (`PlayerPresence.Noise`): still 0.15 · creeping in camera mode 0.3–0.5 · walking 0.5–1 · sprinting 2.2
-* **lineOfSight**: 1, or 0.35 when trees/bushes/rocks block the view between animal and player (checked ~3×/s)
-* **shelter**: 0.4 while on a trunk or in the air
-* **memory**: ×1.6 for 30 s after the animal last fled
-* **proximity**: 0 at the awareness radius → 1 at the flee radius
-* Standing still lets suspicion **decay**, so you can wait an animal out.
+`stimulus = noise × (line of sight ? silhouette : 0.35)`
+`gain/s = suspicionGain × stimulus × shelter × memory × (0.25 + 1.75 × proximity²)`, ÷ `alertPatience` while Alert.
+Standing still subtracts `suspicionDecay`/s; out of range decays at 1.5×. Memory after fleeing: ×1.3 for 20 s.
 
 | State | Enter when | Animal does |
 |---|---|---|
-| Calm | default | species behaviours |
-| Aware | suspicion ≥ 0.25 inside awareness radius | glances at you every few seconds, won't lie down, drifts away from you |
-| Alert | suspicion ≥ 0.6 inside **alert radius** | stops and stares (rabbits/squirrels sit up; deer flag the tail; perched hawks turn to face you). Suspicion now grows at 1/`alertPatience` |
-| Fleeing | suspicion reaches 1 (only possible while Alert), approaching for longer than `alertPatience` while Alert, moving inside the **flee radius**, sprinting inside `alertRadius × startleSensitivity`, or a shutter too close | runs (rabbits zig-zag), squirrels climb, hawks take flight away from you |
+| Aware | suspicion ≥ 0.25 inside awareness radius | glances at you, won't rest, drifts away |
+| Alert | ≥ 0.6 inside alert radius (suspicion is capped below this outside it) | stops and stares; rabbits/squirrels sit up; deer flag the tail |
+| Fleeing | suspicion 1 (only while Alert), approaching past `alertPatience`, inside flee radius while noticed/conspicuous, sprint startle | runs a short way and **looks back** (4–8 s), squirrels climb, hawks fly away |
 
-Escalation always passes through Alert, except the flee-radius and sprint-startle shortcuts. That gives the
-player a readable warning and a chance to freeze. Brains call `EndFlee()` when safe and the animal returns as
-Aware with heightened memory. Select an animal in the Scene view during Play to see its three radii.
+| Species | Aware / Alert / Flee (m) | Gain | Decay | Patience | Character |
+|---|---|---|---|---|---|
+| Deer | 36 / 24 / 10 | 0.8 | 0.08 | 6 s | watches a long time; freeze and it settles |
+| Rabbit | 16 / 10 / 4 | 1.3 | 0.12 | 3 s | notices fast, freezes rather than bolts |
+| Fox | 26 / 15 / 8 | 0.9 | 0.10 | 4 s | |
+| Squirrel | 12 / 7 / 3.5 | 0.9 | 0.15 | 2.5 s | tolerant; escapes up a trunk and watches |
+| Hawk (perched) | 40 / 26 / 14 | 0.9 | 0.08 | 3 s | needs patience; ignores you in flight |
 
-Tuning (species assets → *Awareness*): `awarenessRadius`, `alertRadius`, `fleeRadius`, `suspicionGain`,
-`suspicionDecay`, `alertPatience`, `startleSensitivity`.
+Simulated outcomes (open ground, no cover): walking spooks everything at 7–22 m; crouch-creeping reaches
+rabbits, foxes and squirrels; deer and perched hawks need the creep-and-freeze approach, which then allows
+minutes inside Excellent range.
 
-## Wildlife AI — `Scripts/Wildlife/`
+## Habitat hotspots — `Scripts/Environment/HabitatHotspot.cs`
 
-Brains react to awareness events; they never sense the player directly.
+Types: **Meadow** (deer; lush flower-rich grass), **BrushPile** (rabbits, foxes), **MatureTree** (squirrels; big old
+trees), **Perch** (hawks; dead snags at meadow edges). Each species has `preferredHotspots` and
+`hotspotAffinity` (chance a group's home range is centred on one). Hawks pick perches inside Perch hotspots 4× as
+often. Animals still wander, flee and return home, so hotspots stay productive without scripting.
+The builder places hotspots with visible cues; without any in the scene, `WildlifeWorld` derives them from the
+scenery. Gizmos show them in the Scene view.
 
-* **`GroundAnimal`**: modes Moving (Walking / Hopping, or an occasional Running leg via `runLegChance`), Behaving
-  (weighted species behaviours), Watching (aware glance / alert stare), Fleeing, Climbing.
-  * Rabbit: Grazing, Sitting, Grooming, Sniffing, LookingAround · moves by Hopping · sits up when Alert
-  * Deer: Grazing, LookingAround, Grooming, Resting · Walking, occasional Running bounds · long Alert stare
-* **`FlyingAnimal`**: Flying (circling thermals / gliding to new ones) → Landing (slow, flare, braking flaps) →
-  Perched (scans; watches you when Aware/Alert) → TakingOff (hard flaps; away from you when disturbed) → Flying.
-* **`ProceduralAnimalAnimator`**: poses per activity (sit-up, grazing reach, gaze tracking, landing flare, wing fold).
+## Extension points (not implemented yet)
 
-## UI — `Scripts/UI/`
-
-`HudController` composes `ViewfinderView` (vignette, frame, thirds, focus brackets, zoom row),
-`ShutterEffectView` (0.17 s curtain blackout after capture) and `PhotoPreviewView` (print-style card with
-species, quality class and a short hint for anything below Excellent; fades after ~4 s). Walking HUD is just a
-dot, counters and hints, which dim while the camera is raised.
+* Behaviour photography / field notes: `PhotoSubject.activity`, `SpeciesRecord.observedBehaviors`,
+  `ObservationTracker` (one place to add behaviour-specific observation).
+* Seasonal activity: `HabitatHotspot.weight` and `SpeciesDefinition.hotspotAffinity` are runtime-tunable weights.
+* Rare variants: `SpeciesDefinition` plus `PhotoSubject.speciesId`; journal records are per species id.
+* Sound identification: `ObservationTracker` already turns sustained attention into a journal entry; a sound-based
+  source can call `JournalService.RecordObservation` the same way.
 
 ## Data migrations
 
-* Species assets: `SpeciesDefinition.dataVersion`. `SpeciesAssetMigrator` (editor) upgrades the built-in species to
-  the current tuning after script reload; also **WildLens ▸ Upgrade Species Assets**.
-* Journal save: `JournalSaveData.version` 2. Version-1 scores are converted to quality classes on load.
+* Species assets: `dataVersion` 3. `SpeciesAssetMigrator` applies current gameplay tuning to the built-in species
+  after script reload (**WildLens ▸ Upgrade Species Assets** to run manually).
+* Journal save: version 3 (adds `identifiedBy`, `observedBehaviors`); version-1 scores were converted in 0.2.0.

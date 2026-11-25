@@ -7,10 +7,10 @@ namespace WildLens.EditorTools
     /// <summary>
     /// Upgrades SpeciesDefinition assets created by an older package version after each script reload.
     ///
-    /// Version 2 (Camera &amp; Wildlife Awareness): the five built-in species get their tuned awareness radii,
-    /// suspicion rates, patience, new behaviour sets and photo-clarity distance; other settings (population,
-    /// visuals, prefabs, movement) are left as you tuned them. Custom species keep their values; their old
-    /// alert/flee distances carry over automatically via FormerlySerializedAs.
+    /// When the data version rises, the five built-in species get the current gameplay tuning
+    /// (<see cref="SpeciesDefaults.ApplyTuning"/>: awareness, behaviours, photo requirements, observation,
+    /// habitat hotspots, group size). Visuals, prefabs and movement are left as you tuned them.
+    /// Custom species keep their values; old alert/flee distances carry over via FormerlySerializedAs.
     /// </summary>
     [InitializeOnLoad]
     public static class SpeciesAssetMigrator
@@ -34,7 +34,7 @@ namespace WildLens.EditorTools
                 var defaults = SpeciesDefaults.CreateById(asset.speciesId);
                 if (defaults != null)
                 {
-                    SpeciesDefaults.ApplyVersion2Tuning(asset, defaults);
+                    SpeciesDefaults.ApplyTuning(asset, defaults);
                     Object.DestroyImmediate(defaults);
                 }
                 else
@@ -49,7 +49,7 @@ namespace WildLens.EditorTools
             if (upgraded > 0)
             {
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[WildLens] Upgraded {upgraded} species asset(s) to data version {SpeciesDefinition.CurrentDataVersion} (awareness & behaviour tuning).");
+                Debug.Log($"[WildLens] Upgraded {upgraded} species asset(s) to data version {SpeciesDefinition.CurrentDataVersion} (gameplay tuning).");
             }
         }
     }

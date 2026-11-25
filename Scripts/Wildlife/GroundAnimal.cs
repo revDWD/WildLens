@@ -292,8 +292,8 @@ namespace WildLens.Wildlife
         {
             if (!ArrivedOrTimedOut()) return;
             if (Awareness != null) Awareness.EndFlee();
-            // After bolting, animals typically stop and look back.
-            StartBehavior(new BehaviorOption(AnimalActivity.LookingAround, 1f, 3f, 6f));
+            // After bolting, animals typically stop and look back: a second chance for a photo.
+            StartBehavior(new BehaviorOption(AnimalActivity.LookingAround, 1f, 4f, 8f));
             if (Awareness != null && Awareness.State != AwarenessState.Calm) AttentionPoint = Awareness.ThreatPosition;
         }
 

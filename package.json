@@ -1,6 +1,6 @@
 {
   "name": "com.revdwd.wildlens",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "WildLens",
   "description": "First-person wildlife photography vertical slice: trail loop builder, five wildlife species with natural behaviour, photo identification and a field journal.",
   "unity": "2021.3",

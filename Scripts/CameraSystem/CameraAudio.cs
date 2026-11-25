@@ -1,11 +1,14 @@
 using UnityEngine;
+using WildLens.Data;
+using WildLens.Observation;
 using WildLens.Photography;
 
 namespace WildLens.CameraSystem
 {
     /// <summary>
-    /// Camera sounds: shutter (on the shutter press, so it feels instant), a soft detent tick per zoom step and a
-    /// quiet handling sound when the camera is raised. Clips are synthesised at startup so no audio assets are
+    /// Camera sounds: shutter (on the shutter press, so it feels instant), a soft detent tick per zoom step, a
+    /// quiet handling sound when the camera is raised, and a soft two-note chime when a species is identified
+    /// by observation. Clips are synthesised at startup so no audio assets are
     /// needed; assign authored clips to override them.
     /// </summary>
     public class CameraAudio : MonoBehaviour
@@ -13,14 +16,17 @@ namespace WildLens.CameraSystem
         [SerializeField] private AudioClip shutterClip;
         [SerializeField] private AudioClip zoomTickClip;
         [SerializeField] private AudioClip raiseClip;
+        [SerializeField] private AudioClip identifyClip;
         [SerializeField, Range(0f, 1f)] private float shutterVolume = 0.75f;
         [SerializeField, Range(0f, 1f)] private float zoomTickVolume = 0.3f;
         [SerializeField, Range(0f, 1f)] private float raiseVolume = 0.2f;
+        [SerializeField, Range(0f, 1f)] private float identifyVolume = 0.35f;
 
         private AudioSource _source;
         private PhotoCamera _photo;
         private ZoomLens _lens;
         private CameraModeController _mode;
+        private ObservationTracker _observation;
 
         private void Awake()
         {
@@ -30,6 +36,7 @@ namespace WildLens.CameraSystem
             if (shutterClip == null) shutterClip = ProceduralSounds.Shutter();
             if (zoomTickClip == null) zoomTickClip = ProceduralSounds.ZoomTick();
             if (raiseClip == null) raiseClip = ProceduralSounds.Handling();
+            if (identifyClip == null) identifyClip = ProceduralSounds.Chime();
         }
 
         private void OnEnable()
@@ -40,6 +47,8 @@ namespace WildLens.CameraSystem
             if (_photo != null) _photo.CaptureStarting += OnShutter;
             if (_lens != null) _lens.LevelChanged += OnZoom;
             if (_mode != null) _mode.Entered += OnRaise;
+            _observation = GetComponent<ObservationTracker>();
+            if (_observation != null) _observation.SpeciesIdentified += OnIdentified;
         }
 
         private void OnDisable()
@@ -47,11 +56,13 @@ namespace WildLens.CameraSystem
             if (_photo != null) _photo.CaptureStarting -= OnShutter;
             if (_lens != null) _lens.LevelChanged -= OnZoom;
             if (_mode != null) _mode.Entered -= OnRaise;
+            if (_observation != null) _observation.SpeciesIdentified -= OnIdentified;
         }
 
         private void OnShutter() => _source.PlayOneShot(shutterClip, shutterVolume);
         private void OnZoom(int level) => _source.PlayOneShot(zoomTickClip, zoomTickVolume);
         private void OnRaise() => _source.PlayOneShot(raiseClip, raiseVolume);
+        private void OnIdentified(SpeciesDefinition species) => _source.PlayOneShot(identifyClip, identifyVolume);
     }
 
     /// <summary>Tiny synthesiser for placeholder camera sounds.</summary>
@@ -101,6 +112,29 @@ namespace WildLens.CameraSystem
                 data[i] = noise * Mathf.Exp(-t * 1500f) * 0.6f + Mathf.Sin(2f * Mathf.PI * 2200f * t) * Mathf.Exp(-t * 500f) * 0.5f;
             }
             return Build("ZoomTick", data);
+        }
+
+        /// <summary>Two soft rising sine notes with a gentle decay.</summary>
+        public static AudioClip Chime()
+        {
+            int n = (int)(Rate * 0.6f);
+            var data = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)Rate;
+                float a = Note(t, 0f, 1318.5f);     // E6
+                float b = Note(t, 0.11f, 1975.5f);  // B6
+                data[i] = a * 0.6f + b * 0.5f;
+            }
+            return Build("Chime", data);
+        }
+
+        private static float Note(float t, float start, float freq)
+        {
+            float d = t - start;
+            if (d < 0f) return 0f;
+            float env = Mathf.Min(1f, d * 200f) * Mathf.Exp(-d * 7f);
+            return (Mathf.Sin(2f * Mathf.PI * freq * d) + 0.25f * Mathf.Sin(4f * Mathf.PI * freq * d)) * env;
         }
 
         /// <summary>Soft fabric/strap rustle when the camera comes up.</summary>

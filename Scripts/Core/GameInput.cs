@@ -66,8 +66,14 @@ namespace WildLens.Core
         public static bool NavigateUpPressed => Pressed(Key.Forward) || Pressed(Key.Up);
         public static bool NavigateDownPressed => Pressed(Key.Back) || Pressed(Key.Down);
         public static bool ToggleHintsPressed => Pressed(Key.Hints);
+        /// <summary>
+        /// C toggles crouch (primary). Holding Left Ctrl also crouches; handy in builds, but in the Unity Editor
+        /// Ctrl combinations can trigger editor shortcuts (Ctrl+P stops Play mode), so C is the advertised key.
+        /// </summary>
+        public static bool CrouchTogglePressed => Pressed(Key.CrouchToggle);
+        public static bool CrouchHeld => Held(Key.CrouchHold);
 
-        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints }
+        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold }
 
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
         private static UnityEngine.InputSystem.Controls.KeyControl Control(Keyboard k, Key key)
@@ -86,6 +92,8 @@ namespace WildLens.Core
                 case Key.JournalAlt: return k.tabKey;
                 case Key.Cancel: return k.escapeKey;
                 case Key.Hints: return k.hKey;
+                case Key.CrouchToggle: return k.cKey;
+                case Key.CrouchHold: return k.leftCtrlKey;
                 default: return null;
             }
         }
@@ -134,6 +142,8 @@ namespace WildLens.Core
                 case Key.JournalAlt: return KeyCode.Tab;
                 case Key.Cancel: return KeyCode.Escape;
                 case Key.Hints: return KeyCode.H;
+                case Key.CrouchToggle: return KeyCode.C;
+                case Key.CrouchHold: return KeyCode.LeftControl;
                 default: return KeyCode.None;
             }
         }

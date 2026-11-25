@@ -93,6 +93,8 @@ namespace WildLens.UI
                 _rowTexts[i].text = rec != null
                     ? $"{num}   <b>{s.displayName}</b>\n<size=18>     {rec.photoCount} photo{(rec.photoCount == 1 ? "" : "s")}</size>"
                     : $"{num}   ???\n<size=18>     not yet observed</size>";
+                if (rec != null && rec.photoCount == 0)
+                    _rowTexts[i].text = $"{num}   <b>{s.displayName}</b>\n<size=18>     observed, no photo yet</size>";
                 _rowBackgrounds[i].color = i == _selected ? UIFactory.PaperDark : new Color(0f, 0f, 0f, 0f);
             }
 
@@ -105,7 +107,7 @@ namespace WildLens.UI
                 _nameText.text = "Unknown species";
                 _sciText.text = "";
                 _detailText.text = "<b>Photographs</b>   0\n<b>First sighting</b>   —";
-                _notesText.text = "<i>Not yet observed.</i>  " + HabitatHint(species.habitat);
+                _notesText.text = "<i>Not yet observed.</i>  " + HabitatHint(species);
                 ShowPhoto(null);
                 return;
             }
@@ -113,8 +115,10 @@ namespace WildLens.UI
             _nameText.text = species.displayName;
             _sciText.text = species.scientificName;
             var best = journal.GetPhoto(record.bestPhotoId);
+            string photos = record.photoCount > 0 ? record.photoCount.ToString()
+                : "0   <size=18><i>identified by observation</i></size>";
             _detailText.text =
-                $"<b>Photographs</b>   {record.photoCount}\n" +
+                $"<b>Photographs</b>   {photos}\n" +
                 $"<b>First sighting</b>   {JournalService.FormatTimestamp(record.firstSightedUtc)}\n" +
                 $"      {Capitalize(record.firstSightingLocation)}, {PhotoAnalyzer.DescribeActivity(record.firstSightingActivity)}\n" +
                 $"<b>Best photograph</b>   {(string.IsNullOrEmpty(record.bestQuality) ? "—" : record.bestQuality)}";
@@ -130,16 +134,27 @@ namespace WildLens.UI
             if (tex != null) _photoFitter.aspectRatio = tex.width / (float)tex.height;
         }
 
-        private static string HabitatHint(HabitatPreference h)
+        /// <summary>Field tip for an undiscovered species: where to look (hotspots first) and how to approach.</summary>
+        private static string HabitatHint(SpeciesDefinition s)
         {
-            switch (h)
+            string where;
+            var h = s.preferredHotspots;
+            if ((h & HotspotType.Meadow) != 0 && (h & HotspotType.BrushPile) != 0) where = "Check brush piles and the edges of open meadows.";
+            else if ((h & HotspotType.Meadow) != 0) where = "Scan open flower meadows, especially from cover at their edges.";
+            else if ((h & HotspotType.BrushPile) != 0) where = "Watch around brush piles near the grass.";
+            else if ((h & HotspotType.MatureTree) != 0) where = "Look around big old trees, and up their trunks.";
+            else if ((h & HotspotType.Perch) != 0) where = "Check dead snags and boulders overlooking open ground, or look up.";
+            else
             {
-                case HabitatPreference.OpenMeadow: return "Field tip: scan open meadows, and move slowly.";
-                case HabitatPreference.ForestEdge: return "Field tip: watch where the woods meet the grassland.";
-                case HabitatPreference.Trees: return "Field tip: look around the base of trees — and up the trunks.";
-                case HabitatPreference.Sky: return "Field tip: look up over open ground.";
-                default: return "";
+                switch (s.habitat)
+                {
+                    case HabitatPreference.OpenMeadow: where = "Scan open meadows."; break;
+                    case HabitatPreference.ForestEdge: where = "Watch where the woods meet the grassland."; break;
+                    case HabitatPreference.Trees: where = "Look around the base of trees."; break;
+                    default: where = "Look up over open ground."; break;
+                }
             }
+            return "Field tip: " + where + " Crouch to approach, and hold it in your viewfinder to identify it.";
         }
 
         private static string Capitalize(string s) =>

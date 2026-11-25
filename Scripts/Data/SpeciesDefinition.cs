@@ -13,6 +13,20 @@ namespace WildLens.Data
     /// <summary>Where individuals are spawned relative to the trail and vegetation.</summary>
     public enum HabitatPreference { OpenMeadow, ForestEdge, Trees, Sky }
 
+    /// <summary>
+    /// Kinds of habitat hotspot: places with elevated odds of particular wildlife (see HabitatHotspot).
+    /// Flags, so a species can favour several.
+    /// </summary>
+    [Flags]
+    public enum HotspotType
+    {
+        None = 0,
+        Meadow = 1 << 0,      // open grassland: deer, foraging foxes
+        BrushPile = 1 << 1,   // cover near grass: rabbits, foxes hunting them
+        MatureTree = 1 << 2,  // big old trees: squirrels
+        Perch = 1 << 3,       // tall snags and boulders overlooking open ground: hawks
+    }
+
     /// <summary>Which placeholder body to build when no prefab is assigned.</summary>
     public enum PlaceholderBody { Deer, Rabbit, Fox, Hawk, Squirrel }
 
@@ -41,7 +55,7 @@ namespace WildLens.Data
     public class SpeciesDefinition : ScriptableObject
     {
         /// <summary>Data layout version. Assets below this are upgraded by the editor (SpeciesAssetMigrator).</summary>
-        public const int CurrentDataVersion = 2;
+        public const int CurrentDataVersion = 3;
         [HideInInspector] public int dataVersion; // 0 on assets created before versioning
 
         [Header("Identity")]
@@ -66,6 +80,10 @@ namespace WildLens.Data
         public Vector2Int groupSize = new Vector2Int(1, 1);
         [Tooltip("Distance from the trail centre-line (min, max) that groups are placed at.")]
         public Vector2 spawnDistanceFromTrail = new Vector2(10f, 40f);
+        [Tooltip("Habitat hotspots this species favours.")]
+        public HotspotType preferredHotspots = HotspotType.None;
+        [Range(0f, 1f)] [Tooltip("Chance that a group's home range is centred on a preferred hotspot (otherwise anywhere suitable).")]
+        public float hotspotAffinity = 0.7f;
 
         [Header("Movement")]
         public LocomotionType locomotion = LocomotionType.Ground;
@@ -103,10 +121,12 @@ namespace WildLens.Data
         public Vector2 fleeDistanceRange = new Vector2(15f, 30f);
 
         [Header("Photography")]
-        [Tooltip("Screen coverage (0-1) that counts as a full-frame shot of this species.")]
-        [Range(0.01f, 0.6f)] public float idealFrameCoverage = 0.12f;
-        [Tooltip("Beyond this distance photos lose clarity (haze, detail), even when zoomed in.")]
-        public float clearPhotoDistance = 40f;
+        [Tooltip("Multiplier on the frame-fill needed to identify / grade this species (below 1 = small animals get credit for smaller framing). See PhotoQualityEvaluator.")]
+        [Range(0.3f, 1.5f)] public float photoSizeScale = 1f;
+        [Tooltip("Excellent photos must be taken within this distance (detail and haze); Good within 2.5x.")]
+        public float clearPhotoDistance = 30f;
+        [Tooltip("Seconds of steady observation (centred in camera mode) needed to identify the species without a photo.")]
+        public float observationTime = 1.2f;
 
         public BehaviorOption PickBehavior(System.Random rng = null)
         {

@@ -8,7 +8,7 @@ namespace WildLens.CameraSystem
     /// Camera Mode: hold the right mouse button to raise the camera to your eye, release to lower it.
     ///
     /// While active:
-    ///   • the player moves at <see cref="MovementSpeedMultiplier"/> of walking speed and cannot sprint,
+    ///   • the player moves at <see cref="MovementSpeedMultiplier"/> of walking or crouching speed and cannot sprint,
     ///   • mouse look is slightly damped (<see cref="LookSensitivityScale"/>; further reduced with zoom),
     ///   • <see cref="ZoomLens"/> narrows the field of view and accepts zoom input,
     ///   • the HUD shows the viewfinder, and photos can be taken (<see cref="IsReady"/>).
@@ -19,7 +19,7 @@ namespace WildLens.CameraSystem
     [DefaultExecutionOrder(-30)]
     public class CameraModeController : MonoBehaviour
     {
-        [SerializeField, Range(0.1f, 1f)] private float movementSpeedMultiplier = 0.45f;
+        [SerializeField, Range(0.1f, 1f)] private float movementSpeedMultiplier = 0.5f;
         [SerializeField, Range(0.3f, 1f)] private float lookSensitivityMultiplier = 0.8f;
         [SerializeField] private float raiseDuration = 0.22f;
         [Tooltip("How far into the raise (0-1) the shutter becomes usable.")]

@@ -80,6 +80,25 @@ namespace WildLens.Wildlife
             var trail = world != null ? world.Trail : null;
             Vector3 candidate = transform.position;
 
+            // Most groups live around a preferred habitat hotspot, so the landscape becomes learnable.
+            if (world != null && species.preferredHotspots != HotspotType.None && rng.NextDouble() < species.hotspotAffinity &&
+                world.TryPickHotspot(species.preferredHotspots, rng, out var hotspot))
+            {
+                if (species.habitat == HabitatPreference.Sky) return hotspot.position;
+                for (int attempt = 0; attempt < 15; attempt++)
+                {
+                    float a = (float)rng.NextDouble() * Mathf.PI * 2f;
+                    float r = hotspot.type == HotspotType.MatureTree
+                        ? 1.2f + (float)rng.NextDouble() * 2f
+                        : Mathf.Sqrt((float)rng.NextDouble()) * hotspot.radius * 0.7f;
+                    Vector3 c = TerrainUtil.Ground(hotspot.position + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
+                    if (TerrainUtil.SlopeDegrees(c) > species.maxSlope * 0.8f) continue;
+                    if (trail != null && trail.DistanceToTrail(c) < trail.Width + 1f) continue;
+                    if (avoid.HasValue && TerrainUtil.FlatDistance(c, avoid.Value) < playerStartClearance) continue;
+                    return c;
+                }
+            }
+
             for (int attempt = 0; attempt < 40; attempt++)
             {
                 Vector3 p, dir;
