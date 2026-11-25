@@ -5,17 +5,24 @@ behaving naturally, photograph them, and build a field journal.
 
 ## Install & run
 
-1. Copy `Assets/WildLens/` into your Unity project's `Assets/` folder (Unity 2021.3 LTS or newer, incl. Unity 6;
-   Built-in, URP or HDRP; legacy Input Manager or Input System).
-2. Open your terrain scene.
-3. Menu **WildLens ▸ Vertical Slice Builder** → **Build Slice In Open Scene**
-   (or **WildLens ▸ Build Vertical Slice In Open Scene** for defaults).
+WildLens is a Unity package installed straight from GitHub (Unity 2021.3 LTS or newer, including Unity 6;
+Built-in, URP or HDRP; legacy Input Manager or Input System).
+
+1. Install [Git](https://git-scm.com/downloads) if it isn't already installed, then restart Unity Hub. Unity uses
+   it to download packages.
+2. In Unity, open **Window ▸ Package Manager**, click **+ ▸ Add package from git URL…** and enter
+   `https://github.com/revDWD/WildLens.git`
+3. Open a scene (ideally one with a Terrain) and choose **WildLens ▸ Build Vertical Slice In Open Scene**.
 4. Save the scene and press **Play**. Click the Game view to capture the mouse.
+
+**Updating:** in Package Manager, select WildLens and click **Update**. If no Update button appears, remove the
+package and add the URL again.
 
 The builder puts everything under one root object, **`WildLens Vertical Slice`**, so you can rebuild or remove
 it at any time. It does **not** modify your Terrain's data. If the scene has no Terrain, it creates a fallback.
 It also disables other enabled scene cameras in favour of the player camera (this is undoable, and you can
-turn it off in the settings).
+turn it off in the settings). Files you can edit (species tuning, builder settings, generated meshes and
+materials) are written to your project's `Assets/WildLens/` folder, because the package itself is read-only.
 
 ## Controls
 
@@ -35,7 +42,8 @@ Moving slowly or standing still lets animals come closer. Sprinting spooks them 
 ## Architecture
 
 ```
-Assets/WildLens/
+(package root)
+  package.json
   Scripts/  (WildLens.Runtime.asmdef)
     Core/          WildLensGame (composition root, UI pause state), GameInput (input backend abstraction),
                    PlayerPresence (what wildlife can perceive), TerrainUtil, MaterialLibrary, PrimitiveMeshes, SceneQuery
@@ -51,8 +59,10 @@ Assets/WildLens/
   Editor/   (WildLens.Editor.asmdef)
     WildLensBuilderWindow, WildLensSliceBuilder, TrailBuilder, VegetationBuilder, PropBuilder,
     ProceduralMeshes, GeneratedAssets, SliceBuildSettings
-  Data/       (generated) SpeciesDatabase.asset, Species/*.asset, SliceBuildSettings.asset
-  Generated/  (generated) placeholder meshes, materials, textures
+
+Written into your project (editable):
+  Assets/WildLens/Data/       SpeciesDatabase.asset, Species/*.asset, SliceBuildSettings.asset
+  Assets/WildLens/Generated/  placeholder meshes, materials, textures
 ```
 
 How the systems depend on each other: wildlife reads `PlayerPresence` rather than depending on the player.
@@ -60,7 +70,7 @@ Photography reads `Photographable` and writes to `JournalService`. The UI listen
 (`PhotoCamera.PhotoTaken`, `JournalService.Changed`).
 
 ### Adding or tuning a species
-- Tune behaviour, senses, population and habitat on the assets in `Data/Species/`. Rebuilds don't overwrite them.
+- Tune behaviour, senses, population and habitat on the assets in `Assets/WildLens/Data/Species/`. Rebuilds don't overwrite them.
 - New species: **Create ▸ WildLens ▸ Species Definition**, then add it to `SpeciesDatabase`. It appears in the
   journal automatically.
 - Real art: assign `prefab` on the definition. Add an `AnimalRig` to get procedural motion, or add an Animator

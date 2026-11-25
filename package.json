@@ -1,0 +1,15 @@
+{
+  "name": "com.revdwd.wildlens",
+  "version": "0.1.0",
+  "displayName": "WildLens",
+  "description": "First-person wildlife photography vertical slice: trail loop builder, five wildlife species with natural behaviour, photo identification and a field journal.",
+  "unity": "2021.3",
+  "author": {
+    "name": "revDWD",
+    "url": "https://github.com/revDWD/WildLens"
+  },
+  "dependencies": {
+    "com.unity.ugui": "1.0.0"
+  },
+  "keywords": ["wildlife", "photography", "nature", "prototype"]
+}
