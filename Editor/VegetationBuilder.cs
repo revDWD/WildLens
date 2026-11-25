@@ -166,6 +166,7 @@ namespace WildLens.EditorTools
             _artBoulders = ArtLibrary.Prefabs(ArtKind.Boulder);
             _artStumps = ArtLibrary.Prefabs(ArtKind.Stump);
             _artLogs = ArtLibrary.Prefabs(ArtKind.Log);
+            PrepareFoliageCards();
         }
 
         private T Pick<T>(T[] array) => array[_rng.Next(array.Length)];
@@ -188,8 +189,47 @@ namespace WildLens.EditorTools
             MakeStatic(go);
             var sway = go.GetComponent<FoliageSway>();
             if (sway == null) return;
+            // Swaying parts and everything parented to them (foliage cards) must not be static-batched: they move.
             foreach (var part in sway.Parts)
-                if (part != null) GameObjectUtility.SetStaticEditorFlags(part.gameObject, 0);
+                if (part != null)
+                    foreach (var t in part.GetComponentsInChildren<Transform>())
+                        GameObjectUtility.SetStaticEditorFlags(t.gameObject, 0);
+        }
+
+        // ---- foliage cards (0.6): alpha-cut leaf/branch cards over a darker core volume
+
+        private bool _cards;
+        private Material[] _leafCards, _branchCards;
+        private Material _leafCore, _coniferCore;
+
+        private void PrepareFoliageCards()
+        {
+            _cards = _art && FoliageCards.Available;
+            if (!_cards) return;
+            _leafCards = new[]
+            {
+                FoliageCards.LeafMaterial("A", new Color(1f, 1f, 1f)),
+                FoliageCards.LeafMaterial("B", new Color(0.88f, 0.96f, 0.82f)),
+                FoliageCards.LeafMaterial("C", new Color(1.05f, 1f, 0.82f)),
+            };
+            _branchCards = new[]
+            {
+                FoliageCards.BranchMaterial("A", new Color(0.95f, 1f, 0.95f)),
+                FoliageCards.BranchMaterial("B", new Color(0.82f, 0.9f, 0.85f)),
+            };
+            // Dark cores give depth in the gaps between cards, like shaded inner foliage.
+            _leafCore = GeneratedAssets.Material("LeafCore", new Color(0.12f, 0.19f, 0.08f));
+            _coniferCore = GeneratedAssets.Material("ConiferCore", new Color(0.07f, 0.13f, 0.08f));
+        }
+
+        private void AddCards(Transform part, Mesh mesh, Material mat)
+        {
+            var go = new GameObject("Cards");
+            go.transform.SetParent(part, false);
+            go.transform.localRotation = Quaternion.Euler(0f, R(0f, 360f), 0f);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = mat;
         }
 
         private static GameObject MeshPart(string name, Transform parent, Mesh mesh, Material mat, Vector3 pos, Vector3 scale, Quaternion rot)
@@ -300,9 +340,11 @@ namespace WildLens.EditorTools
                 float k = i / (float)(tiers - 1);
                 float baseY = h * Mathf.Lerp(0.16f, 0.72f, k);
                 float rad = h * Mathf.Lerp(0.28f, 0.09f, k) * R(0.88f, 1.12f);
-                var mat = k < 0.5f ? _conifer[0] : _conifer[1];
+                var mat = _cards ? _coniferCore : (k < 0.5f ? _conifer[0] : _conifer[1]);
+                float coreScale = _cards ? 0.8f : 1f; // cards extend past a slimmer dark core
                 var tier = MeshPart("Foliage" + i, root.transform, _cone, mat, new Vector3(R(-0.1f, 0.1f), baseY, R(-0.1f, 0.1f)),
-                    new Vector3(rad, h * Mathf.Lerp(0.32f, 0.26f, k), rad), Quaternion.Euler(R(-4f, 4f), R(0f, 360f), R(-4f, 4f)));
+                    new Vector3(rad * coreScale, h * Mathf.Lerp(0.32f, 0.26f, k), rad * coreScale), Quaternion.Euler(R(-4f, 4f), R(0f, 360f), R(-4f, 4f)));
+                if (_cards) AddCards(tier.transform, FoliageCards.ConiferTier(_rng), _branchCards[k < 0.5f ? 1 : 0]);
                 parts.Add(tier.transform);
             }
             AddSway(root, parts, h, R(1.2f, 1.8f), R(0.28f, 0.36f));
@@ -330,8 +372,8 @@ namespace WildLens.EditorTools
                 new Vector3(trunkR * 2f, trunkLen * 0.5f, trunkR * 2f), Quaternion.Euler(R(-3f, 3f), 0f, R(-3f, 3f)));
             // A crown built from several lobes in two leaf shades breaks up the "lollipop" silhouette.
             int shade = _rng.Next(_leaf.Length);
-            var mat = _leaf[shade];
-            var alt = _leaf[(shade + 1) % _leaf.Length];
+            var mat = _cards ? _leafCore : _leaf[shade];
+            var alt = _cards ? _leafCore : _leaf[(shade + 1) % _leaf.Length];
             float cy = h * 0.72f, cw = h * 0.48f;
             var parts = new List<Transform>();
             parts.Add(MeshPart("Canopy", root.transform, Pick(_canopies), mat, new Vector3(0f, cy, 0f),
@@ -344,6 +386,15 @@ namespace WildLens.EditorTools
                 parts.Add(MeshPart("CanopyLobe" + i, root.transform, Pick(_canopies), i % 2 == 0 ? alt : mat,
                     new Vector3(off.x, cy + off.y * h, off.z), Vector3.one * cw * R(0.45f, 0.7f),
                     Quaternion.Euler(0f, R(0f, 360f), 0f)).transform);
+            }
+            if (_cards)
+            {
+                var cards = _leafCards[_rng.Next(_leafCards.Length)];
+                foreach (var part in parts)
+                {
+                    part.localScale *= 0.82f; // dark core sits inside the leaf cards
+                    AddCards(part, FoliageCards.Canopy(_rng), cards);
+                }
             }
             AddSway(root, parts, h, R(1.4f, 2.2f), R(0.3f, 0.42f));
 

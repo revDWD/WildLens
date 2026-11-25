@@ -1,6 +1,7 @@
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using WildLens.Core;
 using WildLens.Photography;
 
 namespace WildLens.EditorTools
@@ -58,6 +59,16 @@ namespace WildLens.EditorTools
                 "Open your terrain scene, then Build. Everything is created under one root object and can be rebuilt " +
                 "or removed; the terrain's own data is not modified. Assign prefabs below to replace placeholder scenery.",
                 MessageType.Info);
+
+            var existing = WildLensSliceBuilder.FindExistingRoot();
+            if (existing != null)
+            {
+                var info = existing.GetComponent<WildLens.Environment.SliceInfo>();
+                if (info == null || !info.IsCurrent)
+                    EditorGUILayout.HelpBox(
+                        $"The slice in this scene was built by WildLens {(info != null ? info.packageVersion : "0.5 or older")}. " +
+                        $"Rebuild it to get the {WildLensVersion.Package} environment (trees, terrain, art).", MessageType.Warning);
+            }
 
             if (_settings == null) _settings = WildLensSliceBuilder.LoadOrCreateSettings();
             Editor.CreateCachedEditor(_settings, null, ref _settingsEditor);

@@ -11,8 +11,7 @@ The folder name ends in `~`, so Unity ignores it; **WildLens ▸ Build Vertical 
 |---|---|---|
 | Sky/kloofendal_48d_partly_cloudy_puresky_2k.hdr | Kloofendal 48d Partly Cloudy (Pure Sky) | Late-morning sky, ambient light, reflections |
 | Sky/kloppenheim_06_puresky_2k.hdr | Kloppenheim 06 (Pure Sky) | Golden-hour sky |
-| Terrain/leafy_grass_* | Leafy Grass | Terrain: grass |
-| Terrain/forrest_ground_01_* | Forrest Ground 01 | Terrain: meadow |
+| Terrain/leafy_grass_* | Leafy Grass | Terrain: grass and meadow (two tints) |
 | Terrain/forest_leaves_02_* | Forest Leaves 02 | Terrain: forest floor |
 | Terrain/dirt_floor_* | Dirt Floor | Terrain: trail |
 | Terrain/aerial_rocks_02_* | Aerial Rocks 02 | Terrain: rocky slopes |
@@ -25,6 +24,10 @@ The folder name ends in `~`, so Unity ignores it; **WildLens ▸ Build Vertical 
 | Models/boulder_01 | Boulder 01 | Landmark boulders |
 | Models/tree_stump_01 | Tree Stump 01 | Stumps |
 | Models/dead_tree_trunk_02 | Dead Tree Trunk 02 | Fallen logs |
+| Foliage/leaf_cluster_rgba.png | Island Tree 01 (leaf atlas) | Broadleaf canopy cards: 420 leaves recomposed into one cluster |
+| Foliage/conifer_branch_rgba.png | Fir Tree 01 (twig atlas) | Conifer branch cards: 70 needle twigs recomposed into one branch spray |
 
 Processing done when the assets were added: HDRIs analysed for sun direction/colour and horizon colour
 (`Sky/*.json`); foliage alpha maps merged into RGBA diffuse PNGs; JPG OpenGL normal maps used in place of EXR.
+The Foliage textures (0.6.0) were composed from the trees' CC0 leaf/twig atlases; the tree meshes themselves are not
+shipped (2–17 M polygons each).

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0] Presentation pass
+### Added
+- **Leaf-card trees:** broadleaf canopies and conifer tiers are now built from alpha-cut leaf and needle-branch cards
+  (CC0, composed from Poly Haven tree atlases) over darker core volumes, with wind sway. Replaces smooth blobs/cones.
+- **Stale-scene detection:** scenes built by an older package show a notice on Play, a warning in the builder window
+  and a line in the F3 overlay.
+- **Animal Model Setup** (WildLens ▸ Animal Model Setup): one-click Animator Controller and prefab for an animated
+  animal model, assigned to the species.
+- `AGENTS.md`: project vision, design philosophy, architecture and history for anyone (human or AI) working on it.
+### Changed
+- Terrain reads as grass instead of bare soil at distance: green and golden-olive grass tints in ~20 m patches at
+  unrelated tile sizes (less visible tiling); terrain grass draws to 150 m.
+- Deer placeholder silhouette (chest, haunch, forward neck, short broad ears, dark shins); lying deer tuck their legs.
+- Camera mode hides the control hints (they overlapped the viewfinder); stronger focus-lock snap; photo prints have
+  a drop shadow and a slight tilt.
+### Removed
+- Forest Ground 01 terrain texture (no longer used; −4.4 MB).
+
+**Rebuild the slice after updating.**
+
 ## [0.5.0] Zoom you can see · Art direction
 ### Fixed
 - **Zoom readouts changed but the view did not.** Two causes: (1) in scenes upgraded at runtime, ZoomLens cached a

@@ -102,7 +102,10 @@ namespace WildLens.EditorTools
                 float worn = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half, half + 2.6f, d));
                 float forest = Mathf.Max(Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.42f, 0.62f, Forest(p))),
                     (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(1.5f, 5f, trees.Nearest(p, 6f)))) * 0.9f);
+                float mid = Mathf.PerlinNoise(_noiseOffset * 0.7f + p.x * 0.045f, p.z * 0.045f + 31f);
                 float meadow = Mathf.Max(MeadowMask(p, n), (1f - forest) * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.58f, 0.78f, broad)) * 0.6f);
+                // Mid-scale patches (~20 m) of the second grass tint break up visible texture repetition.
+                meadow = Mathf.Max(meadow, (1f - forest) * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 0.7f, mid)) * 0.55f);
 
                 float wRock = rock;
                 float rest = 1f - wRock;
@@ -183,7 +186,7 @@ namespace WildLens.EditorTools
             data.wavingGrassSpeed = 0.45f;
             data.wavingGrassAmount = 0.35f;
             data.wavingGrassTint = new Color(0.85f, 0.87f, 0.76f);
-            _terrain.detailObjectDistance = 110f;
+            _terrain.detailObjectDistance = 150f; // grass to the mid-distance; bare ground showed beyond 110 m
             _terrain.detailObjectDensity = 1f;
         }
 
@@ -234,8 +237,11 @@ namespace WildLens.EditorTools
                 // Photographed ground (Poly Haven, CC0). Same order and roles as the generated layers below.
                 var scanned = new[]
                 {
-                    ScannedLayer("Grass", "leafy_grass", 3f, Color.white),
-                    ScannedLayer("Meadow", "forrest_ground_01", 3.2f, new Color(1f, 1.02f, 0.95f)),
+                    // No CC0 scan is lush grass: the leafy-grass scan is mostly brown litter, so it is tinted two ways.
+                    // Fresh green for open ground, golden-olive for meadows, at unrelated tile sizes so the two
+                    // patterns never line up (0.6: distant ground read as bare soil before).
+                    ScannedLayer("Grass", "leafy_grass", 3f, new Color(0.72f, 0.95f, 0.6f)),
+                    ScannedLayer("Meadow", "leafy_grass", 4.3f, new Color(0.82f, 0.93f, 0.55f)),
                     ScannedLayer("ForestFloor", "forest_leaves_02", 2.6f, new Color(0.92f, 0.9f, 0.88f)),
                     ScannedLayer("Dirt", "dirt_floor", 2.4f, new Color(0.84f, 0.78f, 0.72f)), // tone the orange down
                     ScannedLayer("Rock", "aerial_rocks_02", 6f, Color.white),

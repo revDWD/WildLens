@@ -1,13 +1,19 @@
 # WildLens visual roadmap & asset recommendations
 
-Updated for 0.5.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
+Updated for 0.6.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
+
+## Integrated in 0.6.0
+| Area | Asset(s) | Result |
+|---|---|---|
+| Tree canopies | Leaf and twig atlases of Poly Haven *Island Tree 01* and *Fir Tree 01* (CC0), recomposed into two card textures | Leaf-card broadleaf crowns and needle-branch conifer tiers replace blobs and cones |
+| Ground colour | Existing *Leafy Grass* scan, two tints | Green/golden grass instead of soil-coloured ground; fewer visible repeats |
 
 ## Integrated in 0.5.0 (all CC0, Poly Haven, see `Art~/CREDITS.md`)
 
 | Area | Asset(s) | Result |
 |---|---|---|
 | Sky | Kloofendal 48d Partly Cloudy, Kloppenheim 06 (pure-sky HDRIs, 2k) | Real cumulus skies; image-based ambient and reflections; sun light aimed at the sun in the image; fog = measured horizon colour |
-| Ground | Leafy Grass, Forrest Ground 01, Forest Leaves 02, Dirt Floor, Aerial Rocks 02 | Photographed terrain layers with normal maps, painted by ecology (same rules as before) |
+| Ground | Leafy Grass, Forrest Ground 01 (removed in 0.6), Forest Leaves 02, Dirt Floor, Aerial Rocks 02 | Photographed terrain layers with normal maps, painted by ecology (same rules as before) |
 | Trunks & rocks | Bark Brown 02, Pine Bark, Mossy Rock | Scanned bark on every trunk; scanned rock surface on generated rocks |
 | Undergrowth | Fern 02, Shrub 02/04 | ~160 scanned ferns under woodland near the trail; scanned shrubs replace placeholder bushes within 30 m of the trail |
 | Geology & deadwood | Rock Moss Set 01/02 (split into pieces), Boulder 01, Tree Stump 01, Dead Tree Trunk 02 | Outcrops, landmark boulders, stumps and fallen logs |
@@ -22,6 +28,23 @@ and fallen trunk (13 MB) or ship 1k ground diffuse maps.
 * **Grass Medium 01**: 1.6 M polygons; the terrain grass system is far cheaper.
 
 ## Wildlife models (highest impact remaining). Purchases are yours to make.
+
+### Free options assessed for 0.6.0 (none integrated)
+| Option | Licence | Verdict |
+|---|---|---|
+| OpenGameArt *Deer Low Poly rigged* ([link](https://opengameart.org/content/deer-low-poly-rigged)) | CC0 | Safe, but low-poly and lightly animated: clashes with photographic ground and sky; would look worse in a photo than a fixed-up placeholder. |
+| Quaternius *Animated Animals* ([link](https://quaternius.itch.io/lowpoly-animated-animals)) | CC0 | Farm animals only; no target species. |
+| Asset Store *Animals FREE* by ithappy ([link](https://assetstore.unity.com/packages/3d/characters/animals/animals-free-260727)) | Asset Store EULA | Includes a deer, but stylised; EULA allows use in your game, **not** redistribution, so it cannot be committed to this public repo. You may import it locally. |
+| Sketchfab toon deer ([example](https://sketchfab.com/3d-models/toon-deer-animated-70d87082ee584e9896aa6b06cd764e77)) | varies (often CC-BY / non-commercial) | Licences vary per model; stylised. Not used. |
+
+**Conclusion:** there is no free, licence-safe, realistic, animated deer/fox/hawk/rabbit/squirrel for Unity. Free
+low-poly animals would make the game look *less* coherent next to the scanned environment. Licensed realistic
+models (below) are the route; `WildLens ▸ Animal Model Setup` makes integrating one a few minutes' work.
+
+Budget low-poly alternative (consistent style for all five, if you prefer stylised): *Animated Forest Animals Pack*
+(itch.io, deer/fox/rabbit/squirrel, ~$13) ([link](https://bundlesmith.itch.io/animated-forest-animals-pack-low-poly-stylized-models)),
+or *Lowpoly Forest Animal Pack* (deer stag/doe/calf, 21 animations, ~$20) ([link](https://assetstore.unity.com/packages/slug/104338)).
+Going stylised would mean restyling the environment too; not recommended.
 
 Nothing suitable is CC0. The licensed routes, in priority order. **Before buying, check on the store page:** species,
 render pipeline (URP), Unity 6 compatibility, and an explicit animation list (idle, walk, trot/run, graze/eat, look,
@@ -50,10 +73,11 @@ alert; for birds: fly loop, glide, take-off, land, perch idle).
   [CGTrader](https://www.cgtrader.com/3d-models/animal/bird/eurasian-goshawk-bird)
 * Retexturing an eagle or buzzard-type raptor toward red-tailed colouring is a reasonable stopgap.
 
-**Integration (any pack):** set the prefab on the species asset (`Assets/WildLens/Data/Species/…`), add an Animator
-with `Speed` (float), `Activity` (int, AnimalActivity value) and `GaitPhase` (float); `AnimalAnimatorBridge` drives
-them. Map activities to clips: Grazing → eat, Alert → look/alert, Walking/Running/Hopping → locomotion blend on
-Speed, Perched/Flying/Landing/TakingOff for the hawk. Expect 1–2 days per species. **One beautiful deer first.**
+**Integration (any pack), 0.6+:** import the pack locally (don't commit it to this repo), open **WildLens ▸ Animal
+Model Setup**, pick the species asset and the model, check the auto-classified clips, set the real size, Create. It
+builds an Animator Controller (`Speed` blend tree, `Activity` transitions, `GaitPhase`), wraps the model in a
+correctly scaled prefab with root motion off, and assigns it to the species. Expect an hour of tuning per species
+(clip choice, yaw, size). **One beautiful deer first.**
 
 ## Trees (highest remaining environment weakness)
 * Paid, game-ready, URP, with LODs and wind: SpeedTree (Unity integration, best wind/LOD) or Asset Store nature packs
@@ -63,7 +87,8 @@ Speed, Perched/Flying/Landing/TakingOff for the hawk. Expect 1–2 days per spec
 
 ## Remaining visual weaknesses (honest list)
 1. **Animals** are primitive placeholders: the biggest gap.
-2. **Trees** are stylised primitives with scanned bark; canopies are flat-coloured blobs next to photographic ground.
+2. **Trees** now have leaf-card crowns, but trunks are plain cylinders with no branches, and there are no LODs or
+   billboards; a game-ready tree pack is still the next step up.
 3. **Texture tiling** is visible on large open ground at distance (Unity terrain has no anti-tiling; a terrain shader
    with stochastic sampling or macro variation would fix it).
 4. **Grass** doesn't hide animals from the photo check (no colliders).

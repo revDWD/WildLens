@@ -183,7 +183,7 @@ namespace WildLens.UI
             _focus = Mathf.MoveTowards(_focus, s.subjectCentred ? 1f : 0f, dt * 8f);
             Color fc = Color.Lerp(Line, GoodColor, Mathf.Max(_focus, _focusPulse));
             foreach (var m in _focusMarks) m.color = fc;
-            float markScale = 1f + 0.25f * _focusPulse;
+            float markScale = 1f + 0.4f * _focusPulse * _focusPulse; // a crisp snap on lock
             foreach (var m in _focusMarks) m.rectTransform.localScale = new Vector3(markScale, markScale, 1f);
 
             for (int i = 0; i < _levelLabels.Count; i++)
@@ -195,7 +195,8 @@ namespace WildLens.UI
             }
             _focalText.text = Mathf.RoundToInt(s.focalLength) + " mm   f/4";
             _lockBlend = Mathf.MoveTowards(_lockBlend, s.focusLocked ? 1f : 0f, dt * 10f);
-            _focusDot.color = new Color(GoodColor.r, GoodColor.g, GoodColor.b, Mathf.Lerp(0.12f, 1f, _lockBlend));
+            _focusDot.color = new Color(GoodColor.r, GoodColor.g, GoodColor.b, Mathf.Lerp(0.12f, 1f, Mathf.Max(_lockBlend, _focusPulse)));
+            _focusDot.rectTransform.localScale = Vector3.one * (1f + 0.9f * _focusPulse);
 
             UpdateSubject(s, dt);
         }

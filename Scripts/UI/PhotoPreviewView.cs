@@ -33,6 +33,7 @@ namespace WildLens.UI
         private readonly Text _stamp;
 
         private Vector2 _restPos, _offset;
+        private float _restTilt;
         private float _showSeconds;
         private float _age = float.MaxValue;
 
@@ -42,6 +43,10 @@ namespace WildLens.UI
             _card = _cardImage.rectTransform;
             _group = _cardImage.gameObject.AddComponent<CanvasGroup>();
             _group.alpha = 0f;
+            // Prints sit on the screen like paper: a soft drop shadow and a slight tilt.
+            var shadow = _cardImage.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.4f);
+            shadow.effectDistance = new Vector2(5f, -7f);
 
             var frame = UIFactory.CreateImage("Photo Area", _card, new Color(0.08f, 0.08f, 0.08f, 1f));
             _frame = frame.rectTransform;
@@ -120,6 +125,7 @@ namespace WildLens.UI
                 UIFactory.Place(_caption.rectTransform, new Vector2(0f, 0f), new Vector2(20f, 12f), new Vector2(430f, 100f));
                 UIFactory.Place(_stamp.rectTransform, new Vector2(1f, 0f), new Vector2(-18f, 84f), new Vector2(120f, 26f));
                 _showSeconds = 5.5f;
+                _restTilt = -2.2f;
             }
             else
             {
@@ -129,6 +135,7 @@ namespace WildLens.UI
                 UIFactory.Place(_frame, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(332f, 187f));
                 UIFactory.Place(_caption.rectTransform, new Vector2(0f, 0f), new Vector2(14f, 10f), new Vector2(324f, 92f));
                 _showSeconds = 3.8f;
+                _restTilt = 1.4f;
             }
         }
 
@@ -140,6 +147,7 @@ namespace WildLens.UI
             float fade = 1f - Mathf.Clamp01((_age - _showSeconds) / FadeSeconds);
             _group.alpha = slide * fade;
             _card.anchoredPosition = _restPos + _offset * (1f - slide);
+            _card.localRotation = Quaternion.Euler(0f, 0f, _restTilt * (1f + 2f * (1f - slide))); // settles as it lands
             float develop = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((_age - 0.1f) / DevelopSeconds));
             _developWash.color = new Color(1f, 1f, 1f, develop * 0.9f);
             if (_age > _showSeconds + FadeSeconds) { _age = float.MaxValue; _group.alpha = 0f; }

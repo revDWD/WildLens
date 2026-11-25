@@ -58,6 +58,13 @@ namespace WildLens.UI
             var game = WildLensGame.Instance;
             if (game != null) game.Journal.Changed += RefreshStatus;
             RefreshStatus();
+
+            // A scene built by an older package hides every art improvement since. Say so instead of letting it
+            // pass for the current look (0.6: a stale scene was mistaken for the 0.5 art).
+            string stale = WildLens.Environment.SliceInfo.StaleReason();
+            if (stale != null && _notice != null)
+                _notice.Show($"<size=22>This scene was {stale}. Rebuild it for the {WildLensVersion.Package} art:\n" +
+                             "<b>WildLens ▸ Vertical Slice Builder ▸ Rebuild</b></size>", 12f);
         }
 
         private void OnDestroy()
@@ -124,7 +131,7 @@ namespace WildLens.UI
             _crouchText.enabled = PlayerPresence.IsCrouching;
             _crosshair.color = new Color(1f, 1f, 1f, 0.55f * (1f - blend));
             // Hints and counters step back while the camera is up.
-            _hintsText.color = new Color(1f, 1f, 1f, 0.75f * (1f - blend * 0.8f));
+            _hintsText.color = new Color(1f, 1f, 1f, 0.75f * (1f - blend)); // gone in camera mode: it overlapped the viewfinder corner
             _statusText.color = new Color(1f, 1f, 1f, 0.85f * (1f - blend * 0.6f));
 
             _shutter.Update(dt);

@@ -192,6 +192,27 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Presentation pass (0.6.0)
+* **Leaf-card trees** (`Editor/FoliageCards.cs`, `Editor/VegetationBuilder.cs`): every canopy blob and conifer tier
+  becomes a darker core volume wrapped in alpha-cut cards. Broadleaf: ~40 leaf-cluster cards per lobe; conifer:
+  13 drooping branch cards per tier lying just over the cone. Six shared mesh variants (in
+  `Generated/FoliageCardMeshes.asset`) with normals bent outward from the crown so the foliage shades as a volume.
+  Cards are children of the swaying parts, so wind moves them; they are excluded from static batching.
+  Textures: `Art~/Foliage` (composed from CC0 Poly Haven leaf and twig atlases).
+* **Terrain colour** (`Editor/TerrainPainter.cs`): no CC0 scan is lush grass, so the leafy-grass scan is used twice,
+  tinted green (open ground) and golden-olive (meadows), at unrelated tile sizes, mixed by ~20 m noise patches to
+  hide tiling. Terrain grass draws to 150 m.
+* **Stale-scene detection** (`Scripts/Core/WildLensVersion.cs`, `Scripts/Environment/SliceInfo.cs`): the builder
+  stamps the slice root with the package and environment version. Bump `WildLensVersion.Environment` whenever the
+  builder's output changes. Old scenes get a Play-mode notice, a builder-window warning and an F3 line.
+* **Deer placeholder**: chest, haunch, forward-carried neck, short broad ears, dark shins and hooves; lying down
+  tucks the legs under the body instead of swinging them out.
+* **Photography feel**: hints vanish in camera mode, focus lock snaps the marks and dot, prints have a drop
+  shadow and settle with a slight tilt.
+* **Animal Model Setup** (`Editor/AnimalModelSetup.cs`, menu WildLens ▸ Animal Model Setup): turns a bought animated
+  model into a species prefab: classifies clips by name, builds an Animator Controller (Speed blend tree; any-state
+  transitions on Activity), scales the model to real size, root motion off, assigns `species.prefab`.
+
 ## Data migrations
 
 * Species assets: `dataVersion` 3. `SpeciesAssetMigrator` applies current gameplay tuning to the built-in species

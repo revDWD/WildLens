@@ -19,7 +19,7 @@ namespace WildLens.Wildlife
         private Vector3 _bodyRestPos, _bodyRestScale;
         private Quaternion _bodyRestRot, _neckRest, _headRest, _tailRest;
         private Quaternion[] _legRest, _earRest, _wingRest;
-        private Vector3[] _wingRestScale;
+        private Vector3[] _wingRestScale, _legRestScale;
 
         private Vector3 _neckOffset, _headOffset, _tailOffset;
         private float _moveBlend, _restBlend, _sitBlend, _flapBlend, _foldBlend;
@@ -43,6 +43,8 @@ namespace WildLens.Wildlife
             if (_rig.head) _headRest = _rig.head.localRotation;
             if (_rig.tail) _tailRest = _rig.tail.localRotation;
             _legRest = CacheRotations(_rig.legs);
+            _legRestScale = new Vector3[_rig.legs.Length];
+            for (int i = 0; i < _rig.legs.Length; i++) _legRestScale[i] = _rig.legs[i] ? _rig.legs[i].localScale : Vector3.one;
             _earRest = CacheRotations(_rig.ears);
             _wingRest = CacheRotations(_rig.wings);
             _wingRestScale = new Vector3[_rig.wings.Length];
@@ -101,8 +103,12 @@ namespace WildLens.Wildlife
                     angle = Mathf.Sin(phase + (front ? 0f : Mathf.PI * 0.8f) + (left ? 0f : 0.25f)) * swing; // gallop / bound
                 else
                     angle = Mathf.Sin(phase + ((front == left) ? 0f : Mathf.PI)) * swing; // diagonal walk / trot
-                float fold = (front ? -80f : 80f) * _restBlend + (front ? 25f : -30f) * _sitBlend;
+                // Lying down: legs tuck under the body (shortened and angled in) rather than swinging out flat,
+                // which read as splayed legs on rigid placeholder parts.
+                float fold = (front ? -35f : 35f) * _restBlend + (front ? 25f : -30f) * _sitBlend;
                 _rig.legs[i].localRotation = _legRest[i] * Quaternion.Euler(angle + fold, 0f, 0f);
+                var ls = _legRestScale[i];
+                _rig.legs[i].localScale = new Vector3(ls.x, ls.y * Mathf.Lerp(1f, 0.35f, _restBlend), ls.z);
             }
 
             // Body ----------------------------------------------------------
@@ -118,7 +124,7 @@ namespace WildLens.Wildlife
                 bob = Mathf.Abs(Mathf.Cos(phase)) * legLen * 0.04f * (1f + run * 2f) * _moveBlend;
                 pitch = Mathf.Sin(phase) * 4f * run;
             }
-            float lower = _restBlend * legLen * 0.55f;
+            float lower = _restBlend * legLen * 0.78f; // belly on the ground
             float sitLift = _sitBlend * legLen * 0.6f;
             _rig.body.localPosition = _bodyRestPos + Vector3.up * (bob - lower + sitLift);
             _rig.body.localRotation = _bodyRestRot * Quaternion.Euler(pitch - 32f * _sitBlend, 0f, 0f);

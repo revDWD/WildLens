@@ -35,19 +35,29 @@ namespace WildLens.Wildlife
         {
             Color c = s.primaryColor, light = s.secondaryColor, dark = s.accentColor;
             var b = rig.body;
-            Part("Body", PrimitiveType.Sphere, b, new Vector3(0f, 1.0f, 0f), new Vector3(0.46f, 0.5f, 1.15f), c);
-            Part("Belly", PrimitiveType.Sphere, b, new Vector3(0f, 0.9f, 0.02f), new Vector3(0.38f, 0.34f, 0.92f), light);
+            // 0.6 silhouette pass: deep chest and rounded haunch, a thick neck carried forward (an upright thin neck
+            // with long ears read as a llama), darker back, white throat, dark lower legs.
+            Color back = Color.Lerp(c, dark, 0.35f);
+            Part("Body", PrimitiveType.Sphere, b, new Vector3(0f, 1.0f, 0f), new Vector3(0.44f, 0.48f, 1.1f), c);
+            Part("Back", PrimitiveType.Sphere, b, new Vector3(0f, 1.1f, -0.02f), new Vector3(0.36f, 0.3f, 1.0f), back);
+            Part("Chest", PrimitiveType.Sphere, b, new Vector3(0f, 0.98f, 0.36f), new Vector3(0.42f, 0.56f, 0.5f), c);
+            Part("Haunch", PrimitiveType.Sphere, b, new Vector3(0f, 1.04f, -0.38f), new Vector3(0.46f, 0.5f, 0.52f), c);
+            Part("Belly", PrimitiveType.Sphere, b, new Vector3(0f, 0.88f, 0.02f), new Vector3(0.36f, 0.3f, 0.86f), light);
 
-            rig.neck = Pivot("Neck", b, new Vector3(0f, 1.15f, 0.42f));
-            Part("NeckMesh", PrimitiveType.Cylinder, rig.neck, new Vector3(0f, 0.2f, 0.08f), new Vector3(0.17f, 0.24f, 0.17f), c, new Vector3(25f, 0f, 0f));
-            rig.head = Pivot("Head", rig.neck, new Vector3(0f, 0.44f, 0.17f));
-            Part("Skull", PrimitiveType.Sphere, rig.head, new Vector3(0f, 0.02f, 0.08f), new Vector3(0.2f, 0.2f, 0.3f), c);
-            Part("Muzzle", PrimitiveType.Sphere, rig.head, new Vector3(0f, -0.03f, 0.24f), new Vector3(0.12f, 0.12f, 0.17f), dark);
-            Eyes(rig.head, 0.09f, 0.04f, 0.15f, 0.035f);
+            rig.neck = Pivot("Neck", b, new Vector3(0f, 1.12f, 0.46f));
+            Part("NeckMesh", PrimitiveType.Cylinder, rig.neck, new Vector3(0f, 0.17f, 0.12f), new Vector3(0.2f, 0.22f, 0.24f), c, new Vector3(38f, 0f, 0f));
+            Part("Throat", PrimitiveType.Sphere, rig.neck, new Vector3(0f, 0.22f, 0.24f), new Vector3(0.13f, 0.14f, 0.1f), light);
+            rig.head = Pivot("Head", rig.neck, new Vector3(0f, 0.38f, 0.28f));
+            Part("Skull", PrimitiveType.Sphere, rig.head, new Vector3(0f, 0.02f, 0.06f), new Vector3(0.19f, 0.19f, 0.27f), c);
+            Part("Muzzle", PrimitiveType.Sphere, rig.head, new Vector3(0f, -0.04f, 0.22f), new Vector3(0.11f, 0.11f, 0.17f), c);
+            Part("Nose", PrimitiveType.Sphere, rig.head, new Vector3(0f, -0.03f, 0.3f), new Vector3(0.07f, 0.06f, 0.05f), dark);
+            Part("Chin", PrimitiveType.Sphere, rig.head, new Vector3(0f, -0.09f, 0.18f), new Vector3(0.08f, 0.05f, 0.08f), light);
+            Eyes(rig.head, 0.085f, 0.04f, 0.13f, 0.035f);
             rig.ears = new[]
             {
-                Ear(rig.head, "EarL", new Vector3(-0.08f, 0.1f, 0.0f), new Vector3(0.06f, 0.17f, 0.035f), c, 30f, 0.08f),
-                Ear(rig.head, "EarR", new Vector3(0.08f, 0.1f, 0.0f), new Vector3(0.06f, 0.17f, 0.035f), c, -30f, 0.08f),
+                // Broad, short, held out to the sides: the white-tailed deer's head shape.
+                Ear(rig.head, "EarL", new Vector3(-0.08f, 0.09f, -0.02f), new Vector3(0.08f, 0.13f, 0.03f), c, 58f, 0.06f),
+                Ear(rig.head, "EarR", new Vector3(0.08f, 0.09f, -0.02f), new Vector3(0.08f, 0.13f, 0.03f), c, -58f, 0.06f),
             };
 
             rig.legLength = 0.86f;
@@ -58,6 +68,13 @@ namespace WildLens.Wildlife
                 Leg(b, "LegBL", new Vector3(-0.15f, 0.88f, -0.42f), 0.88f, 0.09f, c),
                 Leg(b, "LegBR", new Vector3(0.15f, 0.88f, -0.42f), 0.88f, 0.09f, c),
             };
+            Color shin = Color.Lerp(c, dark, 0.55f);
+            foreach (var leg in rig.legs)
+            {
+                float len = leg.name.StartsWith("LegF") ? 0.86f : 0.88f;
+                Part(leg.name + "Shin", PrimitiveType.Cylinder, leg, new Vector3(0f, -len * 0.78f, 0f), new Vector3(0.062f, len * 0.2f, 0.062f), shin);
+                Part(leg.name + "Hoof", PrimitiveType.Sphere, leg, new Vector3(0f, -len + 0.02f, 0.015f), new Vector3(0.07f, 0.05f, 0.09f), dark);
+            }
 
             rig.tail = Pivot("Tail", b, new Vector3(0f, 1.12f, -0.6f));
             Part("TailTop", PrimitiveType.Sphere, rig.tail, new Vector3(0f, -0.06f, -0.04f), new Vector3(0.11f, 0.2f, 0.07f), c);

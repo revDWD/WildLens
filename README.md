@@ -16,8 +16,9 @@ Built-in, URP or HDRP; legacy Input Manager or Input System).
 4. Save the scene and press **Play**. Click the Game view to capture the mouse.
 
 **Updating:** in Package Manager, select WildLens and click **Update**. If no Update button appears, remove the
-package and add the URL again. Updates that change the environment (like 0.4.0) need a **rebuild** of the slice to
-take effect. Run **WildLens ▸ Capture Comparison Shots** before and after to compare.
+package and add the URL again. Updates that change the environment (0.4.0, 0.5.0, 0.6.0) need a **rebuild** of the
+slice to take effect: **WildLens ▸ Vertical Slice Builder ▸ Rebuild Slice In Open Scene**. Since 0.6.0 an out-of-date
+scene says so: a notice when you press Play, a warning in the builder window, and a line in the F3 overlay. Run **WildLens ▸ Capture Comparison Shots** before and after to compare.
 
 The builder puts everything under one root object, **`WildLens Vertical Slice`**, so you can rebuild or remove
 it at any time. It does **not** modify your Terrain's data. If the scene has no Terrain, it creates a fallback.

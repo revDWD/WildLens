@@ -71,6 +71,10 @@ namespace WildLens.EditorTools
                 var terrain = FindOrCreateTerrain(s);
 
                 var root = new GameObject(RootName);
+                var info = root.AddComponent<WildLens.Environment.SliceInfo>();
+                info.packageVersion = WildLensVersion.Package;
+                info.environmentVersion = WildLensVersion.Environment;
+                info.scannedArt = s.useScannedArt && ArtLibrary.Available;
                 var env = Child(root.transform, "Environment");
 
                 bool ownsTerrain = IsWildLensTerrain(terrain);

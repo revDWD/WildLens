@@ -43,7 +43,7 @@ namespace WildLens.EditorTools
     {
         public const string Destination = GeneratedAssets.Root + "/Art";
         private const string PrefabFolder = Destination + "/Prefabs";
-        private const string ImportVersion = "1";
+        private const string ImportVersion = "2"; // 2: Foliage card textures
 
         private struct ModelSpec
         {
@@ -219,6 +219,14 @@ namespace WildLens.EditorTools
             if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
             mat.enableInstancing = true;
             EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        /// <summary>Alpha-tested, two-sided lit material (foliage, ferns, leaf cards).</summary>
+        public static Material AlphaCutMaterial(string key, Texture2D albedo, Texture2D normal, Color tint)
+        {
+            var mat = FoliageMaterial(key, albedo, normal);
+            MaterialLibrary.ApplyColor(mat, tint);
             return mat;
         }
 
