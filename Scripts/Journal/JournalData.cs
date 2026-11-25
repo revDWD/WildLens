@@ -32,6 +32,8 @@ namespace WildLens.Journal
         public string takenAtUtc;     // ISO 8601 round-trip
         public string imagePath;      // absolute path of the saved image
         public Vector3 cameraPosition;
+        /// <summary>35 mm-equivalent focal length the photo was taken at.</summary>
+        public float focalLength;
         public string locationLabel;
         public List<PhotoSubject> subjects = new List<PhotoSubject>();
     }

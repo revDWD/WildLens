@@ -229,6 +229,19 @@ namespace WildLens.EditorTools
         private TerrainLayer[] CreateTerrainLayers()
         {
             GeneratedAssets.EnsureFolder(TerrainFolder);
+            if (_art)
+            {
+                // Photographed ground (Poly Haven, CC0). Same order and roles as the generated layers below.
+                var scanned = new[]
+                {
+                    ScannedLayer("Grass", "leafy_grass", 3f, Color.white),
+                    ScannedLayer("Meadow", "forrest_ground_01", 3.2f, new Color(1f, 1.02f, 0.95f)),
+                    ScannedLayer("ForestFloor", "forest_leaves_02", 2.6f, new Color(0.92f, 0.9f, 0.88f)),
+                    ScannedLayer("Dirt", "dirt_floor", 2.4f, new Color(0.84f, 0.78f, 0.72f)), // tone the orange down
+                    ScannedLayer("Rock", "aerial_rocks_02", 6f, Color.white),
+                };
+                if (System.Array.TrueForAll(scanned, l => l != null)) return scanned;
+            }
             return new[]
             {
                 Layer("Grass", 4f, (float u, float v, out float h) => SurfaceGrass(u, v, out h, new Color(0.25f, 0.37f, 0.13f), new Color(0.38f, 0.48f, 0.19f), new Color(0.5f, 0.48f, 0.26f), 11)),
@@ -237,6 +250,28 @@ namespace WildLens.EditorTools
                 Layer("Dirt", 3f, SurfaceDirt),
                 Layer("Rock", 6f, SurfaceRock),
             };
+        }
+
+        private TerrainLayer ScannedLayer(string role, string asset, float tile, Color tint)
+        {
+            var diffuse = ArtLibrary.Texture($"Terrain/{asset}_diff_2k.jpg");
+            var normal = ArtLibrary.Texture($"Terrain/{asset}_nor_gl_1k.jpg");
+            if (diffuse == null) return null;
+            string path = $"{TerrainFolder}/TL_Scan_{role}.terrainlayer";
+            var layer = AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
+            bool created = layer == null;
+            if (created) layer = new TerrainLayer();
+            layer.diffuseTexture = diffuse;
+            layer.normalMapTexture = normal;
+            layer.normalScale = 1f;
+            layer.tileSize = new Vector2(tile, tile);
+            layer.diffuseRemapMin = Vector4.zero;
+            layer.diffuseRemapMax = new Vector4(tint.r, tint.g, tint.b, 1f);
+            layer.smoothness = 0f;
+            layer.metallic = 0f;
+            if (created) AssetDatabase.CreateAsset(layer, path);
+            else EditorUtility.SetDirty(layer);
+            return layer;
         }
 
         private delegate Color Surface(float u, float v, out float height);

@@ -10,3 +10,6 @@
 *.jpg binary
 *.fbx binary
 *.wav binary
+*.hdr binary
+*.exr binary
+*.jpeg binary

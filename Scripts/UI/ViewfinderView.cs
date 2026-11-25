@@ -14,6 +14,10 @@ namespace WildLens.UI
         public bool hasSubject;
         public TrackedSubject subject;
         public bool subjectCentred;
+        /// <summary>Focus has locked on the subject.</summary>
+        public bool focusLocked;
+        /// <summary>Focus is still travelling (pulling) toward its target.</summary>
+        public bool focusHunting;
         /// <summary>Species name if known, else null.</summary>
         public string subjectName;
         /// <summary>0-1 observation progress for an unknown species (ignored when the name is known).</summary>
@@ -51,7 +55,8 @@ namespace WildLens.UI
         private readonly Text _subjectLabel;
         private readonly RectTransform _progressBack, _progressFill;
 
-        private float _focus, _subjectAlpha;
+        private float _focus, _subjectAlpha, _lockBlend;
+        private readonly Image _focusDot;
         private Rect _smoothedRect;
 
         public ViewfinderView(RectTransform parent, IReadOnlyList<float> zoomLevels)
@@ -108,8 +113,12 @@ namespace WildLens.UI
                 _levelLabels.Add(label);
             }
             _focalText = UIFactory.CreateText("Focal Length", _frame, "", 18, new Color(1f, 1f, 1f, 0.7f), TextAnchor.MiddleCenter);
-            UIFactory.Place(_focalText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 76f), new Vector2(200f, 24f));
+            UIFactory.Place(_focalText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 76f), new Vector2(260f, 24f));
             UIFactory.AddShadow(_focalText);
+
+            // Focus-confirm indicator, bottom-left of the frame (as in an SLR viewfinder).
+            _focusDot = UIFactory.CreateImage("Focus Confirm", _frame, GoodColor);
+            UIFactory.Place(_focusDot.rectTransform, new Vector2(0f, 0f), new Vector2(98f, 98f), new Vector2(12f, 12f));
 
             // Large transient readout when the zoom level changes: makes every step unmistakable.
             _zoomPop = UIFactory.CreateText("Zoom Pop", _frame, "", 64, Line, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -184,7 +193,9 @@ namespace WildLens.UI
                 _levelLabels[i].fontStyle = current ? FontStyle.Bold : FontStyle.Normal;
                 _levelLabels[i].fontSize = current ? 28 : 22;
             }
-            _focalText.text = Mathf.RoundToInt(s.focalLength) + " mm";
+            _focalText.text = Mathf.RoundToInt(s.focalLength) + " mm   f/4";
+            _lockBlend = Mathf.MoveTowards(_lockBlend, s.focusLocked ? 1f : 0f, dt * 10f);
+            _focusDot.color = new Color(GoodColor.r, GoodColor.g, GoodColor.b, Mathf.Lerp(0.12f, 1f, _lockBlend));
 
             UpdateSubject(s, dt);
         }
@@ -209,6 +220,9 @@ namespace WildLens.UI
             _subjectBox.anchorMin = _smoothedRect.min;
             _subjectBox.anchorMax = _smoothedRect.max;
             _subjectBox.offsetMin = _subjectBox.offsetMax = Vector2.zero;
+            // Autofocus feel: brackets breathe while focus hunts, then snap still when it locks.
+            float hunt = s.focusHunting && s.subject.identifiable ? Mathf.Sin(Time.unscaledTime * 18f) * 0.025f : 0f;
+            _subjectBox.localScale = Vector3.one * (1f + hunt);
 
             Color c = !s.subject.identifiable ? Dim
                 : s.subject.previewQuality == PhotoQuality.Excellent ? ExcellentColor

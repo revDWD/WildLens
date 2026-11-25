@@ -89,6 +89,8 @@ namespace WildLens.Photography
             IsCapturing = true;
             var analysis = PhotoAnalyzer.Analyze(viewCamera, maxDistance, ignoreRoot);
             Vector3 cameraPosition = viewCamera.transform.position;
+            var lens = GetComponent<ZoomLens>();
+            float focal = lens != null ? lens.EquivalentFocalLength : 0f;
 
             CaptureStarting?.Invoke();
             WildlifeAwareness.EmitSound(cameraPosition, shutterNoiseRadius, shutterNoiseStrength);
@@ -110,6 +112,7 @@ namespace WildLens.Photography
                 takenAtUtc = now.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
                 imagePath = path,
                 cameraPosition = cameraPosition,
+                focalLength = focal,
                 locationLabel = trail != null ? trail.DescribeLocation(cameraPosition) : "",
                 subjects = analysis.subjects,
             };

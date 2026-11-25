@@ -91,7 +91,7 @@ namespace WildLens.UI
 
             _hintsText = UIFactory.CreateText("Hints", root,
                 "<b>WASD</b> walk   <b>Shift</b> sprint   <b>C</b> crouch   <b>J</b> journal\n" +
-                "<b>Hold RMB</b> camera   <b>Scroll</b> zoom   <b>LMB</b> shutter\n" +
+                "<b>Hold RMB</b> or <b>Scroll</b> camera + zoom   <b>LMB</b> shutter\n" +
                 "Hold an animal in view to identify it   <b>H</b> hide hints",
                 19, new Color(1f, 1f, 1f, 0.75f), TextAnchor.LowerLeft);
             UIFactory.Place(_hintsText.rectTransform, new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(720f, 90f));
@@ -144,6 +144,8 @@ namespace WildLens.UI
                 focalLength = _lens != null ? _lens.EquivalentFocalLength : 26f,
                 hasSubject = _framing != null && _framing.HasSubject,
                 subjectCentred = _framing != null && _framing.SubjectCentred,
+                focusLocked = _focus != null && _focus.IsLocked,
+                focusHunting = _focus != null && Mathf.Abs(_focus.FocusDistance - _focus.TargetDistance) / Mathf.Max(0.5f, _focus.TargetDistance) > 0.06f,
             };
             if (!s.hasSubject) return s;
 
@@ -158,9 +160,8 @@ namespace WildLens.UI
 
         private void OnLensLevelChanged(int level)
         {
-            // Raised: a big transient readout in the viewfinder. Lowered: the wheel preselects the lens, so confirm it.
-            if (_mode != null && _mode.IsActive) { _viewfinder.ShowZoomPop(_lens.Levels[level]); return; }
-            _notice.Show($"Lens  <b>{_lens.Levels[level]:0.#}×</b>  <size=20>{Mathf.RoundToInt(_lens.TargetFocalLength)} mm</size>", 1.2f);
+            // Zoom input always raises the camera now, so the readout belongs in the viewfinder.
+            _viewfinder.ShowZoomPop(_lens.Levels[level]);
         }
 
         private void OnFocusLocked() => _viewfinder.PulseFocus();

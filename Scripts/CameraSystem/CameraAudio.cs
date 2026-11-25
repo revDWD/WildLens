@@ -18,11 +18,13 @@ namespace WildLens.CameraSystem
         [SerializeField] private AudioClip raiseClip;
         [SerializeField] private AudioClip identifyClip;
         [SerializeField] private AudioClip focusClip;
+        [SerializeField] private AudioClip keeperClip;
         [SerializeField, Range(0f, 1f)] private float shutterVolume = 0.75f;
         [SerializeField, Range(0f, 1f)] private float zoomTickVolume = 0.3f;
         [SerializeField, Range(0f, 1f)] private float raiseVolume = 0.2f;
         [SerializeField, Range(0f, 1f)] private float identifyVolume = 0.35f;
         [SerializeField, Range(0f, 1f)] private float focusVolume = 0.12f;
+        [SerializeField, Range(0f, 1f)] private float keeperVolume = 0.3f;
 
         private AudioSource _source;
         private PhotoCamera _photo;
@@ -41,6 +43,7 @@ namespace WildLens.CameraSystem
             if (raiseClip == null) raiseClip = ProceduralSounds.Handling();
             if (identifyClip == null) identifyClip = ProceduralSounds.Chime();
             if (focusClip == null) focusClip = ProceduralSounds.FocusBeep();
+            if (keeperClip == null) keeperClip = ProceduralSounds.Keeper();
         }
 
         private void OnEnable()
@@ -49,6 +52,7 @@ namespace WildLens.CameraSystem
             _lens = GetComponent<ZoomLens>();
             _mode = GetComponent<CameraModeController>();
             if (_photo != null) _photo.CaptureStarting += OnShutter;
+            if (_photo != null) _photo.PhotoTaken += OnPhotoTaken;
             if (_lens != null) _lens.LevelChanged += OnZoom;
             if (_mode != null) _mode.Entered += OnRaise;
             _observation = GetComponent<ObservationTracker>();
@@ -60,6 +64,7 @@ namespace WildLens.CameraSystem
         private void OnDisable()
         {
             if (_photo != null) _photo.CaptureStarting -= OnShutter;
+            if (_photo != null) _photo.PhotoTaken -= OnPhotoTaken;
             if (_lens != null) _lens.LevelChanged -= OnZoom;
             if (_mode != null) _mode.Entered -= OnRaise;
             if (_observation != null) _observation.SpeciesIdentified -= OnIdentified;
@@ -71,6 +76,17 @@ namespace WildLens.CameraSystem
         private void OnRaise() => _source.PlayOneShot(raiseClip, raiseVolume);
         private void OnIdentified(SpeciesDefinition species) => _source.PlayOneShot(identifyClip, identifyVolume);
         private void OnFocusLocked() => _source.PlayOneShot(focusClip, focusVolume);
+
+        private void OnPhotoTaken(PhotoResult result)
+        {
+            if (result.identifications == null) return;
+            foreach (var id in result.identifications)
+                if (PhotoQualityEvaluator.Parse(id.subject.quality) == PhotoQuality.Excellent)
+                {
+                    _source.PlayOneShot(keeperClip, keeperVolume); // a keeper
+                    return;
+                }
+        }
     }
 
     /// <summary>Tiny synthesiser for placeholder camera sounds.</summary>
@@ -135,6 +151,19 @@ namespace WildLens.CameraSystem
                 data[i] = Mathf.Sin(2f * Mathf.PI * 2700f * t) * env;
             }
             return Build("FocusBeep", data);
+        }
+
+        /// <summary>Warm three-note rising arpeggio for an Excellent photograph.</summary>
+        public static AudioClip Keeper()
+        {
+            int n = (int)(Rate * 1.1f);
+            var data = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)Rate;
+                data[i] = Note(t, 0f, 523.25f) * 0.5f + Note(t, 0.09f, 659.25f) * 0.45f + Note(t, 0.18f, 783.99f) * 0.5f; // C5 E5 G5
+            }
+            return Build("Keeper", data);
         }
 
         /// <summary>Two soft rising sine notes with a gentle decay.</summary>

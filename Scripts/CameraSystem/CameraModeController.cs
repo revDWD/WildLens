@@ -6,6 +6,8 @@ namespace WildLens.CameraSystem
 {
     /// <summary>
     /// Camera Mode: hold the right mouse button to raise the camera to your eye, release to lower it.
+    /// Scrolling (or E/Q) while lowered also raises it and keeps it up ("latched") until you click RMB, sprint,
+    /// zoom out past 1×, or open a menu, so zooming always changes what you see.
     ///
     /// While active:
     ///   • the player moves at <see cref="MovementSpeedMultiplier"/> of walking or crouching speed and cannot sprint,
@@ -27,8 +29,12 @@ namespace WildLens.CameraSystem
 
         private ZoomLens _lens;
         private float _raw;
+        private bool _latched;
+        private bool _heldLastFrame;
 
         public bool IsActive { get; private set; }
+        /// <summary>Raised by zoom input rather than by holding RMB.</summary>
+        public bool IsLatched => _latched;
         /// <summary>Eased 0 (lowered) → 1 (at the eye).</summary>
         public float Blend { get; private set; }
         /// <summary>Raised far enough to take a photograph.</summary>
@@ -37,18 +43,29 @@ namespace WildLens.CameraSystem
 
         /// <summary>Look sensitivity multiplier: slightly reduced in camera mode, then scaled by zoom so framing stays controllable.</summary>
         public float LookSensitivityScale =>
-            Mathf.Lerp(1f, lookSensitivityMultiplier, Blend) * (_lens != null ? _lens.FovRatio : 1f);
+            Mathf.Lerp(1f, lookSensitivityMultiplier, Blend) * (Lens != null ? Lens.FovRatio : 1f);
 
         public event Action Entered;
         public event Action Exited;
 
-        private void Awake() => _lens = GetComponent<ZoomLens>();
+        // Resolved lazily: when components are added at runtime, Awake order can't be relied on.
+        private ZoomLens Lens => _lens != null ? _lens : (_lens = GetComponent<ZoomLens>());
+
+        /// <summary>Raise the camera without RMB held (zoom input while lowered).</summary>
+        public void Latch() => _latched = true;
+
+        /// <summary>Lower a latched camera.</summary>
+        public void Unlatch() => _latched = false;
 
         private void Update()
         {
             var game = WildLensGame.Instance;
             bool canUse = (game == null || !game.IsUiOpen) && Cursor.lockState == CursorLockMode.Locked;
-            bool want = canUse && GameInput.CameraRaiseHeld;
+            bool held = GameInput.CameraRaiseHeld;
+            // Pressing RMB hands control back to hold-to-raise; sprinting or a menu lowers a latched camera.
+            if (!canUse || (held && !_heldLastFrame) || GameInput.SprintHeld) _latched = false;
+            _heldLastFrame = held;
+            bool want = canUse && (held || _latched);
 
             if (want != IsActive)
             {

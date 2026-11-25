@@ -28,6 +28,12 @@ namespace WildLens.EditorTools
         private Mesh _cone, _cylinder;
         private Mesh[] _canopies, _rocks;
         private Material[] _bark, _conifer, _leaf, _bush, _stone;
+        private Material _pineBark;
+        private List<GameObject> _artFerns = new List<GameObject>(), _artShrubs = new List<GameObject>(),
+            _artRocks = new List<GameObject>(), _artBoulders = new List<GameObject>(),
+            _artStumps = new List<GameObject>(), _artLogs = new List<GameObject>();
+        private bool _art;
+        public int FernsPlaced { get; private set; }
         private readonly List<GameObject> _treeObjects = new List<GameObject>();
         private readonly List<GameObject> _bushObjects = new List<GameObject>();
 
@@ -143,6 +149,23 @@ namespace WildLens.EditorTools
                 GeneratedAssets.Material("Stone1", new Color(0.42f, 0.42f, 0.4f), 0.2f),
                 GeneratedAssets.Material("Stone2", new Color(0.46f, 0.47f, 0.41f), 0.15f),
             };
+
+            // Scanned art (CC0, shipped in the package): replaces flat colours and primitive props where available.
+            _art = _s.useScannedArt && ArtLibrary.Import();
+            if (!_art) return;
+            var barkA = ArtLibrary.SurfaceMaterial("BarkBroadleaf", "Surfaces/bark_brown_02_diff_1k.jpg", "Surfaces/bark_brown_02_nor_gl_1k.jpg", Color.white, new Vector2(2f, 3f));
+            var barkB = ArtLibrary.SurfaceMaterial("BarkBroadleafDark", "Surfaces/bark_brown_02_diff_1k.jpg", "Surfaces/bark_brown_02_nor_gl_1k.jpg", new Color(0.82f, 0.78f, 0.74f), new Vector2(2f, 3f));
+            if (barkA != null && barkB != null) _bark = new[] { barkA, barkB };
+            _pineBark = ArtLibrary.SurfaceMaterial("BarkPine", "Surfaces/pine_bark_diff_1k.jpg", "Surfaces/pine_bark_nor_gl_1k.jpg", Color.white, new Vector2(2f, 4f));
+            var rockA = ArtLibrary.SurfaceMaterial("MossyRock", "Surfaces/mossy_rock_diff_1k.jpg", "Surfaces/mossy_rock_nor_gl_1k.jpg", Color.white, Vector2.one, 0.15f);
+            var rockB = ArtLibrary.SurfaceMaterial("MossyRockGrey", "Surfaces/mossy_rock_diff_1k.jpg", "Surfaces/mossy_rock_nor_gl_1k.jpg", new Color(0.86f, 0.86f, 0.84f), Vector2.one, 0.15f);
+            if (rockA != null && rockB != null) _stone = new[] { rockA, rockB };
+            _artFerns = ArtLibrary.Prefabs(ArtKind.Fern);
+            _artShrubs = ArtLibrary.Prefabs(ArtKind.Shrub);
+            _artRocks = ArtLibrary.Prefabs(ArtKind.RockPiece);
+            _artBoulders = ArtLibrary.Prefabs(ArtKind.Boulder);
+            _artStumps = ArtLibrary.Prefabs(ArtKind.Stump);
+            _artLogs = ArtLibrary.Prefabs(ArtKind.Log);
         }
 
         private T Pick<T>(T[] array) => array[_rng.Next(array.Length)];
@@ -178,6 +201,18 @@ namespace WildLens.EditorTools
             go.transform.localScale = scale;
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+            return go;
+        }
+
+        /// <summary>Places a scanned-art prefab (which already carries colliders and wildlife data), sunk slightly and tilted to sit naturally.</summary>
+        private GameObject PlaceArt(List<GameObject> options, Transform parent, Vector3 p, float scale, float sink, float tilt)
+        {
+            var go = InstantiatePrefab(options[_rng.Next(options.Count)], parent, p, scale);
+            var f = go.GetComponent<EnvironmentFeature>();
+            float h = f != null ? f.height * scale : 0f;
+            go.transform.position = p - Vector3.up * h * sink;
+            go.transform.rotation = Quaternion.Euler(R(-tilt, tilt), R(0f, 360f), R(-tilt, tilt));
+            MakeStatic(go);
             return go;
         }
 
@@ -255,7 +290,7 @@ namespace WildLens.EditorTools
             root.transform.rotation = Quaternion.Euler(0f, R(0f, 360f), 0f);
 
             float trunkLen = h * 0.35f;
-            MeshPart("Trunk", root.transform, _cylinder, Pick(_bark), new Vector3(0f, trunkLen * 0.5f, 0f),
+            MeshPart("Trunk", root.transform, _cylinder, _pineBark != null ? _pineBark : Pick(_bark), new Vector3(0f, trunkLen * 0.5f, 0f),
                 new Vector3(trunkR * 2f, trunkLen * 0.5f, trunkR * 2f), Quaternion.identity);
             // Stacked, slightly irregular tiers; darker shaded lower tiers, fresher growth at the top.
             int tiers = _rng.Next(4, 6);
@@ -339,6 +374,15 @@ namespace WildLens.EditorTools
 
                 GameObject bush;
                 float s = R(0.6f, 1.4f);
+                if (prefabs.Count == 0 && _artShrubs.Count > 0 && d < 30f && R() < 0.65f)
+                {
+                    // Scanned shrubs where the player will see them up close.
+                    bush = PlaceArt(_artShrubs, parent, p, R(0.8f, 1.3f), 0.02f, 3f);
+                    Occupy(p);
+                    BushesPlaced++;
+                    _bushObjects.Add(bush);
+                    continue;
+                }
                 if (prefabs.Count > 0)
                 {
                     bush = InstantiatePrefab(prefabs[_rng.Next(prefabs.Count)], parent, p, s);
@@ -414,6 +458,21 @@ namespace WildLens.EditorTools
                 if (!IsFree(p, 1f + size * 0.5f)) continue;
 
                 GameObject rock;
+                if (prefabs.Count == 0 && _art && inCluster && _artRocks.Count > 0 && R() < 0.65f)
+                {
+                    // Scanned mossy rock pieces make up most of each outcrop.
+                    rock = PlaceArt(_artRocks, parent, p, R(0.6f, 1.5f), 0.12f, 10f);
+                    Occupy(p);
+                    RocksPlaced++;
+                    continue;
+                }
+                if (prefabs.Count == 0 && _art && !inCluster && size > 2f && _artBoulders.Count > 0)
+                {
+                    rock = PlaceArt(_artBoulders, parent, p, R(1f, 1.7f), 0.1f, 6f);
+                    Occupy(p);
+                    RocksPlaced++;
+                    continue;
+                }
                 if (prefabs.Count > 0)
                 {
                     rock = InstantiatePrefab(prefabs[_rng.Next(prefabs.Count)], parent, p, size);
@@ -447,6 +506,13 @@ namespace WildLens.EditorTools
             {
                 Vector3 p = RandomPoint();
                 if (Forest(p) < 0.45f || _trail.DistanceToTrail(p) < 4f || !IsFree(p, 3f)) continue;
+                if (_artLogs.Count > 0)
+                {
+                    PlaceArt(_artLogs, parent, p, R(0.8f, 1.2f), 0.15f, 3f);
+                    Occupy(p);
+                    placed++;
+                    continue;
+                }
                 float len = R(2.5f, 5f), rad = R(0.18f, 0.3f);
                 var log = new GameObject("Fallen Log");
                 log.transform.SetParent(parent, false);
@@ -472,6 +538,13 @@ namespace WildLens.EditorTools
             {
                 Vector3 p = RandomPoint();
                 if (Forest(p) < 0.4f || _trail.DistanceToTrail(p) < 3f || !IsFree(p, 2f)) continue;
+                if (_artStumps.Count > 0)
+                {
+                    PlaceArt(_artStumps, parent, p, R(0.7f, 1.1f), 0.1f, 4f);
+                    Occupy(p);
+                    stumps++;
+                    continue;
+                }
                 float rad = R(0.22f, 0.4f), h = R(0.25f, 0.6f);
                 var stump = new GameObject("Stump");
                 stump.transform.SetParent(parent, false);
@@ -486,6 +559,25 @@ namespace WildLens.EditorTools
                 MakeStatic(stump);
                 Occupy(p);
                 stumps++;
+            }
+        }
+
+        // ------------------------------------------------------------------ undergrowth (scanned ferns)
+
+        /// <summary>Ferns under woodland and along shaded trail edges, where the player walks past them.</summary>
+        public void BuildUndergrowth(Transform parent)
+        {
+            if (_artFerns.Count == 0 || _s.fernCount <= 0) return;
+            int attempts = _s.fernCount * 20;
+            while (FernsPlaced < _s.fernCount && attempts-- > 0)
+            {
+                Vector3 p = RandomPoint();
+                float d = _trail.DistanceToTrail(p);
+                if (d < _s.trailWidth * 0.5f + 0.8f || d > 35f) continue;
+                float f = Forest(p);
+                if (R() > Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.35f, 0.6f, f)) || TerrainUtil.SlopeDegrees(p) > 30f) continue;
+                PlaceArt(_artFerns, parent, p, R(0.6f, 1.1f), 0f, 6f);
+                FernsPlaced++;
             }
         }
 

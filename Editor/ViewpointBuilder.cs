@@ -9,6 +9,8 @@ namespace WildLens.EditorTools
     /// Scenic viewpoints (part of <see cref="VegetationBuilder"/>): composed places that invite the player to stop.
     ///   Meadow Overlook  a low timber platform with a rail where the trail passes closest to a meadow hotspot
     ///   Lookout          a bench at the highest point of the trail, facing back across the loop
+    ///   Forest Glade     an observation clearing cut into the densest woodland beside the trail, log seat at its edge
+    ///   Trail Bend       at the sharpest bend, a bench looking down the long line the trail was following
     /// Trees, bushes and rocks inside each view cone are removed so the view actually exists. Each gets a
     /// <see cref="ScenicViewpoint"/> (used by the comparison-capture tool). Run after hotspots, before painting.
     /// </summary>
@@ -85,6 +87,86 @@ namespace WildLens.EditorTools
                 Vector3 target = TerrainUtil.Ground(pos + inward * 60f) + Vector3.up * 2f;
                 AddViewpoint(parent, "Lookout", pos + Vector3.up * 1.65f, target);
             }
+        }
+
+        /// <summary>Forest Glade and Trail Bend: call after <see cref="BuildViewpoints"/>.</summary>
+        public void BuildCompositions(Transform parent)
+        {
+            var wood = GeneratedAssets.Material("Wood", new Color(0.52f, 0.39f, 0.26f));
+            var woodDark = GeneratedAssets.Material("WoodDark", new Color(0.33f, 0.24f, 0.16f));
+            BuildForestGlade(parent, wood, woodDark);
+            BuildTrailBend(parent, wood, woodDark);
+        }
+
+        private void BuildForestGlade(Transform parent, Material wood, Material woodDark)
+        {
+            // Densest woodland 10–22 m off the trail: a clearing reads strongest where the forest is thickest.
+            Vector3 best = Vector3.zero;
+            int bestCount = 0;
+            for (int i = 0; i < 400; i++)
+            {
+                Vector3 p = RandomPoint();
+                float d = _trail.DistanceToTrail(p);
+                if (d < 10f || d > 22f || TerrainUtil.SlopeDegrees(p) > 15f) continue;
+                int count = 0;
+                foreach (var t in _treeObjects) if (t != null && TerrainUtil.FlatDistance(t.transform.position, p) < 14f) count++;
+                if (count > bestCount) { bestCount = count; best = p; }
+            }
+            if (bestCount < 5) return;
+
+            const float radius = 9f;
+            bool InGlade(Vector3 q) => TerrainUtil.FlatDistance(q, best) < radius;
+            RemoveWhere(_treeObjects, InGlade);
+            RemoveWhere(_bushObjects, InGlade);
+
+            _trail.DistanceToTrail(best, out float along);
+            Vector3 entrance = _trail.GetPoint(along);
+            Vector3 toGlade = TerrainUtil.Flat(best - entrance).normalized;
+
+            // Log seat at the far edge, looking back across the glade toward the trail.
+            Vector3 seatPos = TerrainUtil.Ground(best + toGlade * (radius - 2f));
+            var seat = PropBuilder.Group("Glade Log Seat", parent, seatPos, Quaternion.LookRotation(-toGlade));
+            if (_artLogs.Count > 0)
+            {
+                var log = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(_artLogs[0], seat);
+                log.transform.localPosition = Vector3.zero;
+                log.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            }
+            else PropBuilder.Box("Seat Log", seat, new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.4f, 0.45f), woodDark);
+
+            var sign = PropBuilder.Group("Glade Sign", parent, TerrainUtil.Ground(entrance + toGlade * (_trail.Width * 0.5f + 0.8f)), Quaternion.LookRotation(-toGlade));
+            PropBuilder.Box("Post", sign, new Vector3(0f, 0.5f, 0f), new Vector3(0.09f, 1f, 0.09f), woodDark);
+            PropBuilder.Box("Board", sign, new Vector3(0f, 1.05f, 0f), new Vector3(0.75f, 0.32f, 0.05f), wood);
+            PropBuilder.Label(sign, new Vector3(0f, 1.05f, 0.04f), "FOREST GLADE\nSit quietly · watch the edges", 0.011f);
+
+            AddViewpoint(parent, "Forest Glade", seatPos + Vector3.up * 1.2f, TerrainUtil.Ground(best - toGlade * radius) + Vector3.up * 1.5f);
+        }
+
+        private void BuildTrailBend(Transform parent, Material wood, Material woodDark)
+        {
+            float bestTurn = 0f, bestAlong = 0f;
+            for (float a = 0f; a < _trail.Length; a += 3f)
+            {
+                float turn = Vector3.Angle(_trail.GetDirection(a - 12f), _trail.GetDirection(a + 12f));
+                if (turn > bestTurn) { bestTurn = turn; bestAlong = a; }
+            }
+            if (bestTurn < 15f) return;
+
+            // Looking straight ahead along the incoming line, past the bend: the classic long sight line.
+            Vector3 p = _trail.GetPoint(bestAlong);
+            Vector3 incoming = _trail.GetDirection(bestAlong - 12f);
+            Vector3 outgoing = _trail.GetDirection(bestAlong + 12f);
+            Vector3 outer = TerrainUtil.Flat(incoming - outgoing).normalized; // outside of the bend
+            Vector3 benchPos = TerrainUtil.Ground(p + outer * (_trail.Width * 0.5f + 1.2f));
+            ClearCone(benchPos, incoming, 12f, 80f);
+
+            var bench = PropBuilder.Group("Trail Bend Bench", parent, benchPos, Quaternion.LookRotation(incoming));
+            PropBuilder.Box("Seat", bench, new Vector3(0f, 0.45f, 0f), new Vector3(1.6f, 0.08f, 0.42f), wood);
+            PropBuilder.Box("Back", bench, new Vector3(0f, 0.78f, -0.2f), new Vector3(1.6f, 0.32f, 0.06f), wood);
+            PropBuilder.Box("LegL", bench, new Vector3(-0.65f, 0.22f, 0f), new Vector3(0.08f, 0.45f, 0.4f), woodDark);
+            PropBuilder.Box("LegR", bench, new Vector3(0.65f, 0.22f, 0f), new Vector3(0.08f, 0.45f, 0.4f), woodDark);
+            PropBuilder.AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.6f, 0.9f, 0.45f));
+            AddViewpoint(parent, "Trail Bend", benchPos + Vector3.up * 1.6f, TerrainUtil.Ground(benchPos + incoming * 70f) + Vector3.up * 3f);
         }
 
         private void AddViewpoint(Transform parent, string title, Vector3 eye, Vector3 lookAt)

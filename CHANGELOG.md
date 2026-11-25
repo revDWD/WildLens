@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0] Zoom you can see · Art direction
+### Fixed
+- **Zoom readouts changed but the view did not.** Two causes: (1) in scenes upgraded at runtime, ZoomLens cached a
+  null CameraModeController in Awake (added before it), so it never applied camera-mode FOVs; (2) scrolling while the
+  camera was lowered only "preselected" a level by design, changing the UI but not the view. Zoom input now raises
+  the camera, references resolve lazily, and the FOV is applied late and re-asserted right before rendering, with
+  physical-camera, custom-projection, orthographic and Cinemachine overrides detected and corrected.
+### Added
+- Render-time camera probe in the F3 overlay; F4 zoom self-test (measures rendered projection and subject size at
+  every level, saves screenshots, PASS/FAIL).
+- Scanned CC0 art from Poly Haven shipped in `Art~`: two HDRI skies with sun alignment, five terrain materials,
+  bark and rock surfaces, ferns, shrubs, mossy rocks, boulder, stump, fallen trunk.
+- Sky moods (late morning / golden hour), HDRI ambient and reflections, fog matched to the sky's horizon.
+- Camera presentation: autofocus hunting and lock, focus-confirm dot, focal/aperture line, "keeper" prints and chime
+  for Excellent photos, photos develop in.
+- Compositions: Forest Glade clearing and Trail Bend sight line.
+
 ## [0.4.0] Visual quality & camera
 ### Fixed
 - **Zoom did nothing with Input System 1.9+ (Unity 6).** Scroll was divided by 120, but the Input System now reports

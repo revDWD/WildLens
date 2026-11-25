@@ -100,6 +100,7 @@ namespace WildLens.Core
         }
 
         public static bool DiagnosticsTogglePressed => Pressed(Key.Diagnostics);
+        public static bool ZoomSelfTestPressed => Pressed(Key.ZoomSelfTest);
 
         public static bool SprintHeld => Held(Key.Sprint);
         public static bool CameraRaiseHeld => MouseHeld(1);
@@ -117,7 +118,7 @@ namespace WildLens.Core
         public static bool CrouchTogglePressed => Pressed(Key.CrouchToggle);
         public static bool CrouchHeld => Held(Key.CrouchHold);
 
-        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics }
+        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics, ZoomSelfTest }
 
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
         private static UnityEngine.InputSystem.Controls.KeyControl Control(Keyboard k, Key key)
@@ -141,6 +142,7 @@ namespace WildLens.Core
                 case Key.ZoomIn: return k.eKey;
                 case Key.ZoomOut: return k.qKey;
                 case Key.Diagnostics: return k.f3Key;
+                case Key.ZoomSelfTest: return k.f4Key;
                 default: return null;
             }
         }
@@ -194,6 +196,7 @@ namespace WildLens.Core
                 case Key.ZoomIn: return KeyCode.E;
                 case Key.ZoomOut: return KeyCode.Q;
                 case Key.Diagnostics: return KeyCode.F3;
+                case Key.ZoomSelfTest: return KeyCode.F4;
                 default: return KeyCode.None;
             }
         }

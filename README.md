@@ -33,11 +33,11 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 | **C** | Crouch (toggle; Left Ctrl hold also works in builds) |
 | Mouse | Look |
 | **Hold RMB** | Camera mode: raise the camera (slower, steadier, viewfinder) |
-| Scroll, or E / Q | Zoom 1× / 2× / 4× / 8× / 16× (works lowered too, to preselect) |
+| Scroll, or E / Q | Zoom 1× / 2× / 4× / 8× / 16×. Zooming while lowered raises the camera; zoom out past 1× to lower it |
 | LMB or F (in camera mode) | Take photo |
 | J or Tab | Field journal (pauses the world) · W/S to browse |
 | H | Toggle control hints |
-| F3 | Camera diagnostics overlay |
+| F3 / F4 | Camera diagnostics overlay / zoom self-test |
 | Esc | Release mouse / close journal |
 
 **Finding and approaching wildlife:** deer graze in flower meadows, rabbits and foxes stay near brush piles,

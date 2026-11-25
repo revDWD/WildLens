@@ -22,6 +22,34 @@ Spot an animal → raise the camera (RMB) → zoom (scroll) → the viewfinder b
 **identified by observation** → **crouch** (C) and approach → it becomes Alert and stares → **freeze**; it
 relaxes → brackets turn green (Good) or gold (Excellent) → take the photograph.
 
+## Zoom: why it looked broken, and the proof tools (0.5.0)
+
+**Symptom (after 0.4.0):** scroll changed the zoom row, the big "8×" readout and the focal length, but the view barely changed.
+
+**Root causes found in the code:**
+1. *Initialization order.* Scenes built before 0.2.0 get their camera components from `PlayerCameraRig.EnsureComponents()`
+   at runtime, and `ZoomLens` was added first. Unity runs `Awake` inside `AddComponent`, so `ZoomLens.Awake` looked up
+   `CameraModeController` before it existed and cached `null`. Camera mode then never counted as active inside the lens, and
+   the FOV stayed at the walking 65°. The HUD held its *own* valid reference, so every indicator kept updating.
+   **Fix:** all cross-component references resolve lazily.
+2. *Preselect by design.* Since 0.3.0, scrolling with the camera lowered only preselected a level and showed
+   "Lens 8× · 205 mm" without touching the view. **Fix:** zoom input now raises the camera ("latched"; RMB, sprint
+   or zooming out past 1× lowers it), so every zoom step is visible.
+
+**Hardening:** the lens applies the FOV in `LateUpdate` at execution order 10000 and re-applies it in
+`beginCameraRendering` / `onPreCull`, so a script writing the FOV later in the frame cannot win (counted in F3).
+Physical-camera mode, a custom projection matrix, an orthographic camera or a `CinemachineBrain` on the player camera,
+all of which stop `fieldOfView` from controlling the image, are corrected and logged once.
+
+**Proof tools:** F3 shows a render-time probe: which cameras drew to the screen this frame, with both their `fieldOfView`
+and the FOV in the projection they actually rendered with. **F4** runs a self-test: it raises the camera, steps
+1×→16×, records the rendered projection, measured magnification and the on-screen height of the animal nearest the
+centre at each level, saves `zoom_<n>x.png` screenshots to `persistentDataPath/WildLens/ZoomTest/`, and reports
+PASS/FAIL (fails if another camera is on screen or the projection doesn't match the level).
+
+Expected numbers: 1× = 50.0°, 2× = 26.2°, 4× = 13.3°, 8× = 6.7°, 16× = 3.35°. A 1.75 m deer at 80 m is 2.3% of the
+frame height at 1× and 37.5% at 16×.
+
 ## Zoom: investigation and fix (0.4.0)
 
 **Symptom:** the scroll wheel appeared to do nothing in camera mode.

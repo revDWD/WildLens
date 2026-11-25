@@ -99,8 +99,12 @@ namespace WildLens.EditorTools
                 if (s.scenicViewpoints)
                 {
                     Progress("Scenic viewpoints", 0.68f);
-                    veg.BuildViewpoints(Child(env, "Viewpoints"), loop);
+                    var viewpoints = Child(env, "Viewpoints");
+                    veg.BuildViewpoints(viewpoints, loop);
+                    veg.BuildCompositions(viewpoints);
                 }
+                Progress("Undergrowth", 0.7f);
+                veg.BuildUndergrowth(Child(env, "Undergrowth"));
 
                 bool details = s.paintTerrain && s.terrainDetailGrass && !hdrp;
                 if (s.paintTerrain) veg.PaintTerrain(details, s.backupTerrainData, ownsTerrain);
@@ -112,9 +116,9 @@ namespace WildLens.EditorTools
                 if (s.wind) BuildWind(env);
 
                 Progress("Lighting", 0.85f);
-                if (s.configureLightingAndFog) ConfigureLighting(root.transform);
+                if (s.configureLightingAndFog) ConfigureLighting(root.transform, s);
                 if (s.configureRenderQuality) ConfigureRenderQuality();
-                if (s.postProcessing) BuildPostProcessing(root.transform);
+                if (s.postProcessing) BuildPostProcessing(root.transform, s);
 
                 Progress("Player & systems", 0.9f);
                 var player = BuildPlayer(root.transform, trail, s);
@@ -225,20 +229,79 @@ namespace WildLens.EditorTools
         /// Late-morning light: a warm sun high enough to read well but low enough for long soft shadows, sky-matched
         /// ambient, gentle exponential haze for atmospheric perspective, and a tuned procedural sky.
         /// </summary>
-        private static void ConfigureLighting(Transform root)
-        {
-            Light sun = null;
-            foreach (var l in SceneQuery.FindAll<Light>())
-                if (l.type == LightType.Directional) { sun = l; break; }
-            if (sun == null)
-            {
-                var go = new GameObject("Sun");
-                go.transform.SetParent(root, false);
-                sun = go.AddComponent<Light>();
-                sun.type = LightType.Directional;
-            }
-            else Undo.RecordObjects(new Object[] { sun, sun.transform }, "Configure sun");
+        private static string SkyAsset(SkyMood mood) =>
+            mood == SkyMood.GoldenHour ? "kloppenheim_06_puresky" : "kloofendal_48d_partly_cloudy_puresky";
 
+        private static void ConfigureLighting(Transform root, SliceBuildSettings s)
+        {
+            if (s.useScannedArt && s.skyMood != SkyMood.Procedural && ArtLibrary.Import())
+            {
+                var info = ArtLibrary.Sky(SkyAsset(s.skyMood));
+                var sky = info != null ? ArtLibrary.SkyMaterial(info.name, s.skyMood == SkyMood.GoldenHour ? 1.1f : 1f) : null;
+                if (sky != null)
+                {
+                    ConfigureHdriLighting(root, s.skyMood, info, sky);
+                    return;
+                }
+                Debug.LogWarning("[WildLens] HDRI sky not found; using the procedural sky.");
+            }
+            ConfigureProceduralLighting(root);
+        }
+
+        private static Light FindOrCreateSun(Transform root)
+        {
+            foreach (var l in SceneQuery.FindAll<Light>())
+                if (l.type == LightType.Directional) { Undo.RecordObjects(new Object[] { l, l.transform }, "Configure sun"); return l; }
+            var go = new GameObject("Sun");
+            go.transform.SetParent(root, false);
+            var sun = go.AddComponent<Light>();
+            sun.type = LightType.Directional;
+            return sun;
+        }
+
+        /// <summary>
+        /// HDRI lighting: the sky image is the skybox, the source of ambient light and reflections; the directional
+        /// light is aimed exactly at the sun in the image (measured when the asset was added, see Art~/Sky/*.json) and
+        /// tinted with its measured colour; fog takes the sky's measured horizon colour so distant hills melt into
+        /// the same haze the sky shows.
+        /// </summary>
+        private static void ConfigureHdriLighting(Transform root, SkyMood mood, SkyInfo info, Material sky)
+        {
+            var sun = FindOrCreateSun(root);
+            sun.transform.rotation = Quaternion.LookRotation(-info.SunDirection);
+            Color sunColor = SkyInfo.ToColor(info.sunColor);
+            bool golden = mood == SkyMood.GoldenHour;
+            sun.color = golden ? Color.Lerp(sunColor, new Color(1f, 0.72f, 0.45f), 0.3f) : sunColor;
+            sun.intensity = golden ? 1.05f : 1.45f;
+            sun.shadows = LightShadows.Soft;
+            sun.shadowStrength = golden ? 0.75f : 0.85f;
+            sun.shadowNormalBias = 0.3f;
+            RenderSettings.sun = sun;
+
+            RenderSettings.skybox = sky;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
+            RenderSettings.ambientIntensity = golden ? 1.1f : 1f;
+            RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
+            RenderSettings.reflectionIntensity = 0.9f;
+
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Exponential;
+            RenderSettings.fogDensity = golden ? 0.0034f : 0.0024f;
+            RenderSettings.fogColor = SkyInfo.ToColor(info.fogColor);
+            DynamicGI.UpdateEnvironment();
+            Debug.Log($"[WildLens] Sky: {info.name} (sun {info.sunElevation:0.0}° high, azimuth {info.sunAzimuth:0}°); sun light aligned to the sky, fog matched to the horizon.");
+            WarnGamma();
+        }
+
+        private static void WarnGamma()
+        {
+            if (PlayerSettings.colorSpace != ColorSpace.Linear)
+                Debug.LogWarning("[WildLens] Project uses Gamma colour space. Linear (Project Settings > Player > Other) gives far better lighting and grading; changing it reimports textures.");
+        }
+
+        private static void ConfigureProceduralLighting(Transform root)
+        {
+            var sun = FindOrCreateSun(root);
             sun.transform.rotation = Quaternion.Euler(30f, -38f, 0f);
             sun.color = new Color(1f, 0.92f, 0.8f);
             sun.intensity = 1.3f;
@@ -283,9 +346,7 @@ namespace WildLens.EditorTools
                 RenderSettings.skybox = sky;
             }
             DynamicGI.UpdateEnvironment();
-
-            if (PlayerSettings.colorSpace != ColorSpace.Linear)
-                Debug.LogWarning("[WildLens] Project uses Gamma colour space. Linear (Project Settings > Player > Other) gives far better lighting and grading; changing it reimports textures.");
+            WarnGamma();
         }
 
         private static string PipelineName()
@@ -355,8 +416,9 @@ namespace WildLens.EditorTools
         /// URP: a global grading volume: ACES tonemapping, slightly warm white balance, a touch of contrast and
         /// saturation, gentle bloom on sun highlights, cool shadows and warm highlights, faint vignette.
         /// </summary>
-        private static void BuildPostProcessing(Transform root)
+        private static void BuildPostProcessing(Transform root, SliceBuildSettings s)
         {
+            bool golden = s.useScannedArt && s.skyMood == SkyMood.GoldenHour;
 #if WILDLENS_URP
             string path = GeneratedAssets.Folder + "/WildLensGrade.asset";
             AssetDatabase.DeleteAsset(path);
@@ -373,18 +435,18 @@ namespace WildLens.EditorTools
 
             Add<Tonemapping>().mode.Override(TonemappingMode.ACES);
             var colour = Add<ColorAdjustments>();
-            colour.postExposure.Override(0.25f);
+            colour.postExposure.Override(golden ? 0.35f : 0.2f);
             colour.contrast.Override(8f);
             colour.saturation.Override(6f);
             var wb = Add<WhiteBalance>();
-            wb.temperature.Override(8f);
+            wb.temperature.Override(golden ? 14f : 5f);
             wb.tint.Override(2f);
             var smh = Add<ShadowsMidtonesHighlights>();
             smh.shadows.Override(new Vector4(0.97f, 1f, 1.06f, 0f));
             smh.highlights.Override(new Vector4(1.04f, 1f, 0.95f, 0f));
             var bloom = Add<Bloom>();
             bloom.threshold.Override(1.1f);
-            bloom.intensity.Override(0.35f);
+            bloom.intensity.Override(golden ? 0.5f : 0.3f);
             bloom.scatter.Override(0.65f);
             var vignette = Add<Vignette>();
             vignette.intensity.Override(0.16f);

@@ -6,6 +6,16 @@ namespace WildLens.EditorTools
     /// Settings for the vertical-slice scene builder. Stored as an asset so tuning (and prefab choices)
     /// persist between rebuilds. Assign your own prefabs to replace the generated placeholders.
     /// </summary>
+    public enum SkyMood
+    {
+        [Tooltip("Poly Haven 'Kloofendal 48d Partly Cloudy': late morning, sun 48° up, cumulus.")]
+        LateMorning,
+        [Tooltip("Poly Haven 'Kloppenheim 06': golden hour, sun 14° up behind broken cloud.")]
+        GoldenHour,
+        [Tooltip("Unity procedural sky (no HDRI).")]
+        Procedural,
+    }
+
     public class SliceBuildSettings : ScriptableObject
     {
         [Header("General")]
@@ -39,6 +49,13 @@ namespace WildLens.EditorTools
         public GameObject[] rockPrefabs = new GameObject[0];
         [Tooltip("If no tree prefabs are assigned, use the terrain's existing tree prototypes before falling back to placeholders.")]
         public bool useTerrainTreePrototypes = true;
+
+        [Header("Art")]
+        [Tooltip("Use the scanned CC0 art shipped with the package (HDRI skies, ground materials, bark, rocks, ferns, shrubs, logs).")]
+        public bool useScannedArt = true;
+        public SkyMood skyMood = SkyMood.LateMorning;
+        [Tooltip("Scanned ferns placed under woodland near the trail.")]
+        public int fernCount = 160;
 
         [Header("Terrain surface")]
         [Tooltip("Paint the terrain with generated grass / meadow / forest floor / dirt / rock layers. The terrain's original data is backed up first.")]

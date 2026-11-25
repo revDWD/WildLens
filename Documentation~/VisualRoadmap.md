@@ -1,100 +1,77 @@
 # WildLens visual roadmap & asset recommendations
 
-What 0.4.0 does procedurally, what it can't do without real art, and the best ways to close that gap.
-Licensing notes were checked in November 2026. **Re-check the licence on each asset's page before importing:
-terms change and differ per item.**
+Updated for 0.5.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
 
-## Where the procedural approach tops out
+## Integrated in 0.5.0 (all CC0, Poly Haven, see `Art~/CREDITS.md`)
 
-0.4.0 gets lighting, haze, grading, terrain texturing, grass with wind, foliage sway and composition as far as
-generated content reasonably can. The remaining gap to "beautiful" is almost entirely **art assets**:
-
-| Gap | Why it can't be generated well | What fixes it |
+| Area | Asset(s) | Result |
 |---|---|---|
-| Animals look like primitives | Silhouette and fur need modelled, rigged, animated meshes | Animated wildlife models (prefab hook already exists) |
-| Trees read as cones and blobs | Real foliage needs alpha-cut leaf cards and bark textures | Tree prefabs or SpeedTree assets (builder accepts them) |
-| Terrain textures are clean noise | Photo-scanned ground has real structure | Scanned PBR ground textures |
-| Rocks are smooth blobs | Scanned rock geometry | Scanned rock models |
-| Sky is Unity's procedural sky | Clouds, real sky gradients | An HDRI sky |
+| Sky | Kloofendal 48d Partly Cloudy, Kloppenheim 06 (pure-sky HDRIs, 2k) | Real cumulus skies; image-based ambient and reflections; sun light aimed at the sun in the image; fog = measured horizon colour |
+| Ground | Leafy Grass, Forrest Ground 01, Forest Leaves 02, Dirt Floor, Aerial Rocks 02 | Photographed terrain layers with normal maps, painted by ecology (same rules as before) |
+| Trunks & rocks | Bark Brown 02, Pine Bark, Mossy Rock | Scanned bark on every trunk; scanned rock surface on generated rocks |
+| Undergrowth | Fern 02, Shrub 02/04 | ~160 scanned ferns under woodland near the trail; scanned shrubs replace placeholder bushes within 30 m of the trail |
+| Geology & deadwood | Rock Moss Set 01/02 (split into pieces), Boulder 01, Tree Stump 01, Dead Tree Trunk 02 | Outcrops, landmark boulders, stumps and fallen logs |
 
-The pipeline is ready for each: assign prefabs in **WildLens ▸ Vertical Slice Builder** (trees, bushes, rocks), set
-`prefab` on a species asset, swap layer textures in `Assets/WildLens/Generated/Terrain/TL_*.terrainlayer`.
+Package size grew by ~72 MB (2k skies and ground, high-poly logs/boulder). If that's a problem, drop the boulder
+and fallen trunk (13 MB) or ship 1k ground diffuse maps.
 
-## Recommended sources
+### Assessed and **not** used
+* **Poly Haven trees** (Fir Tree 01, Pine Tree 01, Tree Small 02, Island Tree 01, saplings): film-quality, **2–17 million
+  polygons each** (Pine Tree 01 is a 650 MB FBX). Unusable as-is in a game: they'd need decimation plus leaf-card
+  rebuilds and LODs, which is an art job. Trees remain the biggest visual weakness (see below).
+* **Grass Medium 01**: 1.6 M polygons; the terrain grass system is far cheaper.
 
-### 1. Poly Haven: textures, HDRIs, scanned models. **Highest impact per hour.**
-* **Licence: CC0.** Commercial use allowed, no attribution required (credit appreciated). You can't claim authorship or
-  relicense the assets themselves. [License](https://polyhaven.com/license) · [FAQ](https://docs.polyhaven.com/en/faq)
-* **Use for:** ground textures (forest leaves, grass/soil, gravel path, mossy rock) to replace the five generated
-  terrain layers; an outdoor **HDRI** for the sky and ambient light; scanned rocks, logs and stumps.
-* **Integration effort: low.** Download 1k–2k diffuse + normal maps, assign them to the existing `TL_*.terrainlayer`
-  assets (keep the tile sizes). For the sky: import the `.hdr`, make a `Skybox/Panoramic` material, assign it under
-  Lighting ▸ Environment, then rebuild with *Configure Lighting* off so it isn't replaced.
-* **Visual impact: very high.** Scanned ground textures and a real sky change the whole frame.
+## Wildlife models (highest impact remaining). Purchases are yours to make.
 
-### 2. ambientCG: PBR materials
-* **Licence: CC0.** Same practical terms as Poly Haven.
-* **Use for:** alternative or additional ground, bark and rock materials, and more variety for terrain layers.
-* **Effort / impact:** low / high.
+Nothing suitable is CC0. The licensed routes, in priority order. **Before buying, check on the store page:** species,
+render pipeline (URP), Unity 6 compatibility, and an explicit animation list (idle, walk, trot/run, graze/eat, look,
+alert; for birds: fly loop, glide, take-off, land, perch idle).
 
-### 3. Unity Terrain Sample Asset Pack (Unity Asset Store, free)
-* **Licence:** Standard Unity Asset Store EULA (fine for use in your game; not for redistribution as an asset). The
-  store page notes its *terrain height data* is under the **Open Data Commons ODbL**; see its Third-Party Notices.
-* **Use for:** PBR terrain layers, terrain stamps, URP vegetation details. Supports Built-in, URP and HDRP; recent
-  versions list Unity 6 compatibility. About 1.6 GB.
-  [Store page](https://assetstore.unity.com/packages/2d/textures-materials/terrain-tools-sample-asset-pack-145808) ·
-  [Unity blog](https://unity.com/blog/games/the-latest-unity-terrain-sample-pack-is-here)
-* **Effort: low–medium.** Vegetation materials need Shader Graph installed.
-* **Visual impact: high** for the ground.
+**1. Deer**
+* Asset Store *Realistic Deer* (~$70): Unity 6 / URP compatible per its listing; confirm species and animations.
+  [listing](https://assetstore.unity.com/packages/3d/characters/animals/realistic-deer-214765)
+* A realistic rigged deer on Fab with 22 actions, made in Unity 6 (URP/HDRP); confirm species and licence terms.
+  [listing](https://www.fab.com/listings/34f1225e-18aa-4ed0-94bd-0c6eb3f3327a)
+* KasitStudio *Deer Pack*: red deer (not white-tailed) with separate Built-in/URP/HDRP Unity packages.
+  [forum post](https://forums.unrealengine.com/t/kasitstudio-deer-pack-realistic-rigged-animated-red-deer-stag-7-variants/2856904)
+* If you switch to red deer, rename the species and field notes in its species asset; that's data, not code.
 
-### 4. Kenney: stylised props and nature kits
-* **Licence: CC0.**
-* **Use for:** only if you choose a deliberately stylised look. Clean, cohesive, light on performance. Mixing it
-  with photo-scanned textures clashes, so pick one direction.
-* **Effort / impact:** very low / medium (stylised).
+**2. Fox**
+* *Animalia – Fox* (~$100): realistic male red fox, 60+ animations (root-motion and in-place), PBR, all pipelines.
+  **Best fit.** [listing](https://assetstore.unity.com/packages/3d/characters/animals/animalia-fox-63884)
+* *Fully Animated Foxes* (~$90): URP/HDRP only, includes red variants with real-time fur.
+  [listing](https://assetstore.unity.com/packages/3d/characters/animals/mammals/fully-animated-foxes-188329)
 
-### 5. Wildlife models
-This is the hardest category to source well under permissive licences:
-* **Sketchfab:** many good animal models, mostly **CC-BY** (commercial use allowed **with attribution**; keep a credits
-  file). Avoid **CC-BY-NC** (non-commercial) and **CC-BY-ND** for anything you might ship. Check that the model is rigged
-  and has the animations you need (walk, run, idle, graze). Many good-looking ones aren't animated.
-* **Unity Asset Store / Fab:** paid animated wildlife packs exist (e.g. dedicated animated fox or forest-animal
-  packs). The licence is clear (standard EULA) and they usually come rigged with idle/walk/run/eat animations.
-  **For deer and fox, this is the most reliable route.**
-* **Quaternius (CC0):** its free animated animal pack is *farm* animals, not deer or fox. Useful as a reference
-  for rig and animation set-up, not for this game's species.
-* **OpenGameArt:** licences vary per item (CC0, CC-BY, CC-BY-SA, GPL). **Avoid GPL and CC-BY-SA for game assets**
-  unless you accept their share-alike terms. Most wildlife there is 2D.
-* **Integration effort: medium.** Set the prefab on the species asset, add an Animator with `Speed` (float), `Activity`
-  (int) and `GaitPhase` (float) parameters (the existing `AnimalAnimatorBridge` drives them), and size the trigger
-  collider. Expect one to two days per species for a clean controller.
-* **Visual impact: the single biggest jump**: wildlife is what players photograph.
+**3. Hawk**
+* No confirmed red-tailed hawk for Unity was found. Closest: Asset Store *Animated Eagles Pack v3* / *Animated Bald Eagle*
+  (Standard EULA; flight loops). [pack](https://marketplace.unity.com/packages/3d/characters/animals/birds/animated-eagles-pack-v3-92571)
+* A Eurasian goshawk with 28 animations exists on CGTrader/Fab but is packaged for Unreal; confirm the licence
+  allows Unity use and that an FBX is included before buying.
+  [CGTrader](https://www.cgtrader.com/3d-models/animal/bird/eurasian-goshawk-bird)
+* Retexturing an eagle or buzzard-type raptor toward red-tailed colouring is a reasonable stopgap.
 
-### 6. Trees and vegetation
-* **Asset Store:** Unity's free "Book of the Dead" environment is **HDRP-only** (not suitable for a URP project).
-  Free and low-cost nature packs exist for URP; prefer ones with LODs and wind-ready shaders.
-* **SpeedTree (paid):** best wind and LOD quality; responds to the WindZone the builder creates.
-* **Effort: low** (assign as tree prefabs; the builder adds wildlife data and placement automatically).
-* **Impact: very high**, second only to wildlife.
+**Integration (any pack):** set the prefab on the species asset (`Assets/WildLens/Data/Species/…`), add an Animator
+with `Speed` (float), `Activity` (int, AnimalActivity value) and `GaitPhase` (float); `AnimalAnimatorBridge` drives
+them. Map activities to clips: Grazing → eat, Alert → look/alert, Walking/Running/Hopping → locomotion blend on
+Speed, Perched/Flying/Landing/TakingOff for the hawk. Expect 1–2 days per species. **One beautiful deer first.**
 
-### Avoid
-* Assets ripped from games, or "free" uploads of commercial models (common on aggregator sites).
-* Anything without a clear licence page. "Free download" is not a licence.
-* Code or shaders copied from unrelated GitHub repositories.
+## Trees (highest remaining environment weakness)
+* Paid, game-ready, URP, with LODs and wind: SpeedTree (Unity integration, best wind/LOD) or Asset Store nature packs
+  that ship URP shaders and LODs. Assign as tree prefabs in the builder; placement, wildlife data and sway are automatic
+  (prefab trees use the WindZone instead of FoliageSway).
+* The free Unity *Terrain Sample Asset Pack* provides URP terrain materials/details (ODbL height data).
+
+## Remaining visual weaknesses (honest list)
+1. **Animals** are primitive placeholders: the biggest gap.
+2. **Trees** are stylised primitives with scanned bark; canopies are flat-coloured blobs next to photographic ground.
+3. **Texture tiling** is visible on large open ground at distance (Unity terrain has no anti-tiling; a terrain shader
+   with stochastic sampling or macro variation would fix it).
+4. **Grass** doesn't hide animals from the photo check (no colliders).
+5. No volumetric light/fog in URP; no time-of-day transition between the two moods.
+6. Terrain shape on the fallback terrain is gentle noise; a hand-sculpted valley/ridge would make stronger vistas.
 
 ## Suggested order
-1. HDRI sky + scanned ground textures (Poly Haven / ambientCG), about half a day: biggest change for the time.
-2. Tree prefabs with wind (Asset Store / SpeedTree), about a day.
-3. Deer + fox animated models (Asset Store), a few days, done species by species.
-4. Rocks/logs/stumps (Poly Haven scans), half a day.
-
-## Engineering improvements not implemented yet
-* **Grass and flower wind for mesh grass** (HDRP or detail grass disabled) needs a vertex-animated grass shader
-  (Shader Graph, per pipeline).
-* **Grass occlusion in photos**: grass has no colliders, so a rabbit in long grass can count as visible.
-* **Volumetric light / god rays and volumetric fog**: HDRP has them built in; URP needs a third-party solution.
-* **Time of day**: dawn and dusk light would suit wildlife (deer at dawn) but is a gameplay-touching change.
-* **Terrain height sculpting**: the fallback terrain is gentle rolling noise. A hand-shaped valley, ridge and
-  stream would create stronger vistas; that's art direction, not code.
-* **Exposure adaptation** when looking from forest shade into a bright meadow (URP lacks built-in auto-exposure).
-* **Imposters / LODs** for placeholder trees, if tree counts go up.
+1. Deer model (1–2 days) → fox → hawk.
+2. Game-ready trees with LODs (1 day once purchased).
+3. Anti-tiling terrain shader or macro variation texture.
+4. Hand-sculpt the terrain around the overlook and lookout.
