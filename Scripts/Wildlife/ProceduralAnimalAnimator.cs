@@ -22,7 +22,7 @@ namespace WildLens.Wildlife
         private Vector3[] _wingRestScale;
 
         private Vector3 _neckOffset, _headOffset, _tailOffset;
-        private float _moveBlend, _restBlend, _flapBlend, _foldBlend;
+        private float _moveBlend, _restBlend, _sitBlend, _flapBlend, _foldBlend;
         private float _seed;
         private float _earTimer, _earAmount;
         private int _earIndex;
@@ -83,6 +83,9 @@ namespace WildLens.Wildlife
             float run = Mathf.InverseLerp(s.walkSpeed * 1.3f, s.runSpeed, speed);
             _moveBlend = Mathf.Lerp(_moveBlend, speed > 0.05f ? 1f : 0f, Blend(dt, 8f));
             _restBlend = Mathf.Lerp(_restBlend, a == AnimalActivity.Resting ? 1f : 0f, Blend(dt, 1.5f));
+            // Sitting up on the haunches: a calm behaviour, and how small prey freeze when alert.
+            bool sitUp = a == AnimalActivity.Sitting || (a == AnimalActivity.Alert && SitsUpWhenAlert(s));
+            _sitBlend = Mathf.Lerp(_sitBlend, sitUp ? 1f : 0f, Blend(dt, 5f));
             bool onTrunk = a == AnimalActivity.Climbing || a == AnimalActivity.Clinging;
 
             // Legs ----------------------------------------------------------
@@ -98,7 +101,7 @@ namespace WildLens.Wildlife
                     angle = Mathf.Sin(phase + (front ? 0f : Mathf.PI * 0.8f) + (left ? 0f : 0.25f)) * swing; // gallop / bound
                 else
                     angle = Mathf.Sin(phase + ((front == left) ? 0f : Mathf.PI)) * swing; // diagonal walk / trot
-                float fold = (front ? -80f : 80f) * _restBlend;
+                float fold = (front ? -80f : 80f) * _restBlend + (front ? 25f : -30f) * _sitBlend;
                 _rig.legs[i].localRotation = _legRest[i] * Quaternion.Euler(angle + fold, 0f, 0f);
             }
 
@@ -116,8 +119,9 @@ namespace WildLens.Wildlife
                 pitch = Mathf.Sin(phase) * 4f * run;
             }
             float lower = _restBlend * legLen * 0.55f;
-            _rig.body.localPosition = _bodyRestPos + Vector3.up * (bob - lower);
-            _rig.body.localRotation = _bodyRestRot * Quaternion.Euler(pitch, 0f, 0f);
+            float sitLift = _sitBlend * legLen * 0.6f;
+            _rig.body.localPosition = _bodyRestPos + Vector3.up * (bob - lower + sitLift);
+            _rig.body.localRotation = _bodyRestRot * Quaternion.Euler(pitch - 32f * _sitBlend, 0f, 0f);
 
             float breathRate = Mathf.Lerp(7f, 2f, Mathf.Clamp01(legLen / 0.9f)) * (run > 0.3f ? 1.8f : 1f);
             _rig.body.localScale = _bodyRestScale * (1f + Mathf.Sin(t * breathRate) * 0.012f);
@@ -141,11 +145,19 @@ namespace WildLens.Wildlife
                     break;
                 case AnimalActivity.LookingAround:
                     neckT.x = -10f;
-                    headT.y = Perlin(0.35f, 3f) * 70f;
-                    headT.x = Perlin(0.4f, 4f) * 10f;
+                    if (_agent.AttentionPoint.HasValue) LookAt(ref neckT, ref headT); // aware: glancing at the observer
+                    else
+                    {
+                        headT.y = Perlin(0.35f, 3f) * 70f;
+                        headT.x = Perlin(0.4f, 4f) * 10f;
+                    }
+                    break;
+                case AnimalActivity.Sitting:
+                    neckT.x = 12f; // counter the body's pitch so the head stays level
+                    headT.y = Perlin(0.3f, 12f) * 45f;
                     break;
                 case AnimalActivity.Alert:
-                    neckT.x = -18f;
+                    neckT.x = -18f + 20f * _sitBlend;
                     LookAt(ref neckT, ref headT);
                     break;
                 case AnimalActivity.Grooming:
@@ -165,8 +177,8 @@ namespace WildLens.Wildlife
                     headT.x = -25f;
                     headT.y = Perlin(0.4f, 6f) * 50f;
                     break;
-                default: // Wandering / Climbing
-                    if (speed < 0.05f && a == AnimalActivity.Wandering)
+                default: // Walking / Hopping / Running / Climbing
+                    if (speed < 0.05f && IsTravel(a))
                     {
                         // Paused mid-dash: head up, glancing about.
                         neckT.x = -12f;
@@ -194,6 +206,7 @@ namespace WildLens.Wildlife
                 case PlaceholderBody.Deer:
                     // White-tail "flag" when alarmed, otherwise the occasional flick.
                     if (a == AnimalActivity.Fleeing || a == AnimalActivity.Alert) tailT.x = 75f;
+                    else if (a == AnimalActivity.Running) tailT.x = 40f;
                     else if (Perlin(0.5f, 10f) > 0.55f) tailT.y = Mathf.Sin(t * 20f) * 20f;
                     break;
                 case PlaceholderBody.Fox:
@@ -211,6 +224,12 @@ namespace WildLens.Wildlife
             _tailOffset = Vector3.Lerp(_tailOffset, tailT, Blend(dt, 10f));
             if (_rig.tail) _rig.tail.localRotation = _tailRest * Quaternion.Euler(0f, _tailOffset.y, 0f) * Quaternion.Euler(_tailOffset.x, 0f, 0f);
         }
+
+        private static bool IsTravel(AnimalActivity a) =>
+            a == AnimalActivity.Wandering || a == AnimalActivity.Walking || a == AnimalActivity.Hopping || a == AnimalActivity.Running;
+
+        private static bool SitsUpWhenAlert(SpeciesDefinition s) =>
+            s.placeholderBody == PlaceholderBody.Rabbit || s.placeholderBody == PlaceholderBody.Squirrel;
 
         private void ApplyNeckHead()
         {
@@ -281,7 +300,8 @@ namespace WildLens.Wildlife
             _flapBlend = Mathf.Lerp(_flapBlend, _flyer.IsFlapping ? 1f : 0f, Blend(dt, 6f));
             _foldBlend = Mathf.Lerp(_foldBlend, _flyer.IsPerched ? 1f : 0f, Blend(dt, 5f));
 
-            float flap = Mathf.Sin(_agent.GaitPhase) * 45f * _flapBlend;
+            float flare = _flyer.Flare;
+            float flap = Mathf.Sin(_agent.GaitPhase) * Mathf.Lerp(45f, 60f, flare) * _flapBlend;
             float glide = (6f + Perlin(0.5f, 1f) * 4f) * (1f - _flapBlend);
             float raise = glide + flap;
 
@@ -290,7 +310,8 @@ namespace WildLens.Wildlife
                 var w = _rig.wings[i];
                 if (w == null) continue;
                 float side = i == 0 ? -1f : 1f;
-                Quaternion spread = Quaternion.Euler(0f, 0f, raise * side);
+                // Landing flare sweeps the wings forward and up to brake.
+                Quaternion spread = Quaternion.Euler(0f, -25f * flare * side, (raise + 20f * flare) * side);
                 Quaternion folded = Quaternion.Euler(8f, 85f * side, -10f * side);
                 w.localRotation = _wingRest[i] * Quaternion.Slerp(spread, folded, _foldBlend);
                 w.localScale = Vector3.Scale(_wingRestScale[i], new Vector3(Mathf.Lerp(1f, 0.5f, _foldBlend), 1f, 1f));
@@ -298,7 +319,7 @@ namespace WildLens.Wildlife
 
             // Legs tucked in flight, down when perched.
             for (int i = 0; i < _rig.legs.Length; i++)
-                if (_rig.legs[i]) _rig.legs[i].localRotation = _legRest[i] * Quaternion.Euler(70f * (1f - _foldBlend), 0f, 0f);
+                if (_rig.legs[i]) _rig.legs[i].localRotation = _legRest[i] * Quaternion.Euler(70f * (1f - _foldBlend) * (1f - flare) - 20f * flare, 0f, 0f);
 
             // Head stays level while the body banks; scans when perched.
             Vector3 headT = new Vector3(0f, 0f, -_flyer.Bank * 0.8f * (1f - _foldBlend));
@@ -314,7 +335,7 @@ namespace WildLens.Wildlife
             ApplyNeckHead();
 
             // Tail fans and twists into turns.
-            Vector3 tailT = new Vector3(Mathf.Sin(_agent.GaitPhase) * 6f * _flapBlend, -_flyer.Bank * 0.3f, 0f);
+            Vector3 tailT = new Vector3(Mathf.Sin(_agent.GaitPhase) * 6f * _flapBlend - 35f * flare, -_flyer.Bank * 0.3f, 0f);
             _tailOffset = Vector3.Lerp(_tailOffset, tailT, Blend(dt, 6f));
             if (_rig.tail) _rig.tail.localRotation = _tailRest * Quaternion.Euler(_tailOffset.x, _tailOffset.y, 0f);
 

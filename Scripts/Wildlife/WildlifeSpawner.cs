@@ -149,13 +149,19 @@ namespace WildLens.Wildlife
             rb.isKinematic = true;
             rb.useGravity = false;
 
+            // Perception must exist before the brain initialises so the brain can subscribe to it.
+            var awareness = go.GetComponent<WildlifeAwareness>();
+            if (awareness == null) awareness = go.AddComponent<WildlifeAwareness>();
+            var rig = go.GetComponent<AnimalRig>();
+            awareness.Initialize(species, rig != null && rig.head != null ? rig.head : null);
+
             var agent = go.GetComponent<AnimalAgent>();
             if (agent == null)
                 agent = species.locomotion == LocomotionType.Flying
                     ? (AnimalAgent)go.AddComponent<FlyingAnimal>()
                     : go.AddComponent<GroundAnimal>();
 
-            if (go.GetComponent<AnimalRig>() != null && go.GetComponent<ProceduralAnimalAnimator>() == null)
+            if (rig != null && go.GetComponent<ProceduralAnimalAnimator>() == null)
                 go.AddComponent<ProceduralAnimalAnimator>();
             if (go.GetComponentInChildren<Animator>() != null && go.GetComponent<AnimalAnimatorBridge>() == null)
                 go.AddComponent<AnimalAnimatorBridge>();

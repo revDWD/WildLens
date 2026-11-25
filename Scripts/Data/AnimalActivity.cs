@@ -20,6 +20,15 @@ namespace WildLens.Data
         Soaring,
         Gliding,
         Perched,
+
+        // Milestone 2 (appended: enum values are serialized as integers, never reorder)
+        Walking,
+        Running,
+        Hopping,
+        Sitting,
+        Flying,
+        Landing,
+        TakingOff,
     }
 
     public static class AnimalActivityText
@@ -43,6 +52,13 @@ namespace WildLens.Data
                 case AnimalActivity.Soaring: return "soaring on thermals";
                 case AnimalActivity.Gliding: return "gliding";
                 case AnimalActivity.Perched: return "perched";
+                case AnimalActivity.Walking: return "walking";
+                case AnimalActivity.Running: return "running";
+                case AnimalActivity.Hopping: return "hopping";
+                case AnimalActivity.Sitting: return "sitting up";
+                case AnimalActivity.Flying: return "in flight";
+                case AnimalActivity.Landing: return "coming in to land";
+                case AnimalActivity.TakingOff: return "taking flight";
                 default: return activity.ToString().ToLowerInvariant();
             }
         }

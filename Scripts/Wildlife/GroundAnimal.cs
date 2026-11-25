@@ -7,14 +7,20 @@ namespace WildLens.Wildlife
     /// <summary>
     /// Brain + locomotion for ground animals (deer, rabbit, fox, squirrel).
     ///
-    /// A small state machine: Moving (wander legs) → Behaving (species behaviours) → ..., interrupted by
-    /// Alert / Fleeing when the player gets close, and Climbing for tree-dwelling species.
+    /// Modes:
+    ///   Moving    wander legs, shown as Walking / Hopping, or an occasional Running leg (deer bounding)
+    ///   Behaving  species behaviours: Grazing, Sitting, LookingAround, Grooming, Sniffing, Resting, Foraging…
+    ///   Watching  reaction to <see cref="WildlifeAwareness"/>: a brief glance when Aware, a fixed stare when Alert
+    ///   Fleeing   run away from the threat (tree species climb the nearest trunk instead)
+    ///   Climbing  squirrels up/down trunks
+    ///
+    /// Perception lives in <see cref="WildlifeAwareness"/>; this class only reacts to its state changes.
     /// Movement is steered rather than tweened: heading is smoothed, speed accelerates, paths meander with noise,
-    /// trunks are avoided and the body tilts with the terrain — which is what keeps it from looking robotic.
+    /// trunks are avoided and the body tilts with the terrain, which keeps it from looking robotic.
     /// </summary>
     public class GroundAnimal : AnimalAgent
     {
-        private enum Mode { Moving, Behaving, Alert, Fleeing, Climbing }
+        private enum Mode { Moving, Behaving, Watching, Fleeing, Climbing }
         private enum ClimbPhase { Approach, Up, Hold, Down }
 
         private Mode _mode;
@@ -35,10 +41,8 @@ namespace WildLens.Wildlife
         private float _grazeStepTimer;
         private float _grazeStepRemaining;
 
-        // Senses
-        private float _alertCooldown;
-        private float _lastPlayerDistance = -1f;
-        private float _approachRate;
+        // Awareness reactions
+        private float _nextGlance;
 
         // Climbing
         private FeaturePoint _tree;
@@ -50,29 +54,36 @@ namespace WildLens.Wildlife
 
         public bool IsOnTrunk => _mode == Mode.Climbing && _climbPhase != ClimbPhase.Approach;
 
+        private AwarenessState AwarenessNow => Awareness != null ? Awareness.State : AwarenessState.Calm;
+
         public override void Initialize(SpeciesDefinition species, Vector3 home, WildlifeWorld world, int seed)
         {
             base.Initialize(species, home, world, seed);
             _heading = Range(0f, 360f);
             transform.position = TerrainUtil.Ground(transform.position);
             transform.rotation = Quaternion.Euler(0f, _heading, 0f);
-            _alertCooldown = Range(0f, 3f);
+            if (Awareness != null) Awareness.StateChanged += OnAwarenessChanged;
 
             // Start mid-behaviour so a group doesn't all set off walking on frame one.
             if (Chance(0.65f)) StartBehavior(species.PickBehavior(Rng));
-            else StartMove(PickWanderTarget(), species.walkSpeed);
+            else StartMove(PickWanderTarget(), species.walkSpeed, false);
+        }
+
+        private void OnDestroy()
+        {
+            if (Awareness != null) Awareness.StateChanged -= OnAwarenessChanged;
         }
 
         protected override void Tick(float dt)
         {
-            UpdateSenses(dt);
+            if (Awareness != null) Awareness.Sheltered = IsOnTrunk;
             _modeTimer -= dt;
 
             switch (_mode)
             {
                 case Mode.Moving: TickMoving(dt); break;
                 case Mode.Behaving: TickBehaving(dt); break;
-                case Mode.Alert: TickAlert(); break;
+                case Mode.Watching: TickWatching(); break;
                 case Mode.Fleeing: TickFleeing(); break;
                 case Mode.Climbing:
                     if (TickClimbing(dt)) return; // on the trunk: climbing places the body itself
@@ -82,27 +93,14 @@ namespace WildLens.Wildlife
             Locomote(dt);
         }
 
-        // ------------------------------------------------------------------ senses
+        // ------------------------------------------------------------------ awareness reactions
 
-        private void UpdateSenses(float dt)
+        private void OnAwarenessChanged(AwarenessState previous, AwarenessState next)
         {
-            _alertCooldown -= dt;
-            if (!TryGetPlayer(out Vector3 playerPos, out float dist))
-            {
-                _lastPlayerDistance = -1f;
-                return;
-            }
-
-            if (_lastPlayerDistance >= 0f)
-                _approachRate = Mathf.Lerp(_approachRate, (_lastPlayerDistance - dist) / dt, 1f - Mathf.Exp(-4f * dt));
-            _lastPlayerDistance = dist;
-
-            if (_mode == Mode.Fleeing) return;
-
             if (IsOnTrunk)
             {
-                // Safe on the trunk; only climb higher if the player comes right up to the tree.
-                if (dist < 3f && _climbPhase == ClimbPhase.Hold)
+                // Already safe: a close approach just sends it higher.
+                if (next == AwarenessState.Fleeing && _climbPhase == ClimbPhase.Hold)
                 {
                     _climbTargetHeight = Mathf.Min(_tree.height * 0.75f, _climbHeight + 2f);
                     _climbPhase = ClimbPhase.Up;
@@ -111,31 +109,74 @@ namespace WildLens.Wildlife
                 return;
             }
 
-            float scale = PlayerPresence.DisturbanceScale * Temperament;
-            if (scale <= 0f) return;
-            float flee = Species.fleeDistance * scale;
-            float alert = Species.alertDistance * scale;
-
-            if (dist < flee)
-                StartFlee(playerPos);
-            else if (_mode == Mode.Alert)
+            switch (next)
             {
-                // Watching the player: a steady approach inside the comfort zone tips it into flight.
-                if (dist < Mathf.Lerp(flee, alert, 0.55f) && _approachRate > 0.6f) StartFlee(playerPos);
+                case AwarenessState.Fleeing:
+                    if (_mode != Mode.Fleeing && !(_mode == Mode.Climbing && _climbIsEscape)) StartFlee(Awareness.ThreatPosition);
+                    break;
+                case AwarenessState.Alert:
+                    if (_mode != Mode.Fleeing) StartWatching(true);
+                    break;
+                case AwarenessState.Aware:
+                    if (previous == AwarenessState.Calm && _mode != Mode.Fleeing) StartWatching(false);
+                    else if (previous == AwarenessState.Alert && _mode == Mode.Watching) ResumeAfterWatching();
+                    _nextGlance = Range(3f, 7f);
+                    break;
+                case AwarenessState.Calm:
+                    if (_mode == Mode.Watching) ResumeAfterWatching();
+                    break;
             }
-            else if (dist < alert && _alertCooldown <= 0f)
-                StartAlert();
+        }
+
+        /// <summary>Aware: a brief glance at the observer. Alert: stop, turn and stare until awareness changes.</summary>
+        private void StartWatching(bool alert)
+        {
+            _mode = Mode.Watching;
+            _modeTimer = alert ? float.MaxValue : Range(1.5f, 3.5f);
+            _hasTarget = false;
+            _desiredSpeed = 0f;
+            _faceTarget = alert ? Awareness.ThreatPosition : (Vector3?)null;
+            AttentionPoint = Awareness.ThreatPosition;
+            SetActivity(alert ? AnimalActivity.Alert : AnimalActivity.LookingAround);
+        }
+
+        private void TickWatching()
+        {
+            if (Awareness == null) { BeginNextAction(false); return; }
+            AttentionPoint = Awareness.ThreatPosition;
+            if (Activity == AnimalActivity.Alert) _faceTarget = Awareness.ThreatPosition;
+            if (_modeTimer <= 0f) ResumeAfterWatching();
+        }
+
+        private void ResumeAfterWatching()
+        {
+            _faceTarget = null;
+            AttentionPoint = null;
+            BeginNextAction(false);
+        }
+
+        /// <summary>While Aware, feeding or wandering animals keep glancing up at the observer.</summary>
+        private void TickGlances(float dt)
+        {
+            if (AwarenessNow != AwarenessState.Aware) return;
+            _nextGlance -= dt;
+            if (_nextGlance > 0f) return;
+            _nextGlance = Range(3f, 7f);
+            StartWatching(false);
         }
 
         // ------------------------------------------------------------------ modes
 
         private void BeginNextAction(bool afterMove)
         {
-            if (afterMove && Chance(Species.behaviorChance)) StartBehavior(Species.PickBehavior(Rng));
-            else StartMove(PickWanderTarget(), Species.walkSpeed * Range(0.85f, 1.15f));
+            if (afterMove && Chance(Species.behaviorChance)) { StartBehavior(Species.PickBehavior(Rng)); return; }
+            // Calm animals occasionally break into a short run (deer bounding); suspicious ones never do.
+            bool run = AwarenessNow == AwarenessState.Calm && Chance(Species.runLegChance);
+            float speed = run ? Species.runSpeed * Range(0.45f, 0.65f) : Species.walkSpeed * Range(0.85f, 1.15f);
+            StartMove(PickWanderTarget(), speed, run);
         }
 
-        private void StartMove(Vector3 target, float speed)
+        private void StartMove(Vector3 target, float speed, bool run)
         {
             _mode = Mode.Moving;
             _modeTimer = 30f;
@@ -146,7 +187,7 @@ namespace WildLens.Wildlife
             _burstPaused = false;
             _burstTimer = Range(0.4f, 1.4f);
             AttentionPoint = null;
-            SetActivity(AnimalActivity.Wandering);
+            SetActivity(run ? AnimalActivity.Running : Species.gait == GaitStyle.Hop ? AnimalActivity.Hopping : AnimalActivity.Walking);
         }
 
         private void StartBehavior(BehaviorOption option)
@@ -157,6 +198,9 @@ namespace WildLens.Wildlife
                 if (TryStartClimb(12f, false)) return;
                 option = new BehaviorOption(AnimalActivity.Foraging, 1f, 2f, 4f);
             }
+            // A suspicious animal doesn't lie down to rest.
+            if (option.activity == AnimalActivity.Resting && AwarenessNow != AwarenessState.Calm)
+                option = new BehaviorOption(AnimalActivity.LookingAround, 1f, 2f, 4f);
 
             _mode = Mode.Behaving;
             _modeTimer = Range(option.duration) * Temperament;
@@ -167,15 +211,6 @@ namespace WildLens.Wildlife
             _grazeStepRemaining = 0f;
             AttentionPoint = null;
             SetActivity(option.activity);
-        }
-
-        private void StartAlert()
-        {
-            _mode = Mode.Alert;
-            _modeTimer = Range(2.5f, 5f);
-            _hasTarget = false;
-            _desiredSpeed = 0f;
-            SetActivity(AnimalActivity.Alert);
         }
 
         private void StartFlee(Vector3 threat)
@@ -208,8 +243,10 @@ namespace WildLens.Wildlife
         private void TickMoving(float dt)
         {
             if (ArrivedOrTimedOut()) { BeginNextAction(true); return; }
+            TickGlances(dt);
+            if (_mode != Mode.Moving) return;
 
-            if (Species.gait == GaitStyle.Bursty)
+            if (Species.gait == GaitStyle.Bursty && Activity != AnimalActivity.Running)
             {
                 // Dash-and-freeze foraging pattern.
                 _burstTimer -= dt;
@@ -225,6 +262,8 @@ namespace WildLens.Wildlife
         private void TickBehaving(float dt)
         {
             if (_modeTimer <= 0f) { BeginNextAction(false); return; }
+            TickGlances(dt);
+            if (_mode != Mode.Behaving) return;
 
             // Grazers and foragers shuffle a step or two while feeding.
             if (Activity != AnimalActivity.Grazing && Activity != AnimalActivity.Foraging) return;
@@ -249,29 +288,13 @@ namespace WildLens.Wildlife
             }
         }
 
-        private void TickAlert()
-        {
-            if (TryGetPlayer(out Vector3 playerPos, out _))
-            {
-                AttentionPoint = playerPos;
-                _faceTarget = playerPos;
-            }
-
-            if (_modeTimer <= 0f)
-            {
-                _alertCooldown = Range(6f, 12f); // habituates to a calm observer
-                _faceTarget = null;
-                AttentionPoint = null;
-                StartBehavior(new BehaviorOption(AnimalActivity.LookingAround, 1f, 1.5f, 3f));
-            }
-        }
-
         private void TickFleeing()
         {
             if (!ArrivedOrTimedOut()) return;
-            _alertCooldown = Range(8f, 15f);
+            if (Awareness != null) Awareness.EndFlee();
             // After bolting, animals typically stop and look back.
             StartBehavior(new BehaviorOption(AnimalActivity.LookingAround, 1f, 3f, 6f));
+            if (Awareness != null && Awareness.State != AwarenessState.Calm) AttentionPoint = Awareness.ThreatPosition;
         }
 
         private bool ArrivedOrTimedOut()
@@ -332,6 +355,7 @@ namespace WildLens.Wildlife
                         _climbPhase = ClimbPhase.Hold;
                         _modeTimer = _climbIsEscape ? Range(6f, 12f) : Range(3f, 8f);
                         SetActivity(AnimalActivity.Clinging);
+                        if (_climbIsEscape && Awareness != null) Awareness.EndFlee();
                     }
                     PlaceOnTrunk(dt, true, rate * burst);
                     return true;
@@ -474,6 +498,12 @@ namespace WildLens.Wildlife
                 float wanderAngle = _heading + Gaussianish() * 110f;
                 float homeAngle = toHome.sqrMagnitude > 0.01f ? Angle(toHome) + Gaussianish() * 40f : wanderAngle;
                 float angle = Mathf.LerpAngle(wanderAngle, homeAngle, homePull);
+                if (AwarenessNow != AwarenessState.Calm && Awareness != null)
+                {
+                    // A wary animal drifts away from the observer rather than toward them.
+                    Vector3 away = TerrainUtil.Flat(pos - Awareness.ThreatPosition);
+                    if (away.sqrMagnitude > 0.01f) angle = Mathf.LerpAngle(angle, Angle(away) + Gaussianish() * 50f, 0.6f);
+                }
                 Vector3 c = TerrainUtil.Ground(pos + Dir(angle) * Range(radius * 0.15f, radius * 0.5f));
                 if (IsWalkable(c) && TerrainUtil.FlatDistance(c, HomePosition) <= radius) return c;
             }

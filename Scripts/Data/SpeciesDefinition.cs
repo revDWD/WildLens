@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace WildLens.Data
 {
@@ -39,6 +40,10 @@ namespace WildLens.Data
     [CreateAssetMenu(menuName = "WildLens/Species Definition", fileName = "Species_")]
     public class SpeciesDefinition : ScriptableObject
     {
+        /// <summary>Data layout version. Assets below this are upgraded by the editor (SpeciesAssetMigrator).</summary>
+        public const int CurrentDataVersion = 2;
+        [HideInInspector] public int dataVersion; // 0 on assets created before versioning
+
         [Header("Identity")]
         [Tooltip("Stable id used in save files. Never change after release.")]
         public string speciesId = "species";
@@ -72,22 +77,36 @@ namespace WildLens.Data
         [Tooltip("How far an individual roams from its home position")] public float wanderRadius = 25f;
         [Range(0f, 1f)] [Tooltip("Chance to perform a behaviour after each wander leg")]
         public float behaviorChance = 0.7f;
+        [Range(0f, 1f)] [Tooltip("Chance that a wander leg is a short run instead of a walk (e.g. deer bounding).")]
+        public float runLegChance = 0f;
         public float maxSlope = 35f;
 
         [Header("Behaviours")]
         public List<BehaviorOption> behaviors = new List<BehaviorOption>();
 
-        [Header("Senses")]
-        [Tooltip("Distance at which the animal notices the player and becomes alert")]
-        public float alertDistance = 20f;
-        [Tooltip("Distance at which the animal flees")]
-        public float fleeDistance = 10f;
+        [Header("Awareness (see WildlifeAwareness)")]
+        [Tooltip("Within this distance the animal can start to notice the player (Calm → Aware).")]
+        public float awarenessRadius = 30f;
+        [Tooltip("Within this distance a suspicious animal stops and watches the player (Aware → Alert).")]
+        [FormerlySerializedAs("alertDistance")] public float alertRadius = 20f;
+        [Tooltip("Closer than this the animal bolts (→ Fleeing).")]
+        [FormerlySerializedAs("fleeDistance")] public float fleeRadius = 10f;
+        [Tooltip("How fast suspicion builds (per second, scaled by distance, player noise and line of sight).")]
+        public float suspicionGain = 1f;
+        [Tooltip("How fast suspicion fades (per second) when the player is out of range or keeping still.")]
+        public float suspicionDecay = 0.35f;
+        [Tooltip("Seconds an alert animal tolerates being approached before it flees.")]
+        public float alertPatience = 3f;
+        [Tooltip("Multiplier on alert radius within which a sprinting player startles the animal into flight.")]
+        public float startleSensitivity = 1f;
         [Tooltip("How far the animal runs when fleeing (min, max)")]
         public Vector2 fleeDistanceRange = new Vector2(15f, 30f);
 
         [Header("Photography")]
         [Tooltip("Screen coverage (0-1) that counts as a full-frame shot of this species.")]
         [Range(0.01f, 0.6f)] public float idealFrameCoverage = 0.12f;
+        [Tooltip("Beyond this distance photos lose clarity (haze, detail), even when zoomed in.")]
+        public float clearPhotoDistance = 40f;
 
         public BehaviorOption PickBehavior(System.Random rng = null)
         {
@@ -106,7 +125,8 @@ namespace WildLens.Data
 
         private void OnValidate()
         {
-            if (fleeDistance > alertDistance) fleeDistance = alertDistance;
+            if (alertRadius > awarenessRadius) alertRadius = awarenessRadius;
+            if (fleeRadius > alertRadius) fleeRadius = alertRadius;
             if (groupSize.x < 1) groupSize.x = 1;
             if (groupSize.y < groupSize.x) groupSize.y = groupSize.x;
         }

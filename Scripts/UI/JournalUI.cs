@@ -117,7 +117,7 @@ namespace WildLens.UI
                 $"<b>Photographs</b>   {record.photoCount}\n" +
                 $"<b>First sighting</b>   {JournalService.FormatTimestamp(record.firstSightedUtc)}\n" +
                 $"      {Capitalize(record.firstSightingLocation)}, {PhotoAnalyzer.DescribeActivity(record.firstSightingActivity)}\n" +
-                $"<b>Best photograph</b>   {PhotoAnalyzer.QualityLabel(record.bestScore)} ({record.bestScore})";
+                $"<b>Best photograph</b>   {(string.IsNullOrEmpty(record.bestQuality) ? "—" : record.bestQuality)}";
             _notesText.text = species.fieldNotes;
             ShowPhoto(best != null ? PhotoStorage.GetThumbnail(best.photoId, best.imagePath) : null);
         }

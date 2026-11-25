@@ -14,6 +14,39 @@ namespace WildLens.Data
             return new List<SpeciesDefinition> { Deer(), Rabbit(), Fox(), Hawk(), Squirrel() };
         }
 
+        public static SpeciesDefinition CreateById(string speciesId)
+        {
+            foreach (var s in CreateAll())
+            {
+                if (s.speciesId == speciesId) return s;
+                Object.DestroyImmediate(s);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Copies the fields introduced in data version 2 (awareness, behaviour set, run legs, photo clarity)
+        /// from <paramref name="source"/>, leaving identity, visuals and population untouched.
+        /// </summary>
+        public static void ApplyVersion2Tuning(SpeciesDefinition target, SpeciesDefinition source)
+        {
+            target.awarenessRadius = source.awarenessRadius;
+            target.alertRadius = source.alertRadius;
+            target.fleeRadius = source.fleeRadius;
+            target.suspicionGain = source.suspicionGain;
+            target.suspicionDecay = source.suspicionDecay;
+            target.alertPatience = source.alertPatience;
+            target.startleSensitivity = source.startleSensitivity;
+            target.fleeDistanceRange = source.fleeDistanceRange;
+            target.runLegChance = source.runLegChance;
+            target.clearPhotoDistance = source.clearPhotoDistance;
+            target.behaviorChance = source.behaviorChance;
+            target.behaviors = new List<BehaviorOption>();
+            foreach (var b in source.behaviors)
+                target.behaviors.Add(new BehaviorOption(b.activity, b.weight, b.duration.x, b.duration.y));
+            target.dataVersion = SpeciesDefinition.CurrentDataVersion;
+        }
+
         private static SpeciesDefinition New(string id, string display, string sci, string notes, PlaceholderBody body)
         {
             var s = ScriptableObject.CreateInstance<SpeciesDefinition>();
@@ -23,7 +56,16 @@ namespace WildLens.Data
             s.scientificName = sci;
             s.fieldNotes = notes;
             s.placeholderBody = body;
+            s.dataVersion = SpeciesDefinition.CurrentDataVersion;
             return s;
+        }
+
+        private static void Awareness(SpeciesDefinition s, float aware, float alert, float flee, float gain, float decay,
+            float patience, float startle)
+        {
+            s.awarenessRadius = aware; s.alertRadius = alert; s.fleeRadius = flee;
+            s.suspicionGain = gain; s.suspicionDecay = decay;
+            s.alertPatience = patience; s.startleSensitivity = startle;
         }
 
         public static SpeciesDefinition Deer()
@@ -39,13 +81,15 @@ namespace WildLens.Data
             s.spawnDistanceFromTrail = new Vector2(14f, 45f);
             s.gait = GaitStyle.Walk;
             s.walkSpeed = 1.1f; s.runSpeed = 9f; s.turnSpeed = 80f; s.gaitFrequency = 1.4f;
-            s.wanderRadius = 30f; s.behaviorChance = 0.8f;
-            s.alertDistance = 26f; s.fleeDistance = 13f; s.fleeDistanceRange = new Vector2(25f, 40f);
-            s.idealFrameCoverage = 0.14f;
+            s.wanderRadius = 30f; s.behaviorChance = 0.8f; s.runLegChance = 0.07f;
+            // Notices from far away, but watches for a long time before deciding to bolt.
+            Awareness(s, aware: 38f, alert: 24f, flee: 11f, gain: 0.7f, decay: 0.3f, patience: 6f, startle: 0.9f);
+            s.fleeDistanceRange = new Vector2(25f, 40f);
+            s.idealFrameCoverage = 0.14f; s.clearPhotoDistance = 55f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grazing, 5f, 6f, 14f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 3f, 6f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 5f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.6f, 12f, 25f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2.5f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.8f, 3f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 12f, 25f));
             return s;
         }
 
@@ -63,12 +107,15 @@ namespace WildLens.Data
             s.gait = GaitStyle.Hop;
             s.walkSpeed = 0.9f; s.runSpeed = 7f; s.turnSpeed = 220f; s.gaitFrequency = 2.2f;
             s.wanderRadius = 12f; s.behaviorChance = 0.85f;
-            s.alertDistance = 12f; s.fleeDistance = 5.5f; s.fleeDistanceRange = new Vector2(8f, 15f);
-            s.idealFrameCoverage = 0.07f;
+            // Small radii, but suspicion builds fast and patience is short.
+            Awareness(s, aware: 18f, alert: 11f, flee: 5f, gain: 1.6f, decay: 0.5f, patience: 1.2f, startle: 1.3f);
+            s.fleeDistanceRange = new Vector2(8f, 15f);
+            s.idealFrameCoverage = 0.07f; s.clearPhotoDistance = 25f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grazing, 4f, 3f, 8f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 2f, 1.5f, 3f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1.5f, 2f, 4f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 1.5f, 4f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 2.5f, 3f, 7f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 2f, 4f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 1f, 1.5f, 3f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1f, 1.5f, 3f));
             return s;
         }
 
@@ -86,11 +133,13 @@ namespace WildLens.Data
             s.spawnDistanceFromTrail = new Vector2(10f, 35f);
             s.gait = GaitStyle.Walk;
             s.walkSpeed = 1.5f; s.runSpeed = 8f; s.turnSpeed = 120f; s.gaitFrequency = 2.4f;
-            s.wanderRadius = 55f; s.behaviorChance = 0.6f;
-            s.alertDistance = 22f; s.fleeDistance = 11f; s.fleeDistanceRange = new Vector2(20f, 35f);
-            s.idealFrameCoverage = 0.08f;
+            s.wanderRadius = 55f; s.behaviorChance = 0.6f; s.runLegChance = 0.04f;
+            Awareness(s, aware: 28f, alert: 16f, flee: 9f, gain: 0.9f, decay: 0.35f, patience: 3f, startle: 1f);
+            s.fleeDistanceRange = new Vector2(20f, 35f);
+            s.idealFrameCoverage = 0.08f; s.clearPhotoDistance = 40f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 3f, 2f, 5f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 1f, 4f, 8f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 1f, 8f, 16f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 6f));
             return s;
@@ -112,11 +161,11 @@ namespace WildLens.Data
             s.gait = GaitStyle.Fly;
             s.walkSpeed = 8f; s.runSpeed = 14f; s.turnSpeed = 45f; s.gaitFrequency = 3f;
             s.wanderRadius = 90f;
-            s.alertDistance = 20f; s.fleeDistance = 12f;
-            s.idealFrameCoverage = 0.05f;
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Soaring, 3f, 20f, 40f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 1.5f, 10f, 22f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.Gliding, 1f, 8f, 15f));
+            // Awareness applies while perched; a flying hawk ignores the observer.
+            Awareness(s, aware: 35f, alert: 22f, flee: 12f, gain: 0.8f, decay: 0.3f, patience: 3f, startle: 1f);
+            s.idealFrameCoverage = 0.05f; s.clearPhotoDistance = 70f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 3f, 20f, 40f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 2.5f, 12f, 25f));
             return s;
         }
 
@@ -135,10 +184,12 @@ namespace WildLens.Data
             s.gait = GaitStyle.Bursty;
             s.walkSpeed = 1.6f; s.runSpeed = 4.5f; s.turnSpeed = 360f; s.gaitFrequency = 4f;
             s.wanderRadius = 12f; s.behaviorChance = 0.8f; s.maxSlope = 50f;
-            s.alertDistance = 9f; s.fleeDistance = 4.5f; s.fleeDistanceRange = new Vector2(6f, 10f);
-            s.idealFrameCoverage = 0.05f;
+            Awareness(s, aware: 14f, alert: 8f, flee: 4f, gain: 1.3f, decay: 0.6f, patience: 1.5f, startle: 1.2f);
+            s.fleeDistanceRange = new Vector2(6f, 10f);
+            s.idealFrameCoverage = 0.05f; s.clearPhotoDistance = 20f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 4f, 2f, 5f));
-            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 1f, 3f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 2f, 2f, 4f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1.5f, 1f, 3f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 2f, 3f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Climbing, 3f, 3f, 8f));
             return s;

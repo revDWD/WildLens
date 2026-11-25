@@ -1,4 +1,4 @@
-# WildLens — Vertical Slice (Milestone 1)
+# WildLens
 
 A first-person nature-photography prototype: walk a trail loop through a reserve, observe five species
 behaving naturally, photograph them, and build a field journal.
@@ -30,14 +30,18 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 |---|---|
 | WASD / Shift | Walk / sprint |
 | Mouse | Look |
-| Hold RMB | Raise camera (viewfinder, slower careful walk) |
-| Scroll (camera raised) | Zoom (about 1.4× to 7.5×) |
-| LMB or F | Take photo |
+| **Hold RMB** | Camera mode: raise the camera (slower, steadier, viewfinder) |
+| Scroll (in camera mode) | Zoom 1× / 2× / 4× / 8× |
+| LMB or F (in camera mode) | Take photo |
 | J or Tab | Field journal (pauses the world) · W/S to browse |
 | H | Toggle control hints |
 | Esc | Release mouse / close journal |
 
-Moving slowly or standing still lets animals come closer. Sprinting spooks them from much farther away.
+**Approaching wildlife:** animals notice you, then stop and watch you (Alert), then flee. Walking makes noise,
+creeping in camera mode is quieter, and standing still is quietest; trees and bushes hide you. When an animal
+stops and stares, freeze and let it settle. Photos are graded **Poor / Good / Excellent** on how visible, large,
+centred and close the subject is. See [`Documentation~/Systems.md`](Documentation~/Systems.md) for how every
+system works and where to tune it.
 
 ## Architecture
 
@@ -45,19 +49,23 @@ Moving slowly or standing still lets animals come closer. Sprinting spooks them 
 (package root)
   package.json
   Scripts/  (WildLens.Runtime.asmdef)
+    CameraSystem/  CameraModeController (RMB camera mode), ZoomLens (FOV + zoom levels), CameraAudio
     Core/          WildLensGame (composition root, UI pause state), GameInput (input backend abstraction),
                    PlayerPresence (what wildlife can perceive), TerrainUtil, MaterialLibrary, PrimitiveMeshes, SceneQuery
     Data/          SpeciesDefinition (ScriptableObject), SpeciesDatabase, SpeciesDefaults, AnimalActivity
     Environment/   TrailPath (loop centre-line, location labels), EnvironmentFeature (tags trees/rocks for wildlife)
-    Player/        FirstPersonController, PlayerCameraRig (FOV zoom, head-bob, raised mode)
+    Player/        FirstPersonController, PlayerCameraRig (head-bob, raise dip, handheld sway)
     Wildlife/      AnimalAgent (base brain) → GroundAnimal, FlyingAnimal
+                   Awareness/WildlifeAwareness (Calm → Aware → Alert → Fleeing),
                    WildlifeWorld (spatial queries: trees, perches), WildlifeSpawner,
                    PlaceholderAnimalBuilder, AnimalRig, ProceduralAnimalAnimator, AnimalAnimatorBridge
-    Photography/   PhotoCamera (shutter → capture → journal), PhotoAnalyzer (identify + score), Photographable, PhotoStorage
+    Photography/   PhotoCamera (shutter → capture → journal), PhotoAnalyzer (detection),
+                   PhotoQualityEvaluator (Poor/Good/Excellent), Photographable, PhotoStorage
     Journal/       JournalService (plain C#, JSON persistence), JournalData (save model)
-    UI/            UIFactory, HudController, JournalUI   (built from code, no prefabs, no EventSystem)
+    UI/            HudController → ViewfinderView, ShutterEffectView, PhotoPreviewView; JournalUI; UIFactory
+                   (built from code, no prefabs, no EventSystem)
   Editor/   (WildLens.Editor.asmdef)
-    WildLensBuilderWindow, WildLensSliceBuilder, TrailBuilder, VegetationBuilder, PropBuilder,
+    WildLensBuilderWindow, WildLensSliceBuilder, SpeciesAssetMigrator, TrailBuilder, VegetationBuilder, PropBuilder,
     ProceduralMeshes, GeneratedAssets, SliceBuildSettings
 
 Written into your project (editable):
@@ -65,9 +73,10 @@ Written into your project (editable):
   Assets/WildLens/Generated/  placeholder meshes, materials, textures
 ```
 
-How the systems depend on each other: wildlife reads `PlayerPresence` rather than depending on the player.
-Photography reads `Photographable` and writes to `JournalService`. The UI listens to events
-(`PhotoCamera.PhotoTaken`, `JournalService.Changed`).
+How the systems depend on each other: `WildlifeAwareness` reads `PlayerPresence` (not the player itself) and brains
+react to its events. Photography reads `Photographable` and `CameraModeController` and writes to `JournalService`.
+The UI only listens to events (`PhotoCamera`, `ZoomLens`, `JournalService`). Full detail is in
+`Documentation~/Systems.md`.
 
 ### Adding or tuning a species
 - Tune behaviour, senses, population and habitat on the assets in `Assets/WildLens/Data/Species/`. Rebuilds don't overwrite them.

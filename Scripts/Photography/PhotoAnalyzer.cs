@@ -6,11 +6,13 @@ using WildLens.Journal;
 namespace WildLens.Photography
 {
     /// <summary>
-    /// Decides what is in a photograph and how good the shot is. For each candidate subject:
+    /// Works out what is in a photograph. For each candidate subject:
     ///  - in front of the camera and within range,
     ///  - visible: several points across its body are inside the frame and not occluded (line-of-sight rays),
-    ///  - scored on frame coverage vs. the species' ideal, visibility, centring, and facing.
-    /// Returns the best-scoring individual per species.
+    ///  - large enough in frame to identify at all.
+    /// It then measures visibility, size, centring and distance and hands them to
+    /// <see cref="PhotoQualityEvaluator"/> for classification. Returns the best individual per species.
+    /// Also provides a cheap focus check for the viewfinder.
     /// </summary>
     public static class PhotoAnalyzer
     {
@@ -60,41 +62,54 @@ namespace WildLens.Photography
                 float visibility = visible / (float)SampleOffsets.Length;
                 if (visibility < MinVisibility) continue;
 
-                float centering = 1f - Mathf.Clamp01(Vector2.Distance(new Vector2(vc.x, vc.y), new Vector2(0.5f, 0.5f)) / 0.5f);
-                Vector3 toCam = (camPos - target.transform.position).normalized;
-                float dot = Vector3.Dot(target.transform.forward, toCam);
-                float facing = dot >= 0f ? Mathf.Lerp(0.75f, 1f, dot) : Mathf.Lerp(0.75f, 0.3f, -dot); // side-on is a good field shot
-                float size = Mathf.Sqrt(Mathf.Clamp01(coverage / target.Species.idealFrameCoverage));
-
-                // Size dominates; composition terms count fully only once the subject is reasonably large.
-                float composition = 0.2f * visibility + 0.15f * centering + 0.15f * facing;
-                int score = Mathf.RoundToInt(100f * (0.5f * size + composition * (0.4f + 0.6f * size)));
+                var m = new SubjectMeasurements
+                {
+                    visibility = visibility,
+                    frameCoverage = coverage,
+                    sizeRatio = coverage / Mathf.Max(0.001f, target.Species.idealFrameCoverage),
+                    centerOffset = Vector2.Distance(new Vector2(vc.x, vc.y), new Vector2(0.5f, 0.5f)) / 0.5f,
+                    distance = distance,
+                    distanceRatio = distance / Mathf.Max(1f, target.Species.clearPhotoDistance),
+                };
+                var quality = PhotoQualityEvaluator.Classify(m, out string hint);
                 var subject = new PhotoSubject
                 {
                     speciesId = target.Species.speciesId,
-                    score = Mathf.Clamp(score, 1, 100),
-                    quality = QualityLabel(score),
+                    quality = PhotoQualityEvaluator.Label(quality),
+                    hint = hint,
+                    rating = PhotoQualityEvaluator.Rating(m),
                     activity = target.CurrentActivity.ToString(),
                     distance = distance,
                     frameCoverage = coverage,
                     visibility = visibility,
                 };
 
-                if (!best.TryGetValue(subject.speciesId, out var existing) || subject.score > existing.score)
+                if (!best.TryGetValue(subject.speciesId, out var existing) || subject.rating > existing.rating)
                     best[subject.speciesId] = subject;
             }
 
             var list = new List<PhotoSubject>(best.Values);
-            list.Sort((a, c) => c.score.CompareTo(a.score));
+            list.Sort((a, c) => c.rating.CompareTo(a.rating));
             return list;
         }
 
-        public static string QualityLabel(int score)
+        /// <summary>
+        /// True if some identifiable subject sits under the central focus area with a clear line of sight.
+        /// Says nothing about species: it just gives the viewfinder's focus brackets something to confirm.
+        /// </summary>
+        public static bool HasSubjectInFocus(Camera cam, float maxDistance, Transform ignoreRoot)
         {
-            if (score >= 85) return "Excellent";
-            if (score >= 65) return "Good";
-            if (score >= 40) return "Fair";
-            return "Distant";
+            Vector3 camPos = cam.transform.position;
+            foreach (var target in Photographable.Active)
+            {
+                if (target == null || target.Species == null || !target.TryGetWorldBounds(out Bounds b)) continue;
+                if (Vector3.Distance(camPos, b.center) > maxDistance) continue;
+                Vector3 v = cam.WorldToViewportPoint(b.center);
+                if (v.z <= 0f || Mathf.Abs(v.x - 0.5f) > 0.09f || Mathf.Abs(v.y - 0.5f) > 0.09f) continue;
+                if (FrameCoverage(cam, b) < target.Species.idealFrameCoverage * MinCoverageFraction) continue;
+                if (HasLineOfSight(camPos, b.center, target, ignoreRoot)) return true;
+            }
+            return false;
         }
 
         /// <summary>Fraction of the frame covered by the subject's screen-space bounding rectangle (clipped to frame).</summary>

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using WildLens.CameraSystem;
 using WildLens.Core;
 using WildLens.Data;
 using WildLens.Environment;
@@ -288,8 +289,12 @@ namespace WildLens.EditorTools
             camera.clearFlags = CameraClearFlags.Skybox;
             camGo.AddComponent<AudioListener>();
 
-            var rig = camGo.AddComponent<PlayerCameraRig>();
+            // Camera system: lens (FOV/zoom), camera mode, shutter, sounds, physical motion.
+            camGo.AddComponent<ZoomLens>();
+            camGo.AddComponent<CameraModeController>();
             var photo = camGo.AddComponent<PhotoCamera>();
+            camGo.AddComponent<CameraAudio>();
+            var rig = camGo.AddComponent<PlayerCameraRig>();
             var controller = player.AddComponent<FirstPersonController>();
             controller.Configure(pivot, rig);
             rig.Configure(controller);
@@ -313,7 +318,7 @@ namespace WildLens.EditorTools
             spawner.Configure(db, world);
 
             var hud = go.AddComponent<HudController>();
-            hud.Configure(photo, photo.GetComponent<PlayerCameraRig>());
+            hud.Configure(photo);
             go.AddComponent<JournalUI>();
         }
     }

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 using WildLens.Data;
+using WildLens.Photography;
 
 namespace WildLens.Journal
 {
@@ -84,10 +85,15 @@ namespace WildLens.Journal
                 }
 
                 entry.photoCount++;
-                bool newBest = subject.score > entry.bestScore || string.IsNullOrEmpty(entry.bestPhotoId);
+                // Better quality class wins; within a class, the higher internal rating.
+                var quality = PhotoQualityEvaluator.Parse(subject.quality);
+                var bestSoFar = PhotoQualityEvaluator.Parse(entry.bestQuality);
+                bool newBest = string.IsNullOrEmpty(entry.bestPhotoId) || quality > bestSoFar ||
+                               (quality == bestSoFar && subject.rating > entry.bestRating);
                 if (newBest)
                 {
-                    entry.bestScore = subject.score;
+                    entry.bestQuality = subject.quality;
+                    entry.bestRating = subject.rating;
                     entry.bestPhotoId = record.photoId;
                 }
 
@@ -149,9 +155,28 @@ namespace WildLens.Journal
 
         private static JournalSaveData Migrate(JournalSaveData data)
         {
-            // Version 1 is the first format; future migrations go here.
             if (data.species == null) data.species = new List<SpeciesRecord>();
             if (data.photos == null) data.photos = new List<PhotoRecord>();
+
+            if (data.version < 2)
+            {
+                // v1 stored 0-100 scores with labels Excellent/Good/Fair/Distant.
+                foreach (var photo in data.photos)
+                foreach (var subject in photo.subjects)
+                {
+                    subject.rating = subject.score / 100f;
+                    subject.quality = PhotoQualityEvaluator.Label(PhotoQualityEvaluator.Parse(subject.quality));
+                    subject.score = 0;
+                }
+                foreach (var record in data.species)
+                {
+                    record.bestRating = record.bestScore / 100f;
+                    var best = data.photos.Find(p => p.photoId == record.bestPhotoId);
+                    var subject = best?.subjects.Find(x => x.speciesId == record.speciesId);
+                    record.bestQuality = subject != null ? subject.quality : PhotoQualityEvaluator.Label(PhotoQuality.Poor);
+                    record.bestScore = 0;
+                }
+            }
             data.version = JournalSaveData.CurrentVersion;
             return data;
         }

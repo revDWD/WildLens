@@ -26,6 +26,8 @@ namespace WildLens.Wildlife
         public event Action<AnimalAgent, AnimalActivity> ActivityChanged;
 
         protected WildlifeWorld World { get; private set; }
+        /// <summary>Perception of the player (optional; animals without one simply never react).</summary>
+        public WildlifeAwareness Awareness { get; private set; }
         protected System.Random Rng { get; private set; }
 
         /// <summary>Per-individual personality, so a group doesn't move in lock-step.</summary>
@@ -37,6 +39,7 @@ namespace WildLens.Wildlife
             Species = species;
             HomePosition = home;
             World = world;
+            Awareness = GetComponent<WildlifeAwareness>();
             Rng = new System.Random(seed);
             Temperament = Range(0.85f, 1.15f);
             NoiseSeed = Range(0f, 1000f);

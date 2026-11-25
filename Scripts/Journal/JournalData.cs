@@ -9,13 +9,19 @@ namespace WildLens.Journal
     public class PhotoSubject
     {
         public string speciesId;
-        [Tooltip("0-100 photo quality for this subject.")]
-        public int score;
+        /// <summary>"Poor", "Good" or "Excellent" (see PhotoQualityEvaluator).</summary>
         public string quality;
+        /// <summary>What held the photo back, e.g. "off-centre". Empty for Excellent.</summary>
+        public string hint;
+        /// <summary>Internal 0-1 ranking used only to choose a species' best photo. Never displayed.</summary>
+        public float rating;
         public string activity;
         public float distance;
         public float frameCoverage;
         public float visibility;
+
+        [Tooltip("Legacy (save version 1): 0-100 score. Migrated to rating/quality on load.")]
+        public int score;
     }
 
     /// <summary>A saved photograph and what was identified in it.</summary>
@@ -43,15 +49,19 @@ namespace WildLens.Journal
         public string firstSightingActivity;
         public string firstPhotoId;
 
-        public int bestScore;
+        public string bestQuality;
+        public float bestRating;
         public string bestPhotoId;
+
+        [Tooltip("Legacy (save version 1). Migrated to bestRating/bestQuality on load.")]
+        public int bestScore;
     }
 
     /// <summary>Root save object. Bump <see cref="CurrentVersion"/> and migrate in JournalService when the shape changes.</summary>
     [Serializable]
     public class JournalSaveData
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
         public int version = CurrentVersion;
         public List<SpeciesRecord> species = new List<SpeciesRecord>();
         public List<PhotoRecord> photos = new List<PhotoRecord>();
