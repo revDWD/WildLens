@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.1] Fixes from the first reserve playtest
+### Fixed
+- **Couldn't get into the Meadow Blind:** its doorway was 0.7 m, narrower than the player's collision capsule.
+  Now 1.1 m.
+- The "R Ride the trail bike" prompt sat on top of the viewfinder's zoom scale; it now hides while the camera is up.
+- The bike's headlight blocked the middle of the riding view; it is smaller and lower.
+
+**Rebuild the slice after updating** (the blind is built by the scene builder).
+
 ## [0.7.0] The Reserve
 ### Added
 - **Reserve destinations** beyond the Meadow Loop, chosen from the terrain: Ridge Overlook (deck, perch snag;

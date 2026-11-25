@@ -183,7 +183,8 @@ namespace WildLens.UI
             else
             {
                 _rideText.text = "";
-                _promptText.text = WildLens.Vehicles.TrailBike.InReach != null ? "<b>R</b>  Ride the trail bike" : "";
+                // Hidden while the camera is up: it sat on top of the viewfinder's zoom scale.
+                _promptText.text = WildLens.Vehicles.TrailBike.InReach != null && blend < 0.05f ? "<b>R</b>  Ride the trail bike" : "";
             }
         }
 

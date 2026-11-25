@@ -190,6 +190,8 @@ trailhead kiosk board as an in-world dashboard. The "black slab" in a screenshot
 underside of a conifer tier hanging at head height; tiers are now open and higher. *Lesson:* when the world is good
 enough that exploring is its own reward, add places, not square metres. *Lesson:* ask what an odd shape in a
 screenshot *is* before theorising; usually it's geometry seen from an angle nobody designed for.
+*0.7.1:* the first reserve playtest couldn't get into the Meadow Blind: its doorway (0.7 m) was narrower than the
+player's capsule (0.7 m + skin). *Lesson:* size every walkable opening against the CharacterController.
 
 **Cross-cutting lessons**
 - When the player says something doesn't work, believe them and **build a probe** before theorising.
@@ -243,5 +245,7 @@ foliage with depth, soft light and a clean background. The reserve should read a
 - Release → bump `package.json` and `WildLensVersion.Package`; update `Features`, `RecentChanges`, `ReleaseName`,
   `ReleaseDate` (the trailhead board shows them).
 - New gameplay idea? Check it against the non-priorities in section 2 first.
+- Anything the player walks into or onto (doors, decks, steps): doorways ≥ 1.0 m wide and ≥ 1.95 m tall, steps
+  ≤ 0.4 m (CharacterController radius 0.35, skin 0.05, height 1.8, step offset 0.4).
 - Update `CHANGELOG.md`, `Documentation~/Systems.md` (and `VisualRoadmap.md` for art).
 - Don't commit store assets, secrets or generated `Assets/` content.

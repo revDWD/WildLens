@@ -765,10 +765,11 @@ namespace WildLens.EditorTools
             Wall(hide, "Shelf", new Vector3(0f, slotLow - 0.02f, D * 0.5f - 0.18f), new Vector3(W - 0.3f, 0.05f, 0.3f), post);
             Wall(hide, "Side L", new Vector3(-W * 0.5f, H * 0.5f, 0f), new Vector3(t, H, D), wood);
             Wall(hide, "Side R", new Vector3(W * 0.5f, H * 0.5f, 0f), new Vector3(t, H, D), wood);
-            // Back wall with a doorway on the track side.
-            Wall(hide, "Back L", new Vector3(-W * 0.5f + 0.75f, H * 0.5f, -D * 0.5f), new Vector3(1.5f, H, t), wood);
-            Wall(hide, "Back R", new Vector3(W * 0.5f - 0.6f, H * 0.5f, -D * 0.5f), new Vector3(1.2f, H, t), wood);
-            Wall(hide, "Lintel", new Vector3(0.15f, H - 0.15f, -D * 0.5f), new Vector3(0.75f, 0.3f, t), wood);
+            // Back wall with a 1.1 m doorway on the track side (0.7.1: it was 0.7 m, narrower than the player's capsule
+            // plus skin, so nobody could get in). Door spans x = -0.45 … 0.65.
+            Wall(hide, "Back L", new Vector3(-1.075f, H * 0.5f, -D * 0.5f), new Vector3(1.25f, H, t), wood);
+            Wall(hide, "Back R", new Vector3(1.175f, H * 0.5f, -D * 0.5f), new Vector3(1.05f, H, t), wood);
+            Wall(hide, "Lintel", new Vector3(0.1f, H - 0.12f, -D * 0.5f), new Vector3(1.1f, 0.24f, t), wood);
             Wall(hide, "Roof", new Vector3(0f, H + 0.06f, 0f), new Vector3(W + 0.4f, 0.1f, D + 0.5f), post);
             PropBuilder.Box("Bench", hide, new Vector3(0f, 0.45f, D * 0.5f - 0.55f), new Vector3(W - 0.6f, 0.07f, 0.35f), wood);
             var blind = hide.gameObject.AddComponent<ObservationBlind>();

@@ -54,8 +54,9 @@ namespace WildLens.Vehicles
             Part("Bars", PrimitiveType.Cylinder, p.steer, new Vector3(0f, 0.14f, -0.06f), new Vector3(0.028f, 0.36f, 0.028f), black, new Vector3(0f, 0f, 90f));
             Part("Grip L", PrimitiveType.Cylinder, p.steer, new Vector3(-0.33f, 0.14f, -0.06f), new Vector3(0.04f, 0.06f, 0.04f), black, new Vector3(0f, 0f, 90f));
             Part("Grip R", PrimitiveType.Cylinder, p.steer, new Vector3(0.33f, 0.14f, -0.06f), new Vector3(0.04f, 0.06f, 0.04f), black, new Vector3(0f, 0f, 90f));
-            Part("Headlight Shell", PrimitiveType.Cylinder, p.steer, new Vector3(0f, 0.02f, 0.1f), new Vector3(0.17f, 0.05f, 0.17f), black, new Vector3(90f, 0f, 0f));
-            Part("Headlight", PrimitiveType.Sphere, p.steer, new Vector3(0f, 0.02f, 0.135f), new Vector3(0.14f, 0.14f, 0.04f), lamp);
+            // Small and low, ahead of the bars, so it doesn't block the rider's view of the track.
+            Part("Headlight Shell", PrimitiveType.Cylinder, p.steer, new Vector3(0f, -0.1f, 0.13f), new Vector3(0.13f, 0.04f, 0.13f), black, new Vector3(90f, 0f, 0f));
+            Part("Headlight", PrimitiveType.Sphere, p.steer, new Vector3(0f, -0.1f, 0.16f), new Vector3(0.11f, 0.11f, 0.03f), lamp);
             Part("Front Fender", PrimitiveType.Cube, p.steer, new Vector3(0f, -0.2f, 0.06f), new Vector3(0.12f, 0.025f, 0.38f), paint, new Vector3(-8f, 0f, 0f));
             // The front wheel hangs from the fork; its axle sits at the bike's front axle position when steering is straight.
             Vector3 axleLocal = p.steer.InverseTransformPoint(root.TransformPoint(new Vector3(0f, WheelRadius, FrontAxleZ)));
