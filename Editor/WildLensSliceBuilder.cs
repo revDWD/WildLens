@@ -10,6 +10,10 @@ using WildLens.Photography;
 using WildLens.Player;
 using WildLens.UI;
 using WildLens.Wildlife;
+#if WILDLENS_URP
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+#endif
 
 namespace WildLens.EditorTools
 {
@@ -69,9 +73,15 @@ namespace WildLens.EditorTools
                 var root = new GameObject(RootName);
                 var env = Child(root.transform, "Environment");
 
+                bool ownsTerrain = IsWildLensTerrain(terrain);
+                bool hdrp = PipelineName().Contains("HDRenderPipeline");
+                // When the terrain is painted finely enough, the worn trail lives in the terrain texture.
+                float texel = ownsTerrain ? terrain.terrainData.size.x / 1024f : terrain.terrainData.size.x / terrain.terrainData.alphamapResolution;
+                bool trailMesh = !s.paintTerrain || texel > 0.6f;
+
                 Progress("Trail loop", 0.15f);
                 var loop = TrailBuilder.Generate(terrain, s);
-                var trail = TrailBuilder.CreateTrailObject(loop, s, env);
+                var trail = TrailBuilder.CreateTrailObject(loop, s, env, trailMesh);
 
                 Progress("Trail props", 0.2f);
                 PropBuilder.Build(trail, loop, Child(env, "Trail Props"));
@@ -86,11 +96,25 @@ namespace WildLens.EditorTools
                 veg.BuildBushes(Child(env, "Bushes"));
                 Progress("Habitat hotspots", 0.65f);
                 veg.BuildHotspots(Child(env, "Habitat"));
-                Progress("Grass", 0.7f);
-                veg.BuildGrass(Child(env, "Grass"));
+                if (s.scenicViewpoints)
+                {
+                    Progress("Scenic viewpoints", 0.68f);
+                    veg.BuildViewpoints(Child(env, "Viewpoints"), loop);
+                }
+
+                bool details = s.paintTerrain && s.terrainDetailGrass && !hdrp;
+                if (s.paintTerrain) veg.PaintTerrain(details, s.backupTerrainData, ownsTerrain);
+                if (!details)
+                {
+                    Progress("Grass", 0.82f);
+                    veg.BuildGrass(Child(env, "Grass"));
+                }
+                if (s.wind) BuildWind(env);
 
                 Progress("Lighting", 0.85f);
                 if (s.configureLightingAndFog) ConfigureLighting(root.transform);
+                if (s.configureRenderQuality) ConfigureRenderQuality();
+                if (s.postProcessing) BuildPostProcessing(root.transform);
 
                 Progress("Player & systems", 0.9f);
                 var player = BuildPlayer(root.transform, trail, s);
@@ -103,7 +127,8 @@ namespace WildLens.EditorTools
                 Selection.activeGameObject = root;
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +
-                          $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.GrassPlaced} grass tufts, {veg.HotspotsPlaced} habitat hotspots. " +
+                          $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.HotspotsPlaced} habitat hotspots, " +
+                          $"{veg.ViewpointsPlaced} viewpoints, terrain {(s.paintTerrain ? "painted" : "untouched")}, grass: {(details ? "terrain details (wind)" : veg.GrassPlaced + " mesh tufts")}. " +
                           "Save the scene, then press Play.");
             }
             finally
@@ -196,6 +221,10 @@ namespace WildLens.EditorTools
 
         // ------------------------------------------------------------------ lighting
 
+        /// <summary>
+        /// Late-morning light: a warm sun high enough to read well but low enough for long soft shadows, sky-matched
+        /// ambient, gentle exponential haze for atmospheric perspective, and a tuned procedural sky.
+        /// </summary>
         private static void ConfigureLighting(Transform root)
         {
             Light sun = null;
@@ -210,42 +239,168 @@ namespace WildLens.EditorTools
             }
             else Undo.RecordObjects(new Object[] { sun, sun.transform }, "Configure sun");
 
-            // Warm mid-morning light, low enough for long soft shadows.
-            sun.transform.rotation = Quaternion.Euler(38f, -35f, 0f);
-            sun.color = new Color(1f, 0.94f, 0.84f);
-            sun.intensity = 1.15f;
+            sun.transform.rotation = Quaternion.Euler(30f, -38f, 0f);
+            sun.color = new Color(1f, 0.92f, 0.8f);
+            sun.intensity = 1.3f;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.8f;
+            sun.shadowStrength = 0.82f;
+            sun.shadowNormalBias = 0.3f;
 
             RenderSettings.sun = sun;
+            // Exponential (not squared) haze: distant ridges fade into a blue-grey, near ground stays crisp.
             RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = 0.0045f;
-            RenderSettings.fogColor = new Color(0.7f, 0.77f, 0.75f);
+            RenderSettings.fogMode = FogMode.Exponential;
+            RenderSettings.fogDensity = 0.0028f;
+            RenderSettings.fogColor = new Color(0.69f, 0.76f, 0.8f);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.62f, 0.72f, 0.82f);
-            RenderSettings.ambientEquatorColor = new Color(0.55f, 0.6f, 0.52f);
-            RenderSettings.ambientGroundColor = new Color(0.28f, 0.27f, 0.22f);
+            RenderSettings.ambientSkyColor = new Color(0.56f, 0.66f, 0.8f);
+            RenderSettings.ambientEquatorColor = new Color(0.52f, 0.57f, 0.52f);
+            RenderSettings.ambientGroundColor = new Color(0.25f, 0.22f, 0.17f);
+            RenderSettings.ambientIntensity = 1f;
+            RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
+            RenderSettings.reflectionIntensity = 0.8f;
 
-            if (RenderSettings.skybox == null)
+            var shader = Shader.Find("Skybox/Procedural");
+            if (shader != null && (RenderSettings.skybox == null || RenderSettings.skybox.name.StartsWith("Default") ||
+                                   RenderSettings.skybox.name.StartsWith("M_Sky")))
             {
-                var shader = Shader.Find("Skybox/Procedural");
-                if (shader != null)
+                string path = GeneratedAssets.Folder + "/M_Sky.mat";
+                var sky = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (sky == null)
                 {
-                    string path = GeneratedAssets.Folder + "/M_Sky.mat";
-                    var sky = AssetDatabase.LoadAssetAtPath<Material>(path);
-                    if (sky == null)
-                    {
-                        sky = new Material(shader);
-                        sky.SetFloat("_SunSize", 0.04f);
-                        sky.SetFloat("_AtmosphereThickness", 0.9f);
-                        sky.SetColor("_SkyTint", new Color(0.55f, 0.65f, 0.75f));
-                        sky.SetFloat("_Exposure", 1.2f);
-                        AssetDatabase.CreateAsset(sky, path);
-                    }
-                    RenderSettings.skybox = sky;
+                    sky = new Material(shader);
+                    AssetDatabase.CreateAsset(sky, path);
                 }
+                sky.shader = shader;
+                sky.SetFloat("_SunDisk", 2f); // high quality
+                sky.SetFloat("_SunSize", 0.035f);
+                sky.SetFloat("_SunSizeConvergence", 6f);
+                sky.SetFloat("_AtmosphereThickness", 0.85f);
+                sky.SetColor("_SkyTint", new Color(0.5f, 0.57f, 0.66f));
+                sky.SetColor("_GroundColor", new Color(0.38f, 0.36f, 0.32f));
+                sky.SetFloat("_Exposure", 1.25f);
+                EditorUtility.SetDirty(sky);
+                RenderSettings.skybox = sky;
             }
+            DynamicGI.UpdateEnvironment();
+
+            if (PlayerSettings.colorSpace != ColorSpace.Linear)
+                Debug.LogWarning("[WildLens] Project uses Gamma colour space. Linear (Project Settings > Player > Other) gives far better lighting and grading; changing it reimports textures.");
+        }
+
+        private static string PipelineName()
+        {
+            var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            return rp != null ? rp.GetType().Name : "Built-in";
+        }
+
+        private static bool IsWildLensTerrain(Terrain terrain)
+        {
+            string path = AssetDatabase.GetAssetPath(terrain.terrainData);
+            return terrain.name.Contains("WildLens") || (!string.IsNullOrEmpty(path) && path.StartsWith(GeneratedAssets.Folder));
+        }
+
+        /// <summary>
+        /// Shadow quality for an outdoor scene. Built-in: Quality settings. SRPs: properties on the pipeline asset set by
+        /// reflection (names differ between versions; anything missing is skipped). Project-wide, so logged.
+        /// </summary>
+        private static void ConfigureRenderQuality()
+        {
+            var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            if (rp == null)
+            {
+                QualitySettings.shadowDistance = 160f;
+                QualitySettings.shadowCascades = 4;
+                QualitySettings.shadowResolution = UnityEngine.ShadowResolution.VeryHigh;
+                QualitySettings.shadowProjection = UnityEngine.ShadowProjection.StableFit;
+                QualitySettings.shadows = UnityEngine.ShadowQuality.All;
+                Debug.Log("[WildLens] Quality settings: shadow distance 160 m, 4 cascades, very high resolution.");
+                return;
+            }
+
+            var changed = new List<string>();
+            void Set(string property, object value)
+            {
+                var prop = rp.GetType().GetProperty(property);
+                if (prop == null || !prop.CanWrite) return;
+                try { prop.SetValue(rp, value); changed.Add(property + "=" + value); }
+                catch (System.Exception) { /* value type differs in this version; skip */ }
+            }
+            Undo.RecordObject(rp, "Configure render quality");
+            Set("shadowDistance", 160f);
+            Set("shadowCascadeCount", 4);
+            Set("mainLightShadowmapResolution", 2048);
+            Set("supportsSoftShadows", true);
+            Set("supportsHDR", true);
+            Set("supportsCameraDepthTexture", true);
+            EditorUtility.SetDirty(rp);
+            Debug.Log($"[WildLens] {rp.name}: " + (changed.Count > 0 ? string.Join(", ", changed) : "no adjustable shadow properties found"));
+        }
+
+        private static void BuildWind(Transform env)
+        {
+            var go = new GameObject("Wind");
+            go.transform.SetParent(env, false);
+            go.transform.rotation = Quaternion.LookRotation(new Vector3(1f, 0f, 0.35f));
+            var zone = go.AddComponent<WindZone>();
+            zone.mode = WindZoneMode.Directional;
+            zone.windMain = 0.6f;
+            zone.windTurbulence = 0.3f;
+            zone.windPulseMagnitude = 0.4f;
+            zone.windPulseFrequency = 0.08f;
+            go.AddComponent<WildLensWind>();
+        }
+
+        /// <summary>
+        /// URP: a global grading volume: ACES tonemapping, slightly warm white balance, a touch of contrast and
+        /// saturation, gentle bloom on sun highlights, cool shadows and warm highlights, faint vignette.
+        /// </summary>
+        private static void BuildPostProcessing(Transform root)
+        {
+#if WILDLENS_URP
+            string path = GeneratedAssets.Folder + "/WildLensGrade.asset";
+            AssetDatabase.DeleteAsset(path);
+            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+            AssetDatabase.CreateAsset(profile, path);
+
+            T Add<T>() where T : VolumeComponent
+            {
+                var c = profile.Add<T>();
+                c.name = typeof(T).Name;
+                AssetDatabase.AddObjectToAsset(c, profile);
+                return c;
+            }
+
+            Add<Tonemapping>().mode.Override(TonemappingMode.ACES);
+            var colour = Add<ColorAdjustments>();
+            colour.postExposure.Override(0.25f);
+            colour.contrast.Override(8f);
+            colour.saturation.Override(6f);
+            var wb = Add<WhiteBalance>();
+            wb.temperature.Override(8f);
+            wb.tint.Override(2f);
+            var smh = Add<ShadowsMidtonesHighlights>();
+            smh.shadows.Override(new Vector4(0.97f, 1f, 1.06f, 0f));
+            smh.highlights.Override(new Vector4(1.04f, 1f, 0.95f, 0f));
+            var bloom = Add<Bloom>();
+            bloom.threshold.Override(1.1f);
+            bloom.intensity.Override(0.35f);
+            bloom.scatter.Override(0.65f);
+            var vignette = Add<Vignette>();
+            vignette.intensity.Override(0.16f);
+            vignette.smoothness.Override(0.4f);
+            EditorUtility.SetDirty(profile);
+
+            var go = new GameObject("Post Processing (Grade)");
+            go.transform.SetParent(root, false);
+            var volume = go.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 10f;
+            volume.sharedProfile = profile;
+#else
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline == null)
+                Debug.Log("[WildLens] Built-in pipeline: colour grading needs URP (or the Post Processing package). Lighting, fog and sky are configured.");
+#endif
         }
 
         // ------------------------------------------------------------------ player & systems
@@ -290,12 +445,24 @@ namespace WildLens.EditorTools
             camera.fieldOfView = 65f;
             camera.clearFlags = CameraClearFlags.Skybox;
             camGo.AddComponent<AudioListener>();
+            camera.allowHDR = true;
+#if WILDLENS_URP
+            var cameraData = camera.GetUniversalAdditionalCameraData();
+            if (cameraData != null)
+            {
+                cameraData.renderPostProcessing = true;
+                cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            }
+#endif
 
             // Camera system: lens (FOV/zoom), camera mode, shutter, sounds, physical motion.
             camGo.AddComponent<ZoomLens>();
             camGo.AddComponent<CameraModeController>();
             var photo = camGo.AddComponent<PhotoCamera>();
             camGo.AddComponent<FramingAssistant>();
+            camGo.AddComponent<FocusController>();
+            camGo.AddComponent<LensEffects>();
+            camGo.AddComponent<WildLens.Debugging.CameraDiagnostics>();
             camGo.AddComponent<WildLens.Observation.ObservationTracker>();
             camGo.AddComponent<CameraAudio>();
             var rig = camGo.AddComponent<PlayerCameraRig>();

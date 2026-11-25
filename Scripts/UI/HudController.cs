@@ -32,6 +32,7 @@ namespace WildLens.UI
         private ZoomLens _lens;
         private FramingAssistant _framing;
         private ObservationTracker _observation;
+        private FocusController _focus;
 
         public void Configure(PhotoCamera camera) => photoCamera = camera;
 
@@ -44,6 +45,8 @@ namespace WildLens.UI
                 _lens = photoCamera.GetComponent<ZoomLens>();
                 _framing = photoCamera.GetComponent<FramingAssistant>();
                 _observation = photoCamera.GetComponent<ObservationTracker>();
+                _focus = photoCamera.GetComponent<FocusController>();
+                if (_focus != null) _focus.FocusLocked += OnFocusLocked;
                 if (_lens != null) _lens.LevelChanged += OnLensLevelChanged;
                 if (_observation != null) _observation.SpeciesIdentified += OnSpeciesIdentified;
                 photoCamera.CaptureStarting += OnCaptureStarting;
@@ -67,6 +70,7 @@ namespace WildLens.UI
             }
             if (_lens != null) _lens.LevelChanged -= OnLensLevelChanged;
             if (_observation != null) _observation.SpeciesIdentified -= OnSpeciesIdentified;
+            if (_focus != null) _focus.FocusLocked -= OnFocusLocked;
             var game = WildLensGame.Instance;
             if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
         }
@@ -154,10 +158,12 @@ namespace WildLens.UI
 
         private void OnLensLevelChanged(int level)
         {
-            // While lowered, the wheel preselects the lens: confirm it, since there's no viewfinder to show it.
-            if (_mode != null && _mode.IsActive) return;
+            // Raised: a big transient readout in the viewfinder. Lowered: the wheel preselects the lens, so confirm it.
+            if (_mode != null && _mode.IsActive) { _viewfinder.ShowZoomPop(_lens.Levels[level]); return; }
             _notice.Show($"Lens  <b>{_lens.Levels[level]:0.#}×</b>  <size=20>{Mathf.RoundToInt(_lens.TargetFocalLength)} mm</size>", 1.2f);
         }
+
+        private void OnFocusLocked() => _viewfinder.PulseFocus();
 
         private void OnSpeciesIdentified(SpeciesDefinition species)
         {

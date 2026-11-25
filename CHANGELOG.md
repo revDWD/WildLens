@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0] Visual quality & camera
+### Fixed
+- **Zoom did nothing with Input System 1.9+ (Unity 6).** Scroll was divided by 120, but the Input System now reports
+  ±1 per notch by default. Zoom now uses wheel direction only, so every backend and setting works. Added E/Q keys.
+### Added
+- F3 camera diagnostics overlay (scroll values, zoom inputs and why any were ignored, FOV, competing cameras/FOV writers).
+- Lens feel: depth of field with focus pulls (URP), focus-lock beep, big zoom readout per step, breathing, pan
+  inertia, raise roll.
+- Painted terrain (5 generated PBR-style layers), terrain grass/flowers/ferns with wind, foliage wind sway.
+- Scenic viewpoints, rock outcrops, stumps, richer tree silhouettes.
+- Lighting/sky/haze rework, shadow quality, URP colour grading.
+- Comparison-shot capture tool; `Documentation~/VisualRoadmap.md` (asset sources and licensing).
+
 ## [0.3.0] Encounters
 ### Added
 - Crouch (C toggle; Left Ctrl hold): half speed, half footfall noise, smaller silhouette, lower head hidden by

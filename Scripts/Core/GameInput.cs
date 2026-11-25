@@ -43,19 +43,63 @@ namespace WildLens.Core
             }
         }
 
-        /// <summary>Scroll wheel in "notches" (positive = away from the user).</summary>
-        public static float Zoom
+        /// <summary>
+        /// Raw vertical scroll value this frame, exactly as the input backend reports it (positive = away from the
+        /// user). Its scale depends on the backend and settings, so gameplay should use <see cref="ZoomDirection"/>.
+        ///   • Input System ≥ 1.9 (Unity 6 default, ScrollDeltaBehavior.UniformAcrossAllPlatforms): ±1 per notch
+        ///   • Input System &lt; 1.9, or KeepPlatformSpecificInputRange: ±120 per notch on Windows, ±1 on macOS/Linux
+        ///   • Legacy Input Manager: about ±1 per notch
+        ///   • Trackpads: many small fractional values
+        /// </summary>
+        public static float ScrollRaw
         {
             get
             {
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
                 var mouse = Mouse.current;
-                return mouse == null ? 0f : mouse.scroll.ReadValue().y / 120f;
+                return mouse == null ? 0f : mouse.scroll.ReadValue().y;
 #else
                 return Input.mouseScrollDelta.y;
 #endif
             }
         }
+
+        /// <summary>
+        /// Zoom intent this frame, independent of scroll scaling: the sign of the scroll wheel, plus the E (in) and
+        /// Q (out) keys. -1, 0 or +1. Callers apply their own step rate limiting.
+        /// </summary>
+        /// <remarks>
+        /// 0.3.x divided the raw value by 120, assuming Windows-style deltas. With Input System 1.9+ a notch is ±1,
+        /// so one notch became 0.008 and needed ~60 notches per zoom step, so the wheel "did nothing". Using the
+        /// sign makes every backend and setting behave the same.
+        /// </remarks>
+        public static int ZoomDirection
+        {
+            get
+            {
+                if (Pressed(Key.ZoomIn)) return 1;
+                if (Pressed(Key.ZoomOut)) return -1;
+                float raw = ScrollRaw;
+                if (raw > 0.0001f) return 1;
+                if (raw < -0.0001f) return -1;
+                return 0;
+            }
+        }
+
+        /// <summary>Name of the active input backend (diagnostics).</summary>
+        public static string Backend
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
+                return "Input System package";
+#else
+                return "Legacy Input Manager";
+#endif
+            }
+        }
+
+        public static bool DiagnosticsTogglePressed => Pressed(Key.Diagnostics);
 
         public static bool SprintHeld => Held(Key.Sprint);
         public static bool CameraRaiseHeld => MouseHeld(1);
@@ -73,7 +117,7 @@ namespace WildLens.Core
         public static bool CrouchTogglePressed => Pressed(Key.CrouchToggle);
         public static bool CrouchHeld => Held(Key.CrouchHold);
 
-        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold }
+        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics }
 
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
         private static UnityEngine.InputSystem.Controls.KeyControl Control(Keyboard k, Key key)
@@ -94,6 +138,9 @@ namespace WildLens.Core
                 case Key.Hints: return k.hKey;
                 case Key.CrouchToggle: return k.cKey;
                 case Key.CrouchHold: return k.leftCtrlKey;
+                case Key.ZoomIn: return k.eKey;
+                case Key.ZoomOut: return k.qKey;
+                case Key.Diagnostics: return k.f3Key;
                 default: return null;
             }
         }
@@ -144,6 +191,9 @@ namespace WildLens.Core
                 case Key.Hints: return KeyCode.H;
                 case Key.CrouchToggle: return KeyCode.C;
                 case Key.CrouchHold: return KeyCode.LeftControl;
+                case Key.ZoomIn: return KeyCode.E;
+                case Key.ZoomOut: return KeyCode.Q;
+                case Key.Diagnostics: return KeyCode.F3;
                 default: return KeyCode.None;
             }
         }

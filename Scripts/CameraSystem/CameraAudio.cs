@@ -17,16 +17,19 @@ namespace WildLens.CameraSystem
         [SerializeField] private AudioClip zoomTickClip;
         [SerializeField] private AudioClip raiseClip;
         [SerializeField] private AudioClip identifyClip;
+        [SerializeField] private AudioClip focusClip;
         [SerializeField, Range(0f, 1f)] private float shutterVolume = 0.75f;
         [SerializeField, Range(0f, 1f)] private float zoomTickVolume = 0.3f;
         [SerializeField, Range(0f, 1f)] private float raiseVolume = 0.2f;
         [SerializeField, Range(0f, 1f)] private float identifyVolume = 0.35f;
+        [SerializeField, Range(0f, 1f)] private float focusVolume = 0.12f;
 
         private AudioSource _source;
         private PhotoCamera _photo;
         private ZoomLens _lens;
         private CameraModeController _mode;
         private ObservationTracker _observation;
+        private FocusController _focus;
 
         private void Awake()
         {
@@ -37,6 +40,7 @@ namespace WildLens.CameraSystem
             if (zoomTickClip == null) zoomTickClip = ProceduralSounds.ZoomTick();
             if (raiseClip == null) raiseClip = ProceduralSounds.Handling();
             if (identifyClip == null) identifyClip = ProceduralSounds.Chime();
+            if (focusClip == null) focusClip = ProceduralSounds.FocusBeep();
         }
 
         private void OnEnable()
@@ -49,6 +53,8 @@ namespace WildLens.CameraSystem
             if (_mode != null) _mode.Entered += OnRaise;
             _observation = GetComponent<ObservationTracker>();
             if (_observation != null) _observation.SpeciesIdentified += OnIdentified;
+            _focus = GetComponent<FocusController>();
+            if (_focus != null) _focus.FocusLocked += OnFocusLocked;
         }
 
         private void OnDisable()
@@ -57,12 +63,14 @@ namespace WildLens.CameraSystem
             if (_lens != null) _lens.LevelChanged -= OnZoom;
             if (_mode != null) _mode.Entered -= OnRaise;
             if (_observation != null) _observation.SpeciesIdentified -= OnIdentified;
+            if (_focus != null) _focus.FocusLocked -= OnFocusLocked;
         }
 
         private void OnShutter() => _source.PlayOneShot(shutterClip, shutterVolume);
         private void OnZoom(int level) => _source.PlayOneShot(zoomTickClip, zoomTickVolume);
         private void OnRaise() => _source.PlayOneShot(raiseClip, raiseVolume);
         private void OnIdentified(SpeciesDefinition species) => _source.PlayOneShot(identifyClip, identifyVolume);
+        private void OnFocusLocked() => _source.PlayOneShot(focusClip, focusVolume);
     }
 
     /// <summary>Tiny synthesiser for placeholder camera sounds.</summary>
@@ -112,6 +120,21 @@ namespace WildLens.CameraSystem
                 data[i] = noise * Mathf.Exp(-t * 1500f) * 0.6f + Mathf.Sin(2f * Mathf.PI * 2200f * t) * Mathf.Exp(-t * 500f) * 0.5f;
             }
             return Build("ZoomTick", data);
+        }
+
+        /// <summary>Autofocus confirmation: two short, soft high blips.</summary>
+        public static AudioClip FocusBeep()
+        {
+            int n = (int)(Rate * 0.12f);
+            var data = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)Rate;
+                float env = (t < 0.035f ? Mathf.Sin(Mathf.PI * t / 0.035f) : 0f) +
+                            (t > 0.06f && t < 0.095f ? Mathf.Sin(Mathf.PI * (t - 0.06f) / 0.035f) : 0f);
+                data[i] = Mathf.Sin(2f * Mathf.PI * 2700f * t) * env;
+            }
+            return Build("FocusBeep", data);
         }
 
         /// <summary>Two soft rising sine notes with a gentle decay.</summary>

@@ -29,6 +29,7 @@ namespace WildLens.EditorTools
         private Mesh[] _canopies, _rocks;
         private Material[] _bark, _conifer, _leaf, _bush, _stone;
         private readonly List<GameObject> _treeObjects = new List<GameObject>();
+        private readonly List<GameObject> _bushObjects = new List<GameObject>();
 
         public int TreesPlaced { get; private set; }
         public int BushesPlaced { get; private set; }
@@ -152,6 +153,22 @@ namespace WildLens.EditorTools
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic);
         }
 
+        /// <summary>Adds wind sway to a plant's foliage parts and takes them out of static batching (they move).</summary>
+        private static void AddSway(GameObject root, List<Transform> parts, float height, float amplitude, float frequency)
+        {
+            var sway = root.AddComponent<FoliageSway>();
+            sway.Configure(parts.ToArray(), height, amplitude, frequency);
+        }
+
+        private static void MakeStaticExceptSway(GameObject go)
+        {
+            MakeStatic(go);
+            var sway = go.GetComponent<FoliageSway>();
+            if (sway == null) return;
+            foreach (var part in sway.Parts)
+                if (part != null) GameObjectUtility.SetStaticEditorFlags(part.gameObject, 0);
+        }
+
         private static GameObject MeshPart(string name, Transform parent, Mesh mesh, Material mat, Vector3 pos, Vector3 scale, Quaternion rot)
         {
             var go = new GameObject(name);
@@ -221,7 +238,7 @@ namespace WildLens.EditorTools
                     bool conifer = Mathf.PerlinNoise(_noiseOffset * 0.5f + p.x * 0.03f, p.z * 0.03f) > 0.5f;
                     tree = conifer ? Conifer(parent, p) : Deciduous(parent, p);
                 }
-                MakeStatic(tree);
+                MakeStaticExceptSway(tree);
                 Occupy(p);
                 TreesPlaced++;
                 _treeObjects.Add(tree);
@@ -240,14 +257,20 @@ namespace WildLens.EditorTools
             float trunkLen = h * 0.35f;
             MeshPart("Trunk", root.transform, _cylinder, Pick(_bark), new Vector3(0f, trunkLen * 0.5f, 0f),
                 new Vector3(trunkR * 2f, trunkLen * 0.5f, trunkR * 2f), Quaternion.identity);
-            var mat = Pick(_conifer);
-            for (int i = 0; i < 3; i++)
+            // Stacked, slightly irregular tiers; darker shaded lower tiers, fresher growth at the top.
+            int tiers = _rng.Next(4, 6);
+            var parts = new List<Transform>();
+            for (int i = 0; i < tiers; i++)
             {
-                float baseY = h * (0.2f + i * 0.22f);
-                float rad = h * 0.27f * (1f - i * 0.24f) * R(0.9f, 1.1f);
-                MeshPart("Foliage" + i, root.transform, _cone, mat, new Vector3(0f, baseY, 0f),
-                    new Vector3(rad, h * 0.4f, rad), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                float k = i / (float)(tiers - 1);
+                float baseY = h * Mathf.Lerp(0.16f, 0.72f, k);
+                float rad = h * Mathf.Lerp(0.28f, 0.09f, k) * R(0.88f, 1.12f);
+                var mat = k < 0.5f ? _conifer[0] : _conifer[1];
+                var tier = MeshPart("Foliage" + i, root.transform, _cone, mat, new Vector3(R(-0.1f, 0.1f), baseY, R(-0.1f, 0.1f)),
+                    new Vector3(rad, h * Mathf.Lerp(0.32f, 0.26f, k), rad), Quaternion.Euler(R(-4f, 4f), R(0f, 360f), R(-4f, 4f)));
+                parts.Add(tier.transform);
             }
+            AddSway(root, parts, h, R(1.2f, 1.8f), R(0.28f, 0.36f));
 
             var trunkCol = root.AddComponent<CapsuleCollider>();
             trunkCol.center = new Vector3(0f, 1.5f, 0f); trunkCol.height = 3f; trunkCol.radius = trunkR;
@@ -270,18 +293,24 @@ namespace WildLens.EditorTools
             float trunkLen = h * 0.6f;
             MeshPart("Trunk", root.transform, _cylinder, Pick(_bark), new Vector3(0f, trunkLen * 0.5f, 0f),
                 new Vector3(trunkR * 2f, trunkLen * 0.5f, trunkR * 2f), Quaternion.Euler(R(-3f, 3f), 0f, R(-3f, 3f)));
-            var mat = Pick(_leaf);
+            // A crown built from several lobes in two leaf shades breaks up the "lollipop" silhouette.
+            int shade = _rng.Next(_leaf.Length);
+            var mat = _leaf[shade];
+            var alt = _leaf[(shade + 1) % _leaf.Length];
             float cy = h * 0.72f, cw = h * 0.48f;
-            MeshPart("Canopy", root.transform, Pick(_canopies), mat, new Vector3(0f, cy, 0f),
-                new Vector3(cw, h * 0.4f, cw), Quaternion.Euler(0f, R(0f, 360f), 0f));
-            int extra = _rng.Next(1, 3);
+            var parts = new List<Transform>();
+            parts.Add(MeshPart("Canopy", root.transform, Pick(_canopies), mat, new Vector3(0f, cy, 0f),
+                new Vector3(cw, h * 0.38f, cw), Quaternion.Euler(0f, R(0f, 360f), 0f)).transform);
+            int extra = _rng.Next(3, 6);
             for (int i = 0; i < extra; i++)
             {
-                float a = R(0f, Mathf.PI * 2f);
-                Vector3 off = new Vector3(Mathf.Cos(a), R(-0.1f, 0.05f), Mathf.Sin(a)) * cw * 0.35f;
-                MeshPart("CanopyLobe" + i, root.transform, Pick(_canopies), mat, new Vector3(off.x, cy + off.y * h, off.z),
-                    Vector3.one * cw * R(0.55f, 0.75f), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                float a = i / (float)extra * Mathf.PI * 2f + R(-0.4f, 0.4f);
+                Vector3 off = new Vector3(Mathf.Cos(a), R(-0.12f, 0.1f), Mathf.Sin(a)) * cw * R(0.3f, 0.45f);
+                parts.Add(MeshPart("CanopyLobe" + i, root.transform, Pick(_canopies), i % 2 == 0 ? alt : mat,
+                    new Vector3(off.x, cy + off.y * h, off.z), Vector3.one * cw * R(0.45f, 0.7f),
+                    Quaternion.Euler(0f, R(0f, 360f), 0f)).transform);
             }
+            AddSway(root, parts, h, R(1.4f, 2.2f), R(0.3f, 0.42f));
 
             var trunkCol = root.AddComponent<CapsuleCollider>();
             trunkCol.center = new Vector3(0f, 1.5f, 0f); trunkCol.height = 3f; trunkCol.radius = trunkR;
@@ -322,22 +351,25 @@ namespace WildLens.EditorTools
                     bush.transform.position = p;
                     var mat = Pick(_bush);
                     int lobes = _rng.Next(2, 5);
+                    var parts = new List<Transform>();
                     for (int i = 0; i < lobes; i++)
                     {
                         float a = R(0f, Mathf.PI * 2f), r = i == 0 ? 0f : R(0.25f, 0.5f) * s;
-                        MeshPart("Lobe" + i, bush.transform, Pick(_canopies), mat,
+                        parts.Add(MeshPart("Lobe" + i, bush.transform, Pick(_canopies), i == lobes - 1 ? Pick(_bush) : mat,
                             new Vector3(Mathf.Cos(a) * r, 0.35f * s, Mathf.Sin(a) * r),
-                            new Vector3(1.2f, 0.85f, 1.2f) * s * R(0.7f, 1f), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                            new Vector3(1.2f, 0.85f, 1.2f) * s * R(0.7f, 1f), Quaternion.Euler(0f, R(0f, 360f), 0f)).transform);
                     }
+                    AddSway(bush, parts, 0.9f * s, R(2f, 3f), R(0.45f, 0.6f));
                     var col = bush.AddComponent<SphereCollider>();
                     col.isTrigger = true;
                     col.center = new Vector3(0f, 0.4f * s, 0f);
                     col.radius = 0.55f * s;
                     AddFeature(bush, FeatureKind.Bush, 0.6f * s, 0.9f * s);
                 }
-                MakeStatic(bush);
+                MakeStaticExceptSway(bush);
                 Occupy(p);
                 BushesPlaced++;
+                _bushObjects.Add(bush);
             }
         }
 
@@ -345,13 +377,39 @@ namespace WildLens.EditorTools
         {
             var prefabs = new List<GameObject>();
             foreach (var p in _s.rockPrefabs) if (p != null) prefabs.Add(p);
+            // Rocks read as geology, not confetti: most sit in outcrops (clusters, favouring slopes and woodland
+            // edges) and are embedded in the ground; a few large lone boulders stand in the open.
             int attempts = _s.rockCount * 15;
+            Vector3 clusterCenter = Vector3.zero;
+            int clusterRemaining = 0;
             while (RocksPlaced < _s.rockCount && attempts-- > 0)
             {
-                Vector3 p = RandomPoint();
-                if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.8f) continue;
+                Vector3 p;
+                bool inCluster = clusterRemaining > 0;
+                if (inCluster)
+                {
+                    float a = R(0f, Mathf.PI * 2f), r = Mathf.Sqrt(R()) * 3.5f;
+                    p = TerrainUtil.Ground(clusterCenter + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
+                }
+                else
+                {
+                    p = RandomPoint();
+                    float slope = TerrainUtil.SlopeDegrees(p);
+                    // Start an outcrop more often on slopes and where woods meet open ground.
+                    float startChance = 0.35f + Mathf.InverseLerp(8f, 30f, slope) * 0.5f + (Mathf.Abs(Forest(p) - 0.45f) < 0.12f ? 0.15f : 0f);
+                    if (R() < startChance)
+                    {
+                        clusterCenter = p;
+                        clusterRemaining = _rng.Next(3, 7);
+                        inCluster = true;
+                    }
+                }
+                if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.8f) { if (inCluster) clusterRemaining--; continue; }
                 float roll = R();
-                float size = roll < 0.7f ? R(0.35f, 1f) : roll < 0.94f ? R(1f, 2f) : R(2.2f, 3.6f);
+                float size = inCluster
+                    ? (clusterRemaining == 1 ? R(1.2f, 2.4f) : R(0.3f, 1.2f))
+                    : (roll < 0.75f ? R(0.3f, 0.8f) : R(2.2f, 3.6f));
+                if (inCluster) clusterRemaining--;
                 if (size > 2f && Forest(p) > 0.45f) continue; // big boulders in the open: landmarks & hawk perches
                 if (!IsFree(p, 1f + size * 0.5f)) continue;
 
@@ -366,8 +424,8 @@ namespace WildLens.EditorTools
                     rock.transform.SetParent(parent, false);
                     var mesh = Pick(_rocks);
                     Vector3 scale = new Vector3(size * R(0.9f, 1.3f), size * R(0.55f, 0.9f), size * R(0.9f, 1.3f));
-                    rock.transform.position = p - Vector3.up * scale.y * 0.12f;
-                    rock.transform.rotation = Quaternion.Euler(R(-6f, 6f), R(0f, 360f), R(-6f, 6f));
+                    rock.transform.position = p - Vector3.up * scale.y * R(0.15f, 0.3f); // embedded, not resting on top
+                    rock.transform.rotation = Quaternion.Euler(R(-12f, 12f), R(0f, 360f), R(-12f, 12f));
                     rock.transform.localScale = scale;
                     rock.AddComponent<MeshFilter>().sharedMesh = mesh;
                     rock.AddComponent<MeshRenderer>().sharedMaterial = Pick(_stone);
@@ -404,6 +462,30 @@ namespace WildLens.EditorTools
                 MakeStatic(log);
                 Occupy(p);
                 placed++;
+            }
+
+            // A few old stumps: small forest-floor storytelling.
+            int stumps = 0;
+            attempts = 400;
+            var cut = GeneratedAssets.Material("StumpTop", new Color(0.62f, 0.5f, 0.34f));
+            while (stumps < Mathf.Max(4, _s.logCount * 2 / 3) && attempts-- > 0)
+            {
+                Vector3 p = RandomPoint();
+                if (Forest(p) < 0.4f || _trail.DistanceToTrail(p) < 3f || !IsFree(p, 2f)) continue;
+                float rad = R(0.22f, 0.4f), h = R(0.25f, 0.6f);
+                var stump = new GameObject("Stump");
+                stump.transform.SetParent(parent, false);
+                stump.transform.position = p;
+                MeshPart("Trunk", stump.transform, _cylinder, Pick(_bark), new Vector3(0f, h * 0.5f, 0f),
+                    new Vector3(rad * 2f, h * 0.5f, rad * 2f), Quaternion.identity);
+                MeshPart("Cut", stump.transform, _cylinder, cut, new Vector3(0f, h, 0f),
+                    new Vector3(rad * 1.9f, 0.01f, rad * 1.9f), Quaternion.identity);
+                var col = stump.AddComponent<CapsuleCollider>();
+                col.center = new Vector3(0f, h * 0.5f, 0f); col.height = h; col.radius = rad;
+                AddFeature(stump, FeatureKind.Log, rad + 0.2f, h);
+                MakeStatic(stump);
+                Occupy(p);
+                stumps++;
             }
         }
 

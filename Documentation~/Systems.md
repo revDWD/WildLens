@@ -22,14 +22,40 @@ Spot an animal → raise the camera (RMB) → zoom (scroll) → the viewfinder b
 **identified by observation** → **crouch** (C) and approach → it becomes Alert and stares → **freeze**; it
 relaxes → brackets turn green (Good) or gold (Excellent) → take the photograph.
 
+## Zoom: investigation and fix (0.4.0)
+
+**Symptom:** the scroll wheel appeared to do nothing in camera mode.
+
+**What was checked:** wheel input, Input System vs legacy backends, zoom state changes, FOV changes, viewfinder
+readout. The state → FOV → readout chain was sound. Input was not.
+
+**Root cause:** `GameInput.Zoom` divided the Input System's scroll value by 120, assuming Windows-style raw deltas
+(±120 per notch). Since **Input System 1.9** (Unity 6 ships 1.11+), the default `InputSettings.scrollDeltaBehavior` is
+`UniformAcrossAllPlatforms`, which normalises scroll to **±1 per notch**. One notch therefore read as 0.008, and the
+lens needed an accumulated 0.5 (~60 notches) to change level. The legacy Input Manager path was unaffected.
+
+**Fix:** zoom now uses the **direction** of the wheel (`GameInput.ZoomDirection`), never its magnitude, with a 0.09 s
+step limit. It behaves identically with either Input System setting, the legacy Input Manager, mice and trackpads.
+**E / Q** zoom in / out from the keyboard. Every step now also shows a large transient readout (e.g. "8×"), plays the
+detent tick, and changes the focal-length readout and depth of field.
+
+**Diagnostics (F3):** input backend and scroll-delta behaviour, raw scroll value and how it's interpreted (±1 notch,
+±120 notch, fractional), zoom inputs received / applied / ignored (with the reason: cooldown, mouse not captured,
+journal open, at limit), level, live and target FOV, focal length, camera mode. It warns, and logs once, if another
+component changes the FOV or another camera renders over the player camera, the two other ways zoom could look
+broken. While visible, each scroll event is logged to the Console.
+
 ## Camera — `Scripts/CameraSystem/`
 
 | Component | Responsibility |
 |---|---|
 | `CameraModeController` | Hold **RMB**. `IsActive`, eased `Blend` (~0.22 s), `IsReady` (can shoot), movement ×0.5, look ×0.8 (then scaled by zoom). Events `Entered` / `Exited`. |
 | `ZoomLens` | Sole owner of FOV. Walking 65°; camera 1× = 50° (≈26 mm). Steps **1× 2× 4× 8× 16×** (16× ≈ 410 mm), smoothed in log space. The wheel also works with the camera lowered: it **preselects** the lens (a notice confirms it). Exposes `EquivalentFocalLength` for the readout. |
-| `CameraAudio` | Shutter, zoom detent, raise rustle, identification chime (synthesised; assign clips to replace). |
-| `PlayerCameraRig` (Player) | Head-bob (reduced in camera mode and crouched), raise dip, handheld sway (+25% per zoom doubling, settles when still or crouched). Adds any missing camera components at start-up. |
+| `FocusController` | Focus distance: the tracked subject, else whatever is under the centre. It pulls smoothly in log-distance space (a visible "rack"). `FocusLocked` fires when a centred subject comes sharp (soft double beep, focus marks pulse). |
+| `LensEffects` | URP only. Runtime volume weighted by the camera-mode blend: bokeh **depth of field** using the lens's equivalent focal length (sharp at 1×, background melts at 8–16×) and a stronger vignette at the eye. Photos include it. |
+| `CameraAudio` | Shutter, zoom detent, raise rustle, focus beep, identification chime (synthesised; assign clips to replace). |
+| `PlayerCameraRig` (Player) | Head-bob (reduced in camera mode and crouched). Raised: dip + roll that settle, slow breathing, rotational inertia (lags fast pans, springs back), handheld sway (+25% per zoom doubling, settles when still/crouched). Adds any missing camera components at start-up. |
+| `CameraDiagnostics` (Debugging) | F3 overlay described above. |
 
 ## Photography — `Scripts/Photography/`
 
@@ -116,6 +142,27 @@ scenery. Gizmos show them in the Scene view.
 * Rare variants: `SpeciesDefinition` plus `PhotoSubject.speciesId`; journal records are per species id.
 * Sound identification: `ObservationTracker` already turns sustained attention into a journal entry; a sound-based
   source can call `JournalService.RecordObservation` the same way.
+
+## Environment & presentation (0.4.0)
+
+All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to apply):
+
+* **Terrain surface** (`Editor/TerrainPainter.cs`): five generated tileable layers with normal maps (grass, sunlit
+  meadow, forest floor, worn dirt, rock), painted by slope, trail distance, forest density, tree proximity and meadow
+  hotspots. The terrain's original TerrainData is backed up to `Generated/Backup` first. When the terrain is
+  painted at ≤ 0.6 m per texel, the trail is a worn path in the terrain rather than a mesh ribbon.
+* **Terrain details**: Unity terrain grass (waves in the wind in Built-in/URP): short grass, tall meadow grass, yellow
+  and white wildflowers, woodland ferns, thinning along trail edges. HDRP or the option off: mesh grass as before.
+* **Wind** (`WildLensWind`, `FoliageSway`): gusts travel across the land; trees and bushes bend from the base (higher
+  parts move more). A WindZone drives prefab/SpeedTree trees.
+* **Vegetation**: conifers with 4–5 irregular two-tone tiers; broadleaf crowns of several lobes in two shades; rocks in
+  embedded outcrops (slopes, woodland edges) with a few lone boulders; stumps.
+* **Scenic viewpoints** (`ScenicViewpoint`): Meadow Overlook platform and a Lookout bench, view cones cleared.
+* **Lighting**: warm late-morning sun with soft shadows; sky-matched trilight ambient; exponential haze for atmospheric
+  perspective; tuned procedural sky; shadow distance 160 m with 4 cascades and 2048 maps (pipeline or Quality settings).
+* **Grading (URP)**: global volume: ACES, warm white balance, slight contrast and saturation, cool shadows, warm
+  highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
+* **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
 ## Data migrations
 

@@ -83,12 +83,17 @@ namespace WildLens.EditorTools
             return r;
         }
 
-        public static TrailPath CreateTrailObject(Loop loop, SliceBuildSettings s, Transform parent)
+        /// <summary>
+        /// Creates the trail object. <paramref name="createSurface"/> adds the dirt ribbon mesh; when the terrain
+        /// is painted finely enough the worn trail lives in the terrain texture instead (softer, more natural edges).
+        /// </summary>
+        public static TrailPath CreateTrailObject(Loop loop, SliceBuildSettings s, Transform parent, bool createSurface = true)
         {
             var go = new GameObject("Trail");
             go.transform.SetParent(parent, false);
             var path = go.AddComponent<TrailPath>();
             path.SetPath(loop.points, s.trailWidth, s.markerSpacing);
+            if (!createSurface) return path;
 
             var dirtTex = GeneratedAssets.LoadOrCreate("T_TrailDirt", () => GeneratedAssets.NoiseTexture(128,
                 new Color(0.42f, 0.34f, 0.24f), new Color(0.55f, 0.46f, 0.33f), 6f, 3, 0.04f, new Color(0.7f, 0.66f, 0.58f)));

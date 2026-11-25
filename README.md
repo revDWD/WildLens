@@ -16,7 +16,8 @@ Built-in, URP or HDRP; legacy Input Manager or Input System).
 4. Save the scene and press **Play**. Click the Game view to capture the mouse.
 
 **Updating:** in Package Manager, select WildLens and click **Update**. If no Update button appears, remove the
-package and add the URL again.
+package and add the URL again. Updates that change the environment (like 0.4.0) need a **rebuild** of the slice to
+take effect. Run **WildLens ▸ Capture Comparison Shots** before and after to compare.
 
 The builder puts everything under one root object, **`WildLens Vertical Slice`**, so you can rebuild or remove
 it at any time. It does **not** modify your Terrain's data. If the scene has no Terrain, it creates a fallback.
@@ -32,10 +33,11 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 | **C** | Crouch (toggle; Left Ctrl hold also works in builds) |
 | Mouse | Look |
 | **Hold RMB** | Camera mode: raise the camera (slower, steadier, viewfinder) |
-| Scroll | Zoom 1× / 2× / 4× / 8× / 16× (works lowered too, to preselect) |
+| Scroll, or E / Q | Zoom 1× / 2× / 4× / 8× / 16× (works lowered too, to preselect) |
 | LMB or F (in camera mode) | Take photo |
 | J or Tab | Field journal (pauses the world) · W/S to browse |
 | H | Toggle control hints |
+| F3 | Camera diagnostics overlay |
 | Esc | Release mouse / close journal |
 
 **Finding and approaching wildlife:** deer graze in flower meadows, rabbits and foxes stay near brush piles,

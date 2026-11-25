@@ -1,13 +1,16 @@
 using UnityEngine;
 using WildLens.CameraSystem;
+using WildLens.Debugging;
 using WildLens.Observation;
 using WildLens.Photography;
 
 namespace WildLens.Player
 {
     /// <summary>
-    /// Physical motion of the view camera: walking head-bob, a small dip-and-settle when the camera is raised, and
-    /// very subtle handheld sway in camera mode that steadies when the player stands still.
+    /// Physical motion of the view camera. Walking: head-bob. Camera raised: a dip and roll that settle as it
+    /// comes to the eye, slow breathing, rotational inertia (the camera lags a fraction behind fast pans and
+    /// springs back, so it feels like it has mass), and subtle handheld sway that steadies when you keep still.
+    /// All of it is tiny in degrees but scales visibly with zoom, as it does with a real long lens.
     /// Field of view belongs to <see cref="ZoomLens"/>; camera-mode state to <see cref="CameraModeController"/>.
     ///
     /// Also adds any missing camera-system components on start-up, so scenes built with an earlier version
@@ -26,11 +29,19 @@ namespace WildLens.Player
         [SerializeField] private float raiseDip = 0.025f;
         [Tooltip("Handheld sway in degrees at 1×; grows gently with zoom, settles when still or crouched.")]
         [SerializeField] private float handheldSway = 0.035f;
+        [Tooltip("Breathing amplitude in degrees (camera raised).")]
+        [SerializeField] private float breathing = 0.02f;
+        [Tooltip("Seconds of rotational lag behind fast pans (camera raised).")]
+        [SerializeField] private float panLag = 0.012f;
+        [SerializeField] private float raiseRoll = 0.8f;
 
         private CameraModeController _mode;
         private ZoomLens _lens;
         private float _bobPhase, _bobWeight;
         private float _dip, _dipVelocity;
+        private float _roll, _rollVelocity;
+        private Vector2 _lag, _lagVelocity;
+        private Quaternion _lastParentRotation;
         private float _stillTime;
         private Vector3 _restLocalPos;
         private float _seed;
@@ -44,6 +55,7 @@ namespace WildLens.Player
         {
             EnsureComponents();
             _restLocalPos = transform.localPosition;
+            _lastParentRotation = transform.parent != null ? transform.parent.rotation : Quaternion.identity;
             _seed = Random.Range(0f, 100f);
         }
 
@@ -56,13 +68,28 @@ namespace WildLens.Player
             if (GetComponent<PhotoCamera>() == null) gameObject.AddComponent<PhotoCamera>();
             if (GetComponent<FramingAssistant>() == null) gameObject.AddComponent<FramingAssistant>();
             if (GetComponent<ObservationTracker>() == null) gameObject.AddComponent<ObservationTracker>();
+            if (GetComponent<FocusController>() == null) gameObject.AddComponent<FocusController>();
+            if (GetComponent<LensEffects>() == null) gameObject.AddComponent<LensEffects>();
             if (GetComponent<CameraAudio>() == null) gameObject.AddComponent<CameraAudio>();
+            if (GetComponent<CameraDiagnostics>() == null) gameObject.AddComponent<CameraDiagnostics>();
         }
 
         private void OnEnable() => _mode.Entered += OnRaise;
         private void OnDisable() => _mode.Entered -= OnRaise;
 
-        private void OnRaise() => _dipVelocity = -raiseDip * 12f; // kick downward, spring back
+        private void OnRaise()
+        {
+            _dipVelocity = -raiseDip * 12f;                          // kick downward, spring back
+            _rollVelocity = (Random.value < 0.5f ? -1f : 1f) * raiseRoll * 10f; // and a small roll that settles
+        }
+
+        private static float Spring(ref float x, ref float v, float target, float stiffness, float dt)
+        {
+            float a = -(x - target) * stiffness - v * 2f * Mathf.Sqrt(stiffness);
+            v += a * dt;
+            x += v * dt;
+            return x;
+        }
 
         private void Update()
         {
@@ -86,6 +113,20 @@ namespace WildLens.Player
 
             transform.localPosition = _restLocalPos + bob + Vector3.up * _dip;
 
+            // Rotational inertia: lag behind the pivot's angular velocity, springing back.
+            Quaternion parentRot = transform.parent != null ? transform.parent.rotation : Quaternion.identity;
+            Quaternion delta = parentRot * Quaternion.Inverse(_lastParentRotation);
+            _lastParentRotation = parentRot;
+            delta.ToAngleAxis(out float angle, out Vector3 axis);
+            if (angle > 180f) angle -= 360f;
+            Vector3 angular = float.IsNaN(axis.x) ? Vector3.zero : axis * (angle / dt);
+            Vector3 local = transform.parent != null ? transform.parent.InverseTransformDirection(angular) : angular;
+            Vector2 lagTarget = new Vector2(Mathf.Clamp(-local.x * panLag, -0.6f, 0.6f), Mathf.Clamp(-local.y * panLag, -0.6f, 0.6f)) * cameraBlend;
+            _lag = Vector2.SmoothDamp(_lag, lagTarget, ref _lagVelocity, 0.08f);
+
+            Spring(ref _roll, ref _rollVelocity, 0f, 120f, dt);
+            float breath = Mathf.Sin(Time.time * Mathf.PI * 2f * 0.22f) * breathing * cameraBlend;
+
             // Handheld sway: noticeable only zoomed in, and settles after standing still for a moment.
             _stillTime = speed < 0.1f ? _stillTime + dt : 0f;
             float steadiness = Mathf.Lerp(1f, 0.35f, Mathf.Clamp01(_stillTime / 1.5f));
@@ -94,8 +135,9 @@ namespace WildLens.Player
                         * (1f + Mathf.Log(Mathf.Max(1f, _lens.CurrentMagnification), 2f) * 0.25f);
             float t = Time.time * 0.6f;
             transform.localRotation = Quaternion.Euler(
-                (Mathf.PerlinNoise(_seed, t) * 2f - 1f) * amp,
-                (Mathf.PerlinNoise(_seed + 17f, t) * 2f - 1f) * amp, 0f);
+                (Mathf.PerlinNoise(_seed, t) * 2f - 1f) * amp + breath + _lag.x,
+                (Mathf.PerlinNoise(_seed + 17f, t) * 2f - 1f) * amp + _lag.y,
+                _roll * cameraBlend);
         }
     }
 }

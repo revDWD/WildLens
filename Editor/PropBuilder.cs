@@ -66,7 +66,7 @@ namespace WildLens.EditorTools
             return o.sqrMagnitude > 0.001f ? o.normalized : Vector3.right;
         }
 
-        private static Transform Group(string name, Transform parent, Vector3 pos, Quaternion rot)
+        internal static Transform Group(string name, Transform parent, Vector3 pos, Quaternion rot)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -74,19 +74,19 @@ namespace WildLens.EditorTools
             return go.transform;
         }
 
-        private static void Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material mat)
+        internal static void Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material mat)
         {
             PrimitiveMeshes.CreatePart(name, PrimitiveType.Cube, parent, localPos, size, mat);
         }
 
-        private static void AddCollider(Transform t, Vector3 center, Vector3 size)
+        internal static void AddCollider(Transform t, Vector3 center, Vector3 size)
         {
             var c = t.gameObject.AddComponent<BoxCollider>();
             c.center = center;
             c.size = size;
         }
 
-        private static void Label(Transform parent, Vector3 localPos, string text, float charSize)
+        internal static void Label(Transform parent, Vector3 localPos, string text, float charSize)
         {
             var go = new GameObject("Label");
             go.transform.SetParent(parent, false);

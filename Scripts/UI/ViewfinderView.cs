@@ -41,6 +41,9 @@ namespace WildLens.UI
         private readonly List<Image> _focusMarks = new List<Image>();
         private readonly List<Text> _levelLabels = new List<Text>();
         private readonly Text _focalText;
+        private readonly Text _zoomPop;
+        private float _zoomPopAge = float.MaxValue;
+        private float _focusPulse;
 
         private readonly RectTransform _subjectBox;
         private readonly CanvasGroup _subjectGroup;
@@ -108,6 +111,12 @@ namespace WildLens.UI
             UIFactory.Place(_focalText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 76f), new Vector2(200f, 24f));
             UIFactory.AddShadow(_focalText);
 
+            // Large transient readout when the zoom level changes: makes every step unmistakable.
+            _zoomPop = UIFactory.CreateText("Zoom Pop", _frame, "", 64, Line, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIFactory.Place(_zoomPop.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(300f, 90f));
+            UIFactory.AddShadow(_zoomPop, 2f);
+            _zoomPop.color = new Color(1f, 1f, 1f, 0f);
+
             // Subject tracking box: a rect whose anchors are set to the subject's viewport rectangle.
             _subjectBox = UIFactory.CreateRect("Subject", _frame);
             _subjectGroup = _subjectBox.gameObject.AddComponent<CanvasGroup>();
@@ -135,16 +144,38 @@ namespace WildLens.UI
             _progressFill.offsetMin = _progressFill.offsetMax = Vector2.zero;
         }
 
+        /// <summary>Flash the zoom level large for a moment.</summary>
+        public void ShowZoomPop(float magnification)
+        {
+            _zoomPop.text = magnification.ToString("0.#") + "×";
+            _zoomPopAge = 0f;
+        }
+
+        /// <summary>Brief pulse of the centre focus marks when focus locks.</summary>
+        public void PulseFocus() => _focusPulse = 1f;
+
         public void Update(in ViewfinderState s, float dt)
         {
+            if (_zoomPopAge != float.MaxValue)
+            {
+                _zoomPopAge += dt;
+                float a = 1f - Mathf.Clamp01((_zoomPopAge - 0.45f) / 0.35f);
+                float scale = Mathf.Lerp(1.25f, 1f, Mathf.Clamp01(_zoomPopAge / 0.15f));
+                _zoomPop.color = new Color(1f, 1f, 1f, a * 0.95f);
+                _zoomPop.rectTransform.localScale = Vector3.one * scale;
+                if (_zoomPopAge > 0.8f) _zoomPopAge = float.MaxValue;
+            }
+            _focusPulse = Mathf.MoveTowards(_focusPulse, 0f, dt * 4f);
             _group.alpha = s.blend;
             _frame.localScale = Vector3.one * Mathf.Lerp(1.06f, 1f, s.blend);
             // The vignette deepens a little at long focal lengths: a visible cue that you're zoomed in.
             _vignette.color = new Color(0f, 0f, 0f, Mathf.Lerp(0.45f, 0.75f, Mathf.InverseLerp(26f, 420f, s.focalLength)));
 
             _focus = Mathf.MoveTowards(_focus, s.subjectCentred ? 1f : 0f, dt * 8f);
-            Color fc = Color.Lerp(Line, GoodColor, _focus);
+            Color fc = Color.Lerp(Line, GoodColor, Mathf.Max(_focus, _focusPulse));
             foreach (var m in _focusMarks) m.color = fc;
+            float markScale = 1f + 0.25f * _focusPulse;
+            foreach (var m in _focusMarks) m.rectTransform.localScale = new Vector3(markScale, markScale, 1f);
 
             for (int i = 0; i < _levelLabels.Count; i++)
             {

@@ -40,8 +40,26 @@ namespace WildLens.EditorTools
         [Tooltip("If no tree prefabs are assigned, use the terrain's existing tree prototypes before falling back to placeholders.")]
         public bool useTerrainTreePrototypes = true;
 
+        [Header("Terrain surface")]
+        [Tooltip("Paint the terrain with generated grass / meadow / forest floor / dirt / rock layers. The terrain's original data is backed up first.")]
+        public bool paintTerrain = true;
+        [Tooltip("Use Unity terrain grass, flowers and ferns (they wave in the wind). Off, or on HDRP: mesh grass instead.")]
+        public bool terrainDetailGrass = true;
+        [Tooltip("Copy the terrain's TerrainData to Generated/Backup before the first paint.")]
+        public bool backupTerrainData = true;
+
+        [Header("Scenery")]
+        [Tooltip("Meadow overlook and lookout, with view cones cleared of trees.")]
+        public bool scenicViewpoints = true;
+        [Tooltip("Wind that sways trees and bushes (plus a WindZone for prefab trees).")]
+        public bool wind = true;
+
         [Header("Scene")]
         public bool configureLightingAndFog = true;
+        [Tooltip("Raise shadow distance/cascades/resolution in the active render pipeline or Quality settings (project-wide).")]
+        public bool configureRenderQuality = true;
+        [Tooltip("URP only: add a global colour-grading volume (tonemapping, white balance, bloom, vignette).")]
+        public bool postProcessing = true;
         public bool disableOtherCameras = true;
 
         [Header("Fallback terrain (only if the scene has none)")]
