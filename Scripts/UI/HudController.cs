@@ -23,7 +23,12 @@ namespace WildLens.UI
 
         private Canvas _canvas;
         private Image _crosshair;
-        private Text _statusText, _hintsText, _pausedText, _crouchText;
+        private Text _statusText, _hintsText, _pausedText, _crouchText, _promptText, _rideText;
+        private string _walkHints;
+        private bool _riding;
+        private const string RideHints =
+            "<b>W</b> throttle   <b>S</b> brake   <b>A / D</b> steer   <b>R</b> park & step off\n" +
+            "Stop to raise the camera   Engines carry: park short of wildlife   <b>H</b> hide hints";
         private ViewfinderView _viewfinder;
         private ShutterEffectView _shutter;
         private PhotoPreviewView _preview;
@@ -58,6 +63,7 @@ namespace WildLens.UI
             var game = WildLensGame.Instance;
             if (game != null) game.Journal.Changed += RefreshStatus;
             RefreshStatus();
+            WildLens.Environment.ReserveDestination.Arrived += OnArrived;
 
             // A scene built by an older package hides every art improvement since. Say so instead of letting it
             // pass for the current look (0.6: a stale scene was mistaken for the 0.5 art).
@@ -80,6 +86,13 @@ namespace WildLens.UI
             if (_focus != null) _focus.FocusLocked -= OnFocusLocked;
             var game = WildLensGame.Instance;
             if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
+            WildLens.Environment.ReserveDestination.Arrived -= OnArrived;
+        }
+
+        private void OnArrived(WildLens.Environment.ReserveDestination d)
+        {
+            if (_notice == null) return;
+            _notice.Show($"<b>{d.title}</b>\n<size=20>{d.fieldNote}</size>", 6f);
         }
 
         private void Build()
@@ -96,17 +109,24 @@ namespace WildLens.UI
             UIFactory.Place(_statusText.rectTransform, new Vector2(1f, 1f), new Vector2(-28f, -24f), new Vector2(520f, 40f));
             UIFactory.AddShadow(_statusText);
 
-            _hintsText = UIFactory.CreateText("Hints", root,
-                "<b>WASD</b> walk   <b>Shift</b> sprint   <b>C</b> crouch   <b>J</b> journal\n" +
+            _walkHints =
+                "<b>WASD</b> walk   <b>Shift</b> sprint   <b>C</b> crouch   <b>J</b> journal   <b>R</b> ride (at the bike)\n" +
                 "<b>Hold RMB</b> or <b>Scroll</b> camera + zoom   <b>LMB</b> shutter\n" +
-                "Hold an animal in view to identify it   <b>H</b> hide hints",
-                19, new Color(1f, 1f, 1f, 0.75f), TextAnchor.LowerLeft);
-            UIFactory.Place(_hintsText.rectTransform, new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(720f, 90f));
+                "Hold an animal in view to identify it   <b>H</b> hide hints";
+            _hintsText = UIFactory.CreateText("Hints", root, _walkHints, 19, new Color(1f, 1f, 1f, 0.75f), TextAnchor.LowerLeft);
+            UIFactory.Place(_hintsText.rectTransform, new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(900f, 90f));
             UIFactory.AddShadow(_hintsText);
 
             _crouchText = UIFactory.CreateText("Crouch", root, "CROUCHED", 18, new Color(1f, 1f, 1f, 0.8f), TextAnchor.MiddleCenter);
             UIFactory.Place(_crouchText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(200f, 26f));
             UIFactory.AddShadow(_crouchText);
+
+            _promptText = UIFactory.CreateText("Prompt", root, "", 24, Color.white, TextAnchor.MiddleCenter);
+            UIFactory.Place(_promptText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(600f, 34f));
+            UIFactory.AddShadow(_promptText);
+            _rideText = UIFactory.CreateText("Ride", root, "", 20, new Color(1f, 1f, 1f, 0.85f), TextAnchor.MiddleCenter);
+            UIFactory.Place(_rideText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(420f, 28f));
+            UIFactory.AddShadow(_rideText);
 
             _pausedText = UIFactory.CreateText("Paused", root, "Click to resume", 30, Color.white, TextAnchor.MiddleCenter);
             UIFactory.Place(_pausedText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(600f, 50f));
@@ -139,7 +159,32 @@ namespace WildLens.UI
             _notice.Update(dt);
 
             if (GameInput.ToggleHintsPressed) _hintsText.enabled = !_hintsText.enabled;
+            UpdateBike(blend);
             _pausedText.enabled = Cursor.lockState != CursorLockMode.Locked;
+        }
+
+        private void UpdateBike(float blend)
+        {
+            var bike = WildLens.Vehicles.TrailBike.Ridden;
+            bool riding = bike != null;
+            if (riding != _riding)
+            {
+                _riding = riding;
+                _hintsText.text = riding ? RideHints : _walkHints;
+            }
+            if (riding)
+            {
+                float kmh = Mathf.Abs(bike.Speed) * 3.6f;
+                string where = bike.OnTrack ? "on track" : "across country";
+                _rideText.text = bike.IsParking ? "Parking…" : $"{kmh:0} km/h   <size=16>{where}</size>";
+                _rideText.color = new Color(1f, 1f, 1f, 0.85f * (1f - blend));
+                _promptText.text = "";
+            }
+            else
+            {
+                _rideText.text = "";
+                _promptText.text = WildLens.Vehicles.TrailBike.InReach != null ? "<b>R</b>  Ride the trail bike" : "";
+            }
         }
 
         private ViewfinderState BuildViewfinderState(float blend)

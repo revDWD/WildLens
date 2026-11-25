@@ -1,6 +1,6 @@
 # WildLens visual roadmap & asset recommendations
 
-Updated for 0.6.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
+Updated for 0.7.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
 
 ## Integrated in 0.6.0
 | Area | Asset(s) | Result |
@@ -87,8 +87,10 @@ correctly scaled prefab with root motion off, and assigns it to the species. Exp
 
 ## Remaining visual weaknesses (honest list)
 1. **Animals** are primitive placeholders: the biggest gap.
-2. **Trees** now have leaf-card crowns, but trunks are plain cylinders with no branches, and there are no LODs or
-   billboards; a game-ready tree pack is still the next step up.
+2. **Trees** (0.7 playtest: now the strongest "generated" signal). Conifers read as cones covered in branch cards;
+   broadleaf crowns as lumps; trunks are plain cylinders with no branches; no real LODs or billboards (0.7 adds
+   distance culling only). Fix: a game-ready tree pack, or a procedural conifer rebuilt as branch whorls on a
+   tapering trunk instead of stacked cones.
 3. **Texture tiling** is visible on large open ground at distance (Unity terrain has no anti-tiling; a terrain shader
    with stochastic sampling or macro variation would fix it).
 4. **Grass** doesn't hide animals from the photo check (no colliders).

@@ -28,12 +28,29 @@ namespace WildLens.Core
         public static float Speed { get; private set; }
         public static bool IsStill => Speed < 0.15f;
 
+        /// <summary>Running engine (trail bike): idle ≈1.3, riding up to 3. Louder than any footstep, on purpose:
+        /// park and walk the last stretch.</summary>
+        public static float EngineNoise { get; set; }
+
+        /// <summary>Inside an observation blind: silhouette mostly hidden, movement muffled.</summary>
+        public static bool IsConcealed => _concealment > 0;
+        private static int _concealment;
+        public static void SetConcealed(bool inside) => _concealment = Mathf.Max(0, _concealment + (inside ? 1 : -1));
+
         /// <summary>Audibility: standing still 0.15 (crouched 0.08) · creeping ≈0.2–0.4 · walking 1 · sprinting 2.2.</summary>
         public static float Noise
         {
             get
             {
                 if (!Exists) return 0f;
+                return Mathf.Max(EngineNoise, Footfall * (IsConcealed ? 0.5f : 1f));
+            }
+        }
+
+        private static float Footfall
+        {
+            get
+            {
                 if (IsSprinting) return 2.2f;
                 if (IsStill) return IsCrouching ? 0.08f : 0.15f;
                 float n = Mathf.Lerp(0.2f, 1f, Mathf.Clamp01(Speed / 3f));
@@ -42,7 +59,7 @@ namespace WildLens.Core
         }
 
         /// <summary>Visibility of the player's silhouette (1 standing, 0.55 crouched).</summary>
-        public static float Profile => IsCrouching ? 0.55f : 1f;
+        public static float Profile => (IsCrouching ? 0.55f : 1f) * (IsConcealed ? 0.3f : 1f);
 
         public static void Report(Transform root, Vector3 position, float speed, bool sprinting, bool crouching,
             bool cameraMode, float eyeHeight)
@@ -64,6 +81,11 @@ namespace WildLens.Core
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => Clear();
+        private static void ResetStatics()
+        {
+            Clear();
+            EngineNoise = 0f;
+            _concealment = 0;
+        }
     }
 }

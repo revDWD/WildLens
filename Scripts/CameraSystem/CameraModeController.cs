@@ -27,6 +27,12 @@ namespace WildLens.CameraSystem
         [Tooltip("How far into the raise (0-1) the shutter becomes usable.")]
         [SerializeField, Range(0f, 1f)] private float readyThreshold = 0.75f;
 
+        /// <summary>Set while something makes raising the camera impossible (riding the trail bike).</summary>
+        public static bool RaiseBlocked { get; set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics() => RaiseBlocked = false;
+
         private ZoomLens _lens;
         private float _raw;
         private bool _latched;
@@ -60,7 +66,7 @@ namespace WildLens.CameraSystem
         private void Update()
         {
             var game = WildLensGame.Instance;
-            bool canUse = (game == null || !game.IsUiOpen) && Cursor.lockState == CursorLockMode.Locked;
+            bool canUse = (game == null || !game.IsUiOpen) && Cursor.lockState == CursorLockMode.Locked && !RaiseBlocked;
             bool held = GameInput.CameraRaiseHeld;
             // Pressing RMB hands control back to hold-to-raise; sprinting or a menu lowers a latched camera.
             if (!canUse || (held && !_heldLastFrame) || GameInput.SprintHeld) _latched = false;

@@ -71,6 +71,19 @@ namespace WildLens.EditorTools
         [Tooltip("Wind that sways trees and bushes (plus a WindZone for prefab trees).")]
         public bool wind = true;
 
+        [Header("Reserve (0.7)")]
+        [Tooltip("Build destinations beyond the loop (ridge overlook, pond, old-growth grove, meadow blind) with reserve tracks.")]
+        public bool buildReserve = true;
+        [Tooltip("How far from the loop's centre destinations may be placed (metres). Limited by the terrain's size.")]
+        public float reserveReach = 380f;
+        [Tooltip("Dig the pond basin and raise the overlook hill where the ground doesn't already provide them. " +
+                 "Your terrain is backed up first; rebuilding gives the same shape rather than digging deeper.")]
+        public bool shapeTerrainAtDestinations = true;
+        [Tooltip("Park a trail bike at the trailhead (R to ride and park).")]
+        public bool trailBike = true;
+        [Tooltip("The WildLens fallback terrain is grown to at least this size so the reserve has room (your own terrains are never resized).")]
+        public float reserveTerrainSize = 900f;
+
         [Header("Scene")]
         public bool configureLightingAndFog = true;
         [Tooltip("Raise shadow distance/cascades/resolution in the active render pipeline or Quality settings (project-wide).")]

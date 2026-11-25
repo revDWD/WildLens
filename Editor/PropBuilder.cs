@@ -4,12 +4,17 @@ using WildLens.Environment;
 
 namespace WildLens.EditorTools
 {
-    /// <summary>Trail furniture: trailhead sign, numbered marker posts and benches facing the meadow.</summary>
+    /// <summary>Trail furniture: trailhead kiosk and bike, numbered marker posts and benches facing the meadow.</summary>
     public static class PropBuilder
     {
         private static Material _wood, _woodDark, _markerCap;
 
-        public static void Build(TrailPath trail, TrailBuilder.Loop loop, Transform parent)
+        public struct Footprint { public Vector3 position; public float radius; }
+
+        /// <summary>Places the builder must keep clear of scenery (kiosk, bike parking).</summary>
+        public static readonly System.Collections.Generic.List<Footprint> Footprints = new System.Collections.Generic.List<Footprint>();
+
+        public static void Build(TrailPath trail, TrailBuilder.Loop loop, Transform parent, bool trailBike = true)
         {
             _wood = GeneratedAssets.Material("Wood", new Color(0.52f, 0.39f, 0.26f));
             _woodDark = GeneratedAssets.Material("WoodDark", new Color(0.33f, 0.24f, 0.16f));
@@ -17,18 +22,33 @@ namespace WildLens.EditorTools
 
             float half = trail.Width * 0.5f;
 
-            // Trailhead sign beside the start, facing back along the trail toward the player's spawn.
+            Footprints.Clear();
+            Vector3 spawn = trail.GetPoint(0f);
+
+            // Trailhead kiosk: a roofed park notice board with the live reserve board (ReserveInfoBoard), angled to
+            // face the player's start so it's the first thing you see.
             {
-                Vector3 p = trail.GetPoint(6f), dir = trail.GetDirection(6f);
+                Vector3 p = trail.GetPoint(7f);
                 Vector3 outward = Outward(p, loop);
-                Vector3 pos = TerrainUtil.Ground(p + outward * (half + 1.6f));
-                var sign = Group("Trailhead Sign", parent, pos, Quaternion.LookRotation(-dir));
-                Box("PostL", sign, new Vector3(-0.75f, 0.9f, 0f), new Vector3(0.12f, 1.8f, 0.12f), _woodDark);
-                Box("PostR", sign, new Vector3(0.75f, 0.9f, 0f), new Vector3(0.12f, 1.8f, 0.12f), _woodDark);
-                Box("Board", sign, new Vector3(0f, 1.45f, 0f), new Vector3(1.7f, 0.8f, 0.07f), _wood);
-                Label(sign, new Vector3(0f, 1.45f, 0.045f),
-                    "WILDLENS NATURE RESERVE\nMeadow Loop Trail\n" + Mathf.RoundToInt(trail.Length) + " m loop", 0.016f);
-                AddCollider(sign, new Vector3(0f, 0.9f, 0f), new Vector3(1.7f, 1.8f, 0.2f));
+                Vector3 pos = TerrainUtil.Ground(p + outward * (half + 2.9f));
+                Vector3 face = TerrainUtil.Flat(spawn - pos).normalized;
+                BuildKiosk(parent, pos, Quaternion.LookRotation(face));
+                Footprints.Add(new Footprint { position = pos, radius = 3.5f });
+            }
+
+            // Trail bike parked just past the kiosk, pointing along the trail, ready to go.
+            if (trailBike)
+            {
+                Vector3 p = trail.GetPoint(12f), dir = trail.GetDirection(12f);
+                Vector3 pos = TerrainUtil.Ground(p + Outward(p, loop) * (half + 1.7f));
+                var bike = new GameObject("Trail Bike");
+                bike.transform.SetParent(parent, false);
+                bike.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(dir));
+                var model = new GameObject("Model").transform;
+                model.SetParent(bike.transform, false);
+                WildLens.Vehicles.TrailBikeModel.Build(model, (name, c, sm) => GeneratedAssets.Material(name, c, sm));
+                bike.AddComponent<WildLens.Vehicles.TrailBike>();
+                Footprints.Add(new Footprint { position = pos, radius = 2.5f });
             }
 
             // Numbered marker posts.
@@ -58,6 +78,40 @@ namespace WildLens.EditorTools
                 Box("LegR", bench, new Vector3(0.65f, 0.22f, 0f), new Vector3(0.08f, 0.45f, 0.4f), _woodDark);
                 AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.6f, 0.9f, 0.45f));
             }
+        }
+
+        /// <summary>
+        /// Two log posts, a shingled gable roof, a framed backboard and a carved header plank. The board face is a
+        /// <see cref="ReserveInfoBoard"/> that fills itself in at runtime.
+        /// </summary>
+        private static void BuildKiosk(Transform parent, Vector3 pos, Quaternion rot)
+        {
+            var roofMat = GeneratedAssets.Material("KioskRoof", new Color(0.24f, 0.27f, 0.22f), 0.15f);
+            var kiosk = Group("Trailhead Kiosk", parent, pos, rot);
+            const float W = 2.8f, boardY = 1.62f, boardH = 1.72f;
+            foreach (float x in new[] { -W * 0.5f - 0.05f, W * 0.5f + 0.05f })
+                PrimitiveMeshes.CreatePart("Post", PrimitiveType.Cylinder, kiosk, new Vector3(x, 1.45f, 0f), new Vector3(0.2f, 1.45f, 0.2f), _woodDark);
+            Box("Backboard", kiosk, new Vector3(0f, boardY, -0.02f), new Vector3(W, boardH, 0.08f), _wood);
+            Box("Frame Top", kiosk, new Vector3(0f, boardY + boardH * 0.5f, 0.03f), new Vector3(W + 0.06f, 0.07f, 0.07f), _woodDark);
+            Box("Frame Bottom", kiosk, new Vector3(0f, boardY - boardH * 0.5f, 0.03f), new Vector3(W + 0.06f, 0.07f, 0.07f), _woodDark);
+            Box("Ledge", kiosk, new Vector3(0f, boardY - boardH * 0.5f - 0.02f, 0.12f), new Vector3(W, 0.04f, 0.22f), _woodDark);
+            // Gable roof: two pitched slabs meeting at a ridge over the board.
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var slab = PrimitiveMeshes.CreatePart("Roof", PrimitiveType.Cube, kiosk, new Vector3(0f, 2.86f, side * 0.33f),
+                    new Vector3(W + 0.7f, 0.06f, 0.8f), roofMat, new Vector3(side * 26f, 0f, 0f));
+                slab.name = side < 0f ? "Roof Back" : "Roof Front";
+            }
+            Box("Ridge", kiosk, new Vector3(0f, 3.04f, 0f), new Vector3(W + 0.72f, 0.08f, 0.1f), _woodDark);
+            Box("Header Plank", kiosk, new Vector3(0f, 2.66f, 0.06f), new Vector3(1.9f, 0.26f, 0.05f), _wood);
+            Label(kiosk, new Vector3(0f, 2.66f, 0.09f), "MEADOW LOOP TRAILHEAD", 0.012f);
+
+            var face = new GameObject("Board Face");
+            face.transform.SetParent(kiosk, false);
+            face.transform.localPosition = new Vector3(0f, boardY, 0.025f);
+            face.AddComponent<ReserveInfoBoard>().size = new Vector2(W - 0.16f, boardH - 0.12f);
+
+            AddCollider(kiosk, new Vector3(0f, 1.5f, 0f), new Vector3(W + 0.3f, 3f, 0.3f));
         }
 
         private static Vector3 Outward(Vector3 p, TrailBuilder.Loop loop)

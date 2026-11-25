@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.0] The Reserve
+### Added
+- **Reserve destinations** beyond the Meadow Loop, chosen from the terrain: Ridge Overlook (deck, perch snag;
+  hawks), Cattail Pond (water, reeds, jetty; deer), Old-Growth Grove (giant trees, clearing; squirrels and a fox),
+  Wildflower Meadow Blind (a wooden hide that conceals you; deer and rabbits). Each has resident wildlife, a sign,
+  a viewpoint and an arrival field note.
+- **Reserve tracks** routed around steep ground from the loop to each destination, with fingerposts; scenery
+  extends along them. The pond basin and overlook hill are shaped when the land doesn't provide them (backed up,
+  repeatable).
+- **Trail bike** at the trailhead: R to ride and to park; gentle handling, fastest on tracks; stopped in the saddle
+  you can still raise the camera. Its engine is audible to wildlife from far off.
+- **Trailhead kiosk** with a live information board: version, release, features, recent changes, reserve status
+  (species, journal progress, trails, viewpoints, destinations with distances) and a heads-up topographic map.
+- `Documentation~/ReserveExpansion.md`: the plan for growing the reserve.
+### Changed
+- The WildLens fallback terrain grows to 900 m (your own terrain is never resized).
+- Procedural trees stop drawing when tiny on screen (performance for the larger world).
+### Fixed
+- The black slab overhead near some trees was the solid underside of a conifer's lowest tier: tiers are now open
+  underneath and the lowest one clears head height.
+
+**Rebuild the slice after updating.**
+
 ## [0.6.0] Presentation pass
 ### Added
 - **Leaf-card trees:** broadleaf canopies and conifer tiers are now built from alpha-cut leaf and needle-branch cards

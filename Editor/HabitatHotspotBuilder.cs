@@ -187,7 +187,7 @@ namespace WildLens.EditorTools
                 {
                     float a = R(0f, Mathf.PI * 2f);
                     Vector3 p = TerrainUtil.Ground(m.center + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (m.radius + R(3f, 8f)));
-                    if (_trail.DistanceToTrail(p) < 6f || !IsFree(p, 2.5f) || !FarFrom(p, chosen, 25f)) continue;
+                    if (PathDistance(p) < 6f || !IsFree(p, 2.5f) || !FarFrom(p, chosen, 25f)) continue;
                     chosen.Add(p);
                     Snag(parent, p, dead);
                     Occupy(p);

@@ -38,11 +38,11 @@ namespace WildLens.EditorTools
             if (ownsTerrain)
             {
                 // Our own fallback terrain: raise resolutions for crisp trails and dense grass.
-                data.alphamapResolution = 1024;
+                data.alphamapResolution = data.size.x > 500f ? 2048 : 1024; // keep ~0.45 m texels on the larger reserve
                 data.SetDetailResolution(1024, 32);
             }
 
-            var trailField = new TrailDistanceField(_trail, _terrain);
+            var trailField = new TrailDistanceField(PathDistance, _terrain);
             var trees = new TreeGrid(_treeObjects);
 
             EditorUtility.DisplayProgressBar("WildLens", "Generating terrain textures…", 0.72f);
@@ -605,7 +605,7 @@ namespace WildLens.EditorTools
             private readonly float _cell;
             private readonly int _w, _h;
 
-            public TrailDistanceField(WildLens.Environment.TrailPath trail, Terrain terrain)
+            public TrailDistanceField(System.Func<Vector3, float> distance, Terrain terrain)
             {
                 _origin = terrain.transform.position;
                 Vector3 size = terrain.terrainData.size;
@@ -615,7 +615,7 @@ namespace WildLens.EditorTools
                 _d = new float[_w, _h];
                 for (int x = 0; x < _w; x++)
                 for (int z = 0; z < _h; z++)
-                    _d[x, z] = trail.DistanceToTrail(_origin + new Vector3(x * _cell, 0f, z * _cell));
+                    _d[x, z] = distance(_origin + new Vector3(x * _cell, 0f, z * _cell));
             }
 
             public float Sample(Vector3 p)

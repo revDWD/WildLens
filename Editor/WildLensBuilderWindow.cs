@@ -57,7 +57,8 @@ namespace WildLens.EditorTools
             EditorGUILayout.LabelField("WildLens — Vertical Slice", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "Open your terrain scene, then Build. Everything is created under one root object and can be rebuilt " +
-                "or removed; the terrain's own data is not modified. Assign prefabs below to replace placeholder scenery.",
+                "or removed. Terrain painting and reserve shaping (pond basin, overlook hill) back the terrain data up first; " +
+                "rebuilding gives the same result. Assign prefabs below to replace placeholder scenery.",
                 MessageType.Info);
 
             var existing = WildLensSliceBuilder.FindExistingRoot();

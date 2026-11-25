@@ -72,7 +72,53 @@ namespace WildLens.Wildlife
                     }
                 }
             }
+            index = SpawnResidents(db, rng, avoid, index);
             Debug.Log($"[WildLens] Spawned {_spawned.Count} animals across {db.Count} species.");
+        }
+
+        /// <summary>
+        /// Reserve destinations name their resident species (deer at the pond, squirrels in the old-growth grove…):
+        /// one group of each settles there, so travelling somewhere is rewarded with the wildlife it promises.
+        /// </summary>
+        private int SpawnResidents(SpeciesDatabase db, System.Random rng, Vector3? avoid, int index)
+        {
+            foreach (var dest in WildLens.Environment.ReserveDestination.All)
+            {
+                if (dest == null || dest.residentSpecies == null) continue;
+                foreach (string id in dest.residentSpecies)
+                {
+                    var species = db.Get(id);
+                    if (species == null) continue;
+                    Vector3 centre = dest.WildlifeCentre;
+                    Vector3 home = TerrainUtil.Ground(centre);
+                    if (species.habitat != HabitatPreference.Sky)
+                    {
+                        for (int attempt = 0; attempt < 25; attempt++)
+                        {
+                            float a = (float)rng.NextDouble() * Mathf.PI * 2f;
+                            float r = Mathf.Sqrt((float)rng.NextDouble()) * dest.wildlifeRadius;
+                            Vector3 c = TerrainUtil.Ground(centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
+                            if (TerrainUtil.SlopeDegrees(c) > species.maxSlope * 0.8f) continue;
+                            if (dest.waterRadius > 0f && TerrainUtil.FlatDistance(c, dest.transform.position) < dest.waterRadius + 1.5f) continue;
+                            if (avoid.HasValue && TerrainUtil.FlatDistance(c, avoid.Value) < playerStartClearance) continue;
+                            home = c;
+                            break;
+                        }
+                    }
+                    int size = Mathf.Max(1, rng.Next(species.groupSize.x, species.groupSize.y + 1));
+                    for (int i = 0; i < size; i++)
+                    {
+                        Vector3 pos = home;
+                        if (i > 0 && species.habitat != HabitatPreference.Sky)
+                        {
+                            float a = (float)rng.NextDouble() * Mathf.PI * 2f;
+                            pos = TerrainUtil.Ground(home + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (1.5f + (float)rng.NextDouble() * 3f));
+                        }
+                        Spawn(species, pos, home, seed + (++index) * 7919);
+                    }
+                }
+            }
+            return index;
         }
 
         private Vector3 FindHome(SpeciesDefinition species, System.Random rng, Vector3? avoid)

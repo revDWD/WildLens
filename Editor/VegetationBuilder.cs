@@ -19,7 +19,7 @@ namespace WildLens.EditorTools
         private readonly TrailBuilder.Loop _loop;
         private readonly SliceBuildSettings _s;
         private readonly System.Random _rng;
-        private readonly Vector2 _min, _max;
+        private Vector2 _min, _max; // grows to cover the reserve (PlanReserve)
         private readonly float _noiseOffset;
         private readonly Dictionary<Vector2Int, List<Vector3>> _occupied = new Dictionary<Vector2Int, List<Vector3>>();
         private const float OccupancyCell = 4f;
@@ -80,11 +80,13 @@ namespace WildLens.EditorTools
             float r = LoopRadius(p);
             if (_s.openMeadowInsideLoop) n -= Mathf.Clamp01((0.85f - r) / 0.4f) * 0.55f;
             if (r > 1.15f) n += 0.15f;
+            n += ReserveForestBias(p);
             return Mathf.Clamp01(n);
         }
 
         private bool IsFree(Vector3 p, float spacing)
         {
+            if (InKeepOut(p)) return false;
             var c = new Vector2Int(Mathf.FloorToInt(p.x / OccupancyCell), Mathf.FloorToInt(p.z / OccupancyCell));
             int r = Mathf.CeilToInt(spacing / OccupancyCell);
             for (int x = -r; x <= r; x++)
@@ -107,7 +109,8 @@ namespace WildLens.EditorTools
 
         private void PrepareAssets()
         {
-            _cone = GeneratedAssets.LoadOrCreate("Mesh_Cone", () => ProceduralMeshes.Cone(12));
+            // Open cone (no base cap): from below you see branches, not a black disc (0.7 fix).
+            _cone = GeneratedAssets.LoadOrCreate("Mesh_ConeOpen", () => ProceduralMeshes.Cone(12, cap: false));
             _cylinder = PrimitiveMeshes.Get(PrimitiveType.Cylinder);
             _canopies = new Mesh[3];
             for (int i = 0; i < 3; i++)
@@ -194,6 +197,17 @@ namespace WildLens.EditorTools
                 if (part != null)
                     foreach (var t in part.GetComponentsInChildren<Transform>())
                         GameObjectUtility.SetStaticEditorFlags(t.gameObject, 0);
+        }
+
+        /// <summary>
+        /// Stops drawing a tree once it is tiny on screen. With the larger reserve (0.7) most trees are far from the
+        /// player at any moment; this keeps frame rate steady without visible popping at normal distances.
+        /// </summary>
+        private static void AddDistanceCull(GameObject tree, float screenHeight)
+        {
+            var lod = tree.AddComponent<LODGroup>();
+            lod.SetLODs(new[] { new LOD(screenHeight, tree.GetComponentsInChildren<Renderer>()) });
+            lod.RecalculateBounds();
         }
 
         // ---- foliage cards (0.6): alpha-cut leaf/branch cards over a darker core volume
@@ -292,12 +306,12 @@ namespace WildLens.EditorTools
                 foreach (var proto in _terrain.terrainData.treePrototypes)
                     if (proto != null && proto.prefab != null) prefabs.Add(proto.prefab);
 
-            int attempts = _s.treeCount * 15;
+            int attempts = Scaled(_s.treeCount) * 15;
             float corridor = _s.trailWidth * 0.5f + 2.5f;
-            while (TreesPlaced < _s.treeCount && attempts-- > 0)
+            while (TreesPlaced < Scaled(_s.treeCount) && attempts-- > 0)
             {
                 Vector3 p = RandomPoint();
-                if (_trail.DistanceToTrail(p) < corridor) continue;
+                if (PathDistance(p) < corridor) continue;
                 float f = Forest(p);
                 if (R() > Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.3f, 0.65f, f))) continue;
                 if (TerrainUtil.SlopeDegrees(p) > 38f || !IsFree(p, 2.6f)) continue;
@@ -314,6 +328,7 @@ namespace WildLens.EditorTools
                     tree = conifer ? Conifer(parent, p) : Deciduous(parent, p);
                 }
                 MakeStaticExceptSway(tree);
+                if (prefabs.Count == 0) AddDistanceCull(tree, 0.012f);
                 Occupy(p);
                 TreesPlaced++;
                 _treeObjects.Add(tree);
@@ -338,7 +353,8 @@ namespace WildLens.EditorTools
             for (int i = 0; i < tiers; i++)
             {
                 float k = i / (float)(tiers - 1);
-                float baseY = h * Mathf.Lerp(0.16f, 0.72f, k);
+                // The lowest tier clears head height so you never walk inside a tree (0.7: seen as a black slab).
+                float baseY = Mathf.Lerp(Mathf.Max(2.6f, h * 0.16f), h * 0.72f, k);
                 float rad = h * Mathf.Lerp(0.28f, 0.09f, k) * R(0.88f, 1.12f);
                 var mat = _cards ? _coniferCore : (k < 0.5f ? _conifer[0] : _conifer[1]);
                 float coreScale = _cards ? 0.8f : 1f; // cards extend past a slimmer dark core
@@ -413,11 +429,11 @@ namespace WildLens.EditorTools
         {
             var prefabs = new List<GameObject>();
             foreach (var p in _s.bushPrefabs) if (p != null) prefabs.Add(p);
-            int attempts = _s.bushCount * 15;
-            while (BushesPlaced < _s.bushCount && attempts-- > 0)
+            int attempts = Scaled(_s.bushCount) * 15;
+            while (BushesPlaced < Scaled(_s.bushCount) && attempts-- > 0)
             {
                 Vector3 p = RandomPoint();
-                float d = _trail.DistanceToTrail(p);
+                float d = PathDistance(p);
                 if (d < _s.trailWidth * 0.5f + 1.2f) continue;
                 float f = Forest(p);
                 float chance = Mathf.Clamp01(1f - Mathf.Abs(f - 0.45f) * 3f) * 0.7f + (d < 8f ? 0.3f : 0f); // edges & trailside
@@ -474,10 +490,10 @@ namespace WildLens.EditorTools
             foreach (var p in _s.rockPrefabs) if (p != null) prefabs.Add(p);
             // Rocks read as geology, not confetti: most sit in outcrops (clusters, favouring slopes and woodland
             // edges) and are embedded in the ground; a few large lone boulders stand in the open.
-            int attempts = _s.rockCount * 15;
+            int attempts = Scaled(_s.rockCount) * 15;
             Vector3 clusterCenter = Vector3.zero;
             int clusterRemaining = 0;
-            while (RocksPlaced < _s.rockCount && attempts-- > 0)
+            while (RocksPlaced < Scaled(_s.rockCount) && attempts-- > 0)
             {
                 Vector3 p;
                 bool inCluster = clusterRemaining > 0;
@@ -499,7 +515,7 @@ namespace WildLens.EditorTools
                         inCluster = true;
                     }
                 }
-                if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.8f) { if (inCluster) clusterRemaining--; continue; }
+                if (PathDistance(p) < _s.trailWidth * 0.5f + 0.8f) { if (inCluster) clusterRemaining--; continue; }
                 float roll = R();
                 float size = inCluster
                     ? (clusterRemaining == 1 ? R(1.2f, 2.4f) : R(0.3f, 1.2f))
@@ -552,11 +568,11 @@ namespace WildLens.EditorTools
 
         public void BuildLogs(Transform parent)
         {
-            int placed = 0, attempts = _s.logCount * 30;
-            while (placed < _s.logCount && attempts-- > 0)
+            int placed = 0, attempts = Scaled(_s.logCount) * 30;
+            while (placed < Scaled(_s.logCount) && attempts-- > 0)
             {
                 Vector3 p = RandomPoint();
-                if (Forest(p) < 0.45f || _trail.DistanceToTrail(p) < 4f || !IsFree(p, 3f)) continue;
+                if (Forest(p) < 0.45f || PathDistance(p) < 4f || !IsFree(p, 3f)) continue;
                 if (_artLogs.Count > 0)
                 {
                     PlaceArt(_artLogs, parent, p, R(0.8f, 1.2f), 0.15f, 3f);
@@ -588,7 +604,7 @@ namespace WildLens.EditorTools
             while (stumps < Mathf.Max(4, _s.logCount * 2 / 3) && attempts-- > 0)
             {
                 Vector3 p = RandomPoint();
-                if (Forest(p) < 0.4f || _trail.DistanceToTrail(p) < 3f || !IsFree(p, 2f)) continue;
+                if (Forest(p) < 0.4f || PathDistance(p) < 3f || !IsFree(p, 2f)) continue;
                 if (_artStumps.Count > 0)
                 {
                     PlaceArt(_artStumps, parent, p, R(0.7f, 1.1f), 0.1f, 4f);
@@ -623,7 +639,7 @@ namespace WildLens.EditorTools
             while (FernsPlaced < _s.fernCount && attempts-- > 0)
             {
                 Vector3 p = RandomPoint();
-                float d = _trail.DistanceToTrail(p);
+                float d = PathDistance(p);
                 if (d < _s.trailWidth * 0.5f + 0.8f || d > 35f) continue;
                 float f = Forest(p);
                 if (R() > Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.35f, 0.6f, f)) || TerrainUtil.SlopeDegrees(p) > 30f) continue;
@@ -716,7 +732,7 @@ namespace WildLens.EditorTools
             while (GrassPlaced < target && attempts-- > 0)
             {
                 Vector3 p = RandomPoint();
-                if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.25f) continue;
+                if (PathDistance(p) < _s.trailWidth * 0.5f + 0.25f) continue;
                 float f = Forest(p);
                 if (R() > 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.3f, 0.75f, f)) * 0.85f) continue;
                 if (TerrainUtil.SlopeDegrees(p) > 40f) continue;
@@ -731,7 +747,7 @@ namespace WildLens.EditorTools
                 {
                     float a = R(0f, Mathf.PI * 2f), r = Mathf.Sqrt(R()) * m.radius;
                     Vector3 p = TerrainUtil.Ground(m.center + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
-                    if (_trail.DistanceToTrail(p) < _s.trailWidth * 0.5f + 0.25f || TerrainUtil.SlopeDegrees(p) > 40f) continue;
+                    if (PathDistance(p) < _s.trailWidth * 0.5f + 0.25f || TerrainUtil.SlopeDegrees(p) > 40f) continue;
                     AddTuft(p, 0f, 0.22f);
                 }
             }

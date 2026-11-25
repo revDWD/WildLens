@@ -80,7 +80,7 @@ namespace WildLens.EditorTools
                 bool ownsTerrain = IsWildLensTerrain(terrain);
                 bool hdrp = PipelineName().Contains("HDRenderPipeline");
                 // When the terrain is painted finely enough, the worn trail lives in the terrain texture.
-                float texel = ownsTerrain ? terrain.terrainData.size.x / 1024f : terrain.terrainData.size.x / terrain.terrainData.alphamapResolution;
+                float texel = ownsTerrain ? terrain.terrainData.size.x / (terrain.terrainData.size.x > 500f ? 2048f : 1024f) : terrain.terrainData.size.x / terrain.terrainData.alphamapResolution;
                 bool trailMesh = !s.paintTerrain || texel > 0.6f;
 
                 Progress("Trail loop", 0.15f);
@@ -88,9 +88,17 @@ namespace WildLens.EditorTools
                 var trail = TrailBuilder.CreateTrailObject(loop, s, env, trailMesh);
 
                 Progress("Trail props", 0.2f);
-                PropBuilder.Build(trail, loop, Child(env, "Trail Props"));
+                PropBuilder.Build(trail, loop, Child(env, "Trail Props"), s.trailBike);
 
                 var veg = new VegetationBuilder(terrain, trail, loop, s);
+                Transform reserve = null;
+                if (s.buildReserve)
+                {
+                    Progress("Reserve: destinations & tracks", 0.25f);
+                    reserve = Child(env, "Reserve");
+                    veg.PlanReserve(reserve, s.shapeTerrainAtDestinations, trailMesh);
+                }
+                foreach (var k in PropBuilder.Footprints) veg.AddKeepOut(k.position, k.radius);
                 Progress("Trees", 0.3f);
                 veg.BuildTrees(Child(env, "Trees"));
                 Progress("Rocks & logs", 0.5f);
@@ -106,6 +114,11 @@ namespace WildLens.EditorTools
                     var viewpoints = Child(env, "Viewpoints");
                     veg.BuildViewpoints(viewpoints, loop);
                     veg.BuildCompositions(viewpoints);
+                }
+                if (reserve != null)
+                {
+                    Progress("Reserve: destinations", 0.69f);
+                    veg.BuildDestinations(reserve);
                 }
                 Progress("Undergrowth", 0.7f);
                 veg.BuildUndergrowth(Child(env, "Undergrowth"));
@@ -136,7 +149,7 @@ namespace WildLens.EditorTools
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +
                           $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.HotspotsPlaced} habitat hotspots, " +
-                          $"{veg.ViewpointsPlaced} viewpoints, terrain {(s.paintTerrain ? "painted" : "untouched")}, grass: {(details ? "terrain details (wind)" : veg.GrassPlaced + " mesh tufts")}. " +
+                          $"{veg.ViewpointsPlaced} viewpoints, {veg.DestinationsPlaced} reserve destinations ({veg.TrackLength / 1000f:0.0} km of tracks), terrain {(s.paintTerrain ? "painted" : "untouched")}, grass: {(details ? "terrain details (wind)" : veg.GrassPlaced + " mesh tufts")}. " +
                           "Save the scene, then press Play.");
             }
             finally
@@ -192,26 +205,35 @@ namespace WildLens.EditorTools
 
         // ------------------------------------------------------------------ terrain
 
+        private static Vector3 FallbackSize(SliceBuildSettings s)
+        {
+            Vector3 size = s.fallbackTerrainSize;
+            if (!s.buildReserve) return size;
+            // The reserve needs room to travel: grow our own terrain (never the user's).
+            float side = Mathf.Max(size.x, size.z, s.reserveTerrainSize);
+            return new Vector3(side, Mathf.Max(size.y, 60f), side);
+        }
+
         private static Terrain FindOrCreateTerrain(SliceBuildSettings s)
         {
             var terrain = Terrain.activeTerrain != null ? Terrain.activeTerrain : SceneQuery.FindOne<Terrain>();
-            if (terrain != null && terrain.terrainData != null) return terrain;
+            Vector3 size = FallbackSize(s);
+            if (terrain != null && terrain.terrainData != null)
+            {
+                if (IsWildLensTerrain(terrain) && terrain.terrainData.size.x < size.x - 1f)
+                {
+                    Undo.RegisterCompleteObjectUndo(terrain.terrainData, "Grow WildLens terrain");
+                    Undo.RecordObject(terrain.transform, "Grow WildLens terrain");
+                    GenerateFallbackHeights(terrain.terrainData, size, s);
+                    terrain.transform.position = new Vector3(-size.x * 0.5f, 0f, -size.z * 0.5f);
+                    Debug.Log($"[WildLens] Grew the WildLens fallback terrain to {size.x:0} m for the reserve.");
+                }
+                return terrain;
+            }
 
             Debug.LogWarning("[WildLens] No Terrain found in the scene; creating a fallback terrain.");
-            var data = new TerrainData { heightmapResolution = 257 };
-            data.size = s.fallbackTerrainSize;
-            int res = data.heightmapResolution;
-            var heights = new float[res, res];
-            float o = s.seed * 3.1f;
-            for (int z = 0; z < res; z++)
-            for (int x = 0; x < res; x++)
-            {
-                float u = x / (float)(res - 1), v = z / (float)(res - 1);
-                float rolling = Mathf.PerlinNoise(o + u * 3f, o + v * 3f) * 0.5f + Mathf.PerlinNoise(o + u * 9f, o + v * 9f) * 0.12f;
-                float rim = Mathf.Clamp01((Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f)) - 0.35f) * 3f);
-                heights[z, x] = 0.12f + rolling * 0.35f + rim * rim * 0.35f;
-            }
-            data.SetHeights(0, 0, heights);
+            var data = new TerrainData();
+            GenerateFallbackHeights(data, size, s);
 
             var grassTex = GeneratedAssets.LoadOrCreate("T_TerrainGrass", () => GeneratedAssets.NoiseTexture(256,
                 new Color(0.3f, 0.42f, 0.18f), new Color(0.42f, 0.5f, 0.24f), 8f, 11, 0.02f, new Color(0.5f, 0.45f, 0.3f)));
@@ -222,9 +244,30 @@ namespace WildLens.EditorTools
 
             var go = Terrain.CreateTerrainGameObject(data);
             go.name = "Terrain (WildLens fallback)";
-            go.transform.position = new Vector3(-s.fallbackTerrainSize.x * 0.5f, 0f, -s.fallbackTerrainSize.z * 0.5f);
+            go.transform.position = new Vector3(-size.x * 0.5f, 0f, -size.z * 0.5f);
             Undo.RegisterCreatedObjectUndo(go, "Create fallback terrain");
             return go.GetComponent<Terrain>();
+        }
+
+        /// <summary>Rolling country rising to a rim at the edges (which keeps the world enclosed).</summary>
+        private static void GenerateFallbackHeights(TerrainData data, Vector3 size, SliceBuildSettings s)
+        {
+            data.heightmapResolution = size.x > 500f ? 513 : 257;
+            data.size = size;
+            int res = data.heightmapResolution;
+            var heights = new float[res, res];
+            float o = s.seed * 3.1f;
+            float scale = size.x / 400f; // keep hill sizes similar on a larger terrain
+            for (int z = 0; z < res; z++)
+            for (int x = 0; x < res; x++)
+            {
+                float u = x / (float)(res - 1), v = z / (float)(res - 1);
+                float rolling = Mathf.PerlinNoise(o + u * 3f * scale, o + v * 3f * scale) * 0.5f +
+                                Mathf.PerlinNoise(o + u * 9f * scale, o + v * 9f * scale) * 0.12f;
+                float rim = Mathf.Clamp01((Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f)) - 0.4f) * 4f);
+                heights[z, x] = 0.12f + rolling * 0.3f + rim * rim * 0.3f;
+            }
+            data.SetHeights(0, 0, heights);
         }
 
         // ------------------------------------------------------------------ lighting

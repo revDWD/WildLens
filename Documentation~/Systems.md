@@ -192,6 +192,28 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Reserve (0.7.0)
+* **Planning** (`Editor/ReserveBuilder.cs`, partial of `VegetationBuilder`): chooses four destination sites from the
+  terrain, shapes the pond basin and overlook hill if needed, routes reserve tracks (A*), biases forest density
+  (dense grove; open meadow, pond and ridge top), adds meadows, and widens the scatter area. Runs before scenery.
+  Then `BuildDestinations` adds the structures, hotspots, signs, fingerposts and viewpoints. Settings: *Reserve
+  (0.7)* in the builder settings. The design plan is in `ReserveExpansion.md`.
+* **Runtime:** `ReserveDestination` (number, title, field note, resident species, wildlife centre; raises
+  `Arrived`, which the HUD shows as a notice), `ReserveTrack` (open polyline; `DistanceToAnyPath`),
+  `ObservationBlind` (concealment volume → `PlayerPresence.IsConcealed`: profile ×0.3, footfall ×0.5).
+  `WildlifeSpawner.SpawnResidents` settles one group of each resident species at its destination.
+* **Trailhead board** (`Scripts/Environment/ReserveInfoBoard.cs`): a world-space uGUI board built at Start from live
+  data (`WildLensVersion` features and recent changes, `SliceInfo`, species database, journal, trails, tracks,
+  viewpoints, destinations). The map is generated from terrain heights (hillshade and 5 m contours), tree density,
+  water, trails and tracks, and oriented to the reader. **Each release: update `WildLensVersion.Features`,
+  `RecentChanges`, `ReleaseName` and `ReleaseDate`.**
+* **Trail bike** (`Scripts/Vehicles/`): `TrailBike` (kinematic: terrain-following on two wheel samples, sphere-cast
+  stops, grade-aware acceleration; 11 m/s on paths, 6.5 m/s off them; climbs ≤30°; mount/park with R; rider look
+  clamped ±120° with gentle recentring at speed; camera blocked while moving via `CameraModeController.RaiseBlocked`),
+  `TrailBikeModel` (primitive placeholder; a purchased model can live under a child named `Model` with the same pivot
+  names), `TrailBikeEngine` (procedural engine loop). While riding, `PlayerPresence.EngineNoise` (1.3 idle → 3 at
+  speed) is louder than sprinting: wildlife reacts to the bike long before it reacts to footsteps.
+
 ## Presentation pass (0.6.0)
 * **Leaf-card trees** (`Editor/FoliageCards.cs`, `Editor/VegetationBuilder.cs`): every canopy blob and conifer tier
   becomes a darker core volume wrapped in alpha-cut cards. Broadleaf: ~40 leaf-cluster cards per lobe; conifer:

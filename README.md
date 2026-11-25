@@ -21,7 +21,9 @@ slice to take effect: **WildLens ▸ Vertical Slice Builder ▸ Rebuild Slice In
 scene says so: a notice when you press Play, a warning in the builder window, and a line in the F3 overlay. Run **WildLens ▸ Capture Comparison Shots** before and after to compare.
 
 The builder puts everything under one root object, **`WildLens Vertical Slice`**, so you can rebuild or remove
-it at any time. It does **not** modify your Terrain's data. If the scene has no Terrain, it creates a fallback.
+it at any time. Painting the ground and shaping the reserve (a pond basin, an overlook hill) change your Terrain's
+data, so it is **backed up first** to `Assets/WildLens/Generated/Backup`; rebuilding gives the same shape rather than
+digging deeper. If the scene has no Terrain, it creates a 900 m fallback with room for the reserve.
 It also disables other enabled scene cameras in favour of the player camera (this is undoable, and you can
 turn it off in the settings). Files you can edit (species tuning, builder settings, generated meshes and
 materials) are written to your project's `Assets/WildLens/` folder, because the package itself is read-only.
@@ -37,6 +39,8 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 | Scroll, or E / Q | Zoom 1× / 2× / 4× / 8× / 16×. Zooming while lowered raises the camera; zoom out past 1× to lower it |
 | LMB or F (in camera mode) | Take photo |
 | J or Tab | Field journal (pauses the world) · W/S to browse |
+| **R** | Ride the trail bike (next to it) · park and step off (while riding) |
+| W / S · A / D (riding) | Throttle / brake (and slow reverse) · steer |
 | H | Toggle control hints |
 | F3 / F4 | Camera diagnostics overlay / zoom self-test |
 | Esc | Release mouse / close journal |
@@ -45,7 +49,15 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 squirrels live around big old trees, and hawks perch on dead snags at meadow edges. Raise the camera and hold an
 animal in the viewfinder to **identify** it (no photo needed). Then **crouch** and creep closer. When it stops and
 stares, freeze until it relaxes. The viewfinder brackets turn green (Good) or gold (Excellent) when the shot is
-right. See [`Documentation~/Systems.md`](Documentation~/Systems.md) for how every system works and where to
+right.
+
+**The reserve (0.7):** the trailhead board's map shows four destinations beyond the Meadow Loop: **Ridge Overlook**
+(hawks, the widest view), **Cattail Pond** (deer drink at the reed edge), **Old-Growth Grove** (squirrels, a fox) and
+the **Wildflower Meadow Blind** (step inside the hide and wildlife can't see you). Fingerposts mark where each reserve
+track leaves the loop. The trail bike at the trailhead gets you there; its engine carries, so park short and walk
+in. See [`Documentation~/ReserveExpansion.md`](Documentation~/ReserveExpansion.md) for the plan beyond this.
+
+See [`Documentation~/Systems.md`](Documentation~/Systems.md) for how every system works and where to
 tune it.
 
 ## Architecture

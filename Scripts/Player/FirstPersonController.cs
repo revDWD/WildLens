@@ -60,6 +60,30 @@ namespace WildLens.Player
         public float CurrentSpeed => _horizontalVelocity.magnitude;
         public bool IsGrounded => _controller.isGrounded;
         public float SprintSpeed => sprintSpeed;
+        public Transform CameraPivot => cameraPivot;
+        public float StandingEyeHeight => standingHeight - eyeOffsetFromTop;
+
+        /// <summary>Adopt the current transform yaw and pivot pitch (after something else, like the bike, drove the view).</summary>
+        public void SyncLookFromTransform()
+        {
+            _yaw = transform.eulerAngles.y;
+            if (cameraPivot != null) _pitch = Mathf.Clamp(NormalizePitch(cameraPivot.localEulerAngles.x), -maxPitch, maxPitch);
+            _horizontalVelocity = Vector3.zero;
+            _verticalVelocity = 0f;
+            _crouchToggled = false;
+        }
+
+        /// <summary>Esc releases the mouse, a click captures it again. Also used while riding.</summary>
+        public static void UpdateCursorLock()
+        {
+            if (GameInput.CancelPressed && Cursor.lockState == CursorLockMode.Locked)
+                LockCursor(false);
+            else if (GameInput.PrimaryClickPressed && Cursor.lockState != CursorLockMode.Locked)
+            {
+                LockCursor(true);
+                PhotoCamera.ClickConsumedFrame = Time.frameCount; // this click doesn't also take a photo
+            }
+        }
 
         public void Configure(Transform pivot, PlayerCameraRig rig)
         {
@@ -144,16 +168,7 @@ namespace WildLens.Player
 
         // ------------------------------------------------------------------ cursor & look
 
-        private void HandleCursor()
-        {
-            if (GameInput.CancelPressed && Cursor.lockState == CursorLockMode.Locked)
-                LockCursor(false);
-            else if (GameInput.PrimaryClickPressed && Cursor.lockState != CursorLockMode.Locked)
-            {
-                LockCursor(true);
-                PhotoCamera.ClickConsumedFrame = Time.frameCount; // this click doesn't also take a photo
-            }
-        }
+        private void HandleCursor() => UpdateCursorLock();
 
         private static void LockCursor(bool locked)
         {
