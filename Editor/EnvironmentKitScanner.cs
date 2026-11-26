@@ -142,14 +142,16 @@ namespace WildLens.EditorTools
                 if (Skip(path)) continue;
                 var data = AssetDatabase.LoadAssetAtPath<TerrainData>(path);
                 if (data == null) continue;
+                // A terrain WildLens already painted holds WildLens's own grass and layers: those are skipped by path.
                 foreach (var tp in data.treePrototypes)
-                    if (tp != null && tp.prefab != null && seen.Add(tp.prefab))
+                    if (tp != null && tp.prefab != null && !Skip(AssetDatabase.GetAssetPath(tp.prefab)) && seen.Add(tp.prefab))
                         Consider(tp.prefab, AssetDatabase.GetAssetPath(tp.prefab), true, found, rejected);
                 foreach (var dp in data.detailPrototypes)
                 {
                     if (dp == null) continue;
                     if (dp.usePrototypeMesh && dp.prototype != null)
                     {
+                        if (Skip(AssetDatabase.GetAssetPath(dp.prototype))) continue;
                         if (!seen.Add(dp.prototype)) continue;
                         string problem = PipelineProblem(dp.prototype, pipeline);
                         if (problem != null) { rejected.Add($"{AssetDatabase.GetAssetPath(dp.prototype)}: {problem}"); continue; }
@@ -159,11 +161,15 @@ namespace WildLens.EditorTools
                     else if (!dp.usePrototypeMesh && dp.prototypeTexture != null)
                     {
                         string p = AssetDatabase.GetAssetPath(dp.prototypeTexture);
+                        if (Skip(p)) continue;
                         details.Add(new DetailFound { texture = dp.prototypeTexture, path = p, tokens = Tokens(p) });
                     }
                 }
                 foreach (var l in data.terrainLayers)
-                    if (l != null && l.diffuseTexture != null) layers.Add((l, AssetDatabase.GetAssetPath(l)));
+                {
+                    string lp = l != null ? AssetDatabase.GetAssetPath(l) : null;
+                    if (l != null && l.diffuseTexture != null && !Skip(lp) && !layers.Exists(x => x.layer == l)) layers.Add((l, lp));
+                }
             }
 
             // 2. Terrain layers anywhere in the project.
