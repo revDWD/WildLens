@@ -511,6 +511,7 @@ namespace WildLens.EditorTools
             if (_creek.Count > 1) BuildCreekLife(parent, wood, post);
             BuildWoodlandCover(parent);
             BuildTrackMarkers(parent, post);
+            BuildRoadMarkers(parent);
             BuildResidences(parent, wood, post);
             foreach (var stop in _scenicStops) AddViewpoint(parent, stop.title, stop.p + stop.view * 2.2f + Vector3.up * 1.2f, TerrainUtil.Ground(stop.p + stop.view * 80f) + Vector3.up * 2f);
         }
@@ -544,7 +545,7 @@ namespace WildLens.EditorTools
                     }
                 }
             }
-            foreach (var t in _tracks) if (t.kind == TrackKind.Road) Cross(t.Points, false, 3.8f); // road bridges first (wider)
+            foreach (var t in _tracks) if (t.kind == TrackKind.Road) Cross(t.Points, false, RoadWidth + 0.6f); // road bridges first (wider)
             Cross(_trail.Points, true, 2.3f);
             foreach (var t in _tracks) if (t.kind != TrackKind.Road) Cross(t.Points, false, 2f);
             for (int i = 0; i < crossings.Count; i++)

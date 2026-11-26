@@ -1,7 +1,22 @@
-# WildLens
+# WildLens: Willow Creek Nature Reserve
 
-A first-person nature-photography prototype: walk a trail loop through a reserve, observe five species
-behaving naturally, photograph them, and build a field journal.
+A quiet, first-person wildlife photography game set in a nature reserve. Walk the Meadow Loop or ride the trail bike
+along the Reserve Road to a ridge overlook, a reedy pond, an old-growth grove and a meadow blind; learn where and
+*when* the deer, foxes, hawks, cottontails and squirrels are; approach without spooking them; and take photographs
+worth keeping. The reserve changes from dawn mist to golden hour to dusk, and its wildlife keeps hours.
+
+**New here?** Players: read *Install & run* and *Controls* below. Contributors (people or AI agents): start with
+[`AGENTS.md`](AGENTS.md), then [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+| Document | What's in it |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | Vision, philosophy, architecture, history and lessons, current state, what to build next and what not to |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, the build → playtest loop, compile checks without Unity, release checklist |
+| [`CHANGELOG.md`](CHANGELOG.md) | Every release |
+| [`Documentation~/Systems.md`](Documentation~/Systems.md) | How each system works and where to tune it |
+| [`Documentation~/ReserveExpansion.md`](Documentation~/ReserveExpansion.md) | Reserve design principles and next places |
+| [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md) | Adding species: the framework, ten planned species, assets |
+| [`Documentation~/VisualRoadmap.md`](Documentation~/VisualRoadmap.md) | Art sources, licences, visual weaknesses, Unity 6 notes |
 
 ## Install & run
 
@@ -72,48 +87,19 @@ tune it.
 
 ## Architecture
 
-```
-(package root)
-  package.json
-  Scripts/  (WildLens.Runtime.asmdef)
-    CameraSystem/  CameraModeController (RMB camera mode), ZoomLens (FOV + zoom levels), CameraAudio
-    Observation/   ObservationTracker (identify species by watching)
-    Core/          WildLensGame (composition root, UI pause state), GameInput (input backend abstraction),
-                   PlayerPresence (what wildlife can perceive), TerrainUtil, MaterialLibrary, PrimitiveMeshes, SceneQuery
-    Data/          SpeciesDefinition (ScriptableObject), SpeciesDatabase, SpeciesDefaults, AnimalActivity
-    Environment/   TrailPath (loop centre-line, location labels), EnvironmentFeature (tags trees/rocks for wildlife),
-                   HabitatHotspot (meadow / brush pile / mature tree / perch)
-    Player/        FirstPersonController, PlayerCameraRig (head-bob, raise dip, handheld sway)
-    Wildlife/      AnimalAgent (base brain) → GroundAnimal, FlyingAnimal
-                   Awareness/WildlifeAwareness (Calm → Aware → Alert → Fleeing),
-                   WildlifeWorld (spatial queries: trees, perches), WildlifeSpawner,
-                   PlaceholderAnimalBuilder, AnimalRig, ProceduralAnimalAnimator, AnimalAnimatorBridge
-    Photography/   PhotoCamera (shutter → capture → journal), PhotoAnalyzer (detection),
-                   PhotoQualityEvaluator (Poor/Good/Excellent), FramingAssistant (subject tracking),
-                   Photographable, PhotoStorage
-    Journal/       JournalService (plain C#, JSON persistence), JournalData (save model)
-    UI/            HudController → ViewfinderView, ShutterEffectView, PhotoPreviewView, NoticeView; JournalUI; UIFactory
-                   (built from code, no prefabs, no EventSystem)
-  Editor/   (WildLens.Editor.asmdef)
-    WildLensBuilderWindow, WildLensSliceBuilder, SpeciesAssetMigrator, HabitatHotspotBuilder, TrailBuilder, VegetationBuilder, PropBuilder,
-    ProceduralMeshes, GeneratedAssets, SliceBuildSettings
-
-Written into your project (editable):
-  Assets/WildLens/Data/       SpeciesDatabase.asset, Species/*.asset, SliceBuildSettings.asset
-  Assets/WildLens/Generated/  placeholder meshes, materials, textures
-```
-
-How the systems depend on each other: `WildlifeAwareness` reads `PlayerPresence` (not the player itself) and brains
-react to its events. Photography reads `Photographable` and `CameraModeController` and writes to `JournalService`.
-The UI only listens to events (`PhotoCamera`, `ZoomLens`, `JournalService`). Full detail is in
-`Documentation~/Systems.md`.
+Two assemblies: `Scripts/` (runtime, `WildLens.Runtime`) and `Editor/` (scene builder and tools, `WildLens.Editor`).
+The full file map, data flow and build pipeline are in [`AGENTS.md`](AGENTS.md) §4; per-system detail is in
+`Documentation~/Systems.md`. Written into your project (editable): `Assets/WildLens/Data/` (species assets, species
+database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials, textures, terrain backups).
 
 ### Adding or tuning a species
-- Tune behaviour, senses, population and habitat on the assets in `Assets/WildLens/Data/Species/`. Rebuilds don't overwrite them.
-- New species: **Create ▸ WildLens ▸ Species Definition**, then add it to `SpeciesDatabase`. It appears in the
-  journal automatically.
-- Real art: assign `prefab` on the definition. Add an `AnimalRig` to get procedural motion, or add an Animator
-  with `Speed` (float), `Activity` (int) and `GaitPhase` (float) parameters. `AnimalAnimatorBridge` drives them.
+- Tune behaviour, senses, population, habitat and daily rhythm on the assets in `Assets/WildLens/Data/Species/`.
+  Rebuilds don't overwrite them.
+- New species need **data, not code**: a Species Definition with a generic placeholder body (`Placeholder Body:
+  Generic` + `Body Plan`), a `Daily Rhythm`, and habitat hotspots. See
+  [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md). Tick **Preview expansion species** in
+  the builder settings to see the worked examples (Raccoon, Great Blue Heron).
+- Real art: **WildLens ▸ Animal Model Setup** turns an animated model into the species' prefab.
 
 ### Using your own scenery assets
 In the builder settings, assign **Tree / Bush / Rock prefabs**. If there are no tree prefabs, the builder uses

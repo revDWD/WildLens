@@ -7,6 +7,21 @@ reserve is in `Documentation~/ReserveExpansion.md`.
 
 ---
 
+## 0. Start here (a fresh session's first ten minutes)
+
+1. **What this is:** Willow Creek Nature Reserve, a quiet wildlife photography game (v1.0). The *place* is the
+   product: a generated reserve (meadow loop, ridge, pond, grove, meadow blind, Willow Creek, Reserve Road, footpaths)
+   with a day cycle and wildlife that keeps hours. Photography (zoom, grading, journal) is the reason to be there.
+2. **How it's built:** a Unity UPM package. An editor builder (`WildLens ▸ Vertical Slice Builder`) generates the
+   whole reserve into a scene; runtime scripts run the game. The user installs from the git URL, updates, rebuilds.
+3. **You probably can't run Unity.** Run `Tools~/CompileCheck/compile-check.sh` after every change (five
+   configurations, no Unity needed). Then ask the user to rebuild and playtest. **Their screenshots are the truth.**
+4. **Read next:** §2 (philosophy and non-priorities), §6 (current state), §8–§9 (what to build next / what not to).
+   Systems detail: `Documentation~/Systems.md`. Practical workflow: `CONTRIBUTING.md`.
+5. **The user** is a non-programmer playtester-director: they install via Package Manager, use GitHub Desktop, and
+   send screenshots with feedback. Give plain instructions ("Update the package, then Rebuild"), commit and push
+   finished work to `main`, and always tell them what to look at next.
+
 ## 1. Vision
 
 WildLens is a quiet, first-person **wildlife photography** game set in a nature reserve. You walk, or ride a small
@@ -106,6 +121,8 @@ an animal is always on foot. You can raise the camera stopped in the saddle, but
 - Assemblies: `Scripts/WildLens.Runtime.asmdef` and `Editor/WildLens.Editor.asmdef` (version defines in each).
 - Every file outside `~` folders needs a committed `.meta`. `Art~` and `Documentation~` are ignored by Unity.
 - **The player's flow:** WildLens ▸ Vertical Slice Builder ▸ (Re)build Slice In Open Scene, then Play.
+- **Compile check without Unity:** `Tools~/CompileCheck/compile-check.sh` (NuGet reference DLLs plus small stubs for
+  uGUI / Input System / URP in `Tools~/CompileCheck/stubs/`; add a stub member when you use a new API from those).
 - **When the builder's output changes, bump `WildLensVersion.Environment`** (`Scripts/Core/WildLensVersion.cs`)
   so old scenes are flagged as stale. Also bump `WildLensVersion.Package` and `package.json` each release.
 - **When `Art~` changes, bump `ArtLibrary.ImportVersion`** (`Editor/ArtLibrary.cs`) so the art is re-copied.
@@ -155,7 +172,9 @@ Editor/
   SpeciesAssetMigrator, AnimalModelSetup (bought model → species prefab)
 Art~/            CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
 Documentation~/  Systems.md (systems and tuning), VisualRoadmap.md (assets, licensing, weaknesses),
-                 ReserveExpansion.md (reserve design and next steps)
+                 ReserveExpansion.md (reserve design and next steps), WildlifeExpansion.md (species framework & roadmap)
+Tools~/          CompileCheck (compile the package without Unity)
+CONTRIBUTING.md  setup, build → playtest loop, release checklist
 ```
 
 Key flows:
@@ -238,7 +257,7 @@ place; it needs surroundings that lead up to it. A perfect circle (the first pon
 A "grove" is defined by shade and enclosure, not by three big trees. A space the player must enter needs designing
 from the inside: door, floor, sightline, and a message that says what it's for.
 
-**0.9.0 Time of Day** (current). 0.8 worked: the reserve became enjoyable to simply be in, Willow Creek tied it
+**0.9.0 Time of Day.** 0.8 worked: the reserve became enjoyable to simply be in, Willow Creek tied it
 together. The reserve was frozen in one moment, so 0.9 gave it a day: periods with distinct light, dawn mist, and
 wildlife that keeps hours by placement. Riding exposed a layout problem (every path was a footpath), solved with a
 trail hierarchy (Reserve Road + footpaths) rather than a faster bike. Trees got real structure. The reserve got a name
@@ -246,6 +265,16 @@ and one sign standard. *Lessons from 0.8 playtesting:* connective tissue (the cr
 destination; density needs to be *felt* along a route, not just measured; the blind worked once designed from inside;
 the grove still read as parkland until the canopy actually closed; a perfectly circular feature always reads as
 man-made; signs only feel curated when they share one style.
+
+**1.0.0 Field Season** (current). A consolidation release, no new systems. The Reserve Road became infrastructure
+worth riding (wider, smoothed, graded, with sight lines and posts; the bike gained suspension-like smoothing, not
+speed). Every destination got a signature detail that says what it's for (telescope and cairn, canoe, Grandmother
+Oak, bird feeder). Woodland edges grade through young trees; pines join the firs. The species framework (generic
+bodies, data rhythms, water habitat) makes the ecosystem expandable with data. A committed compile check and a
+handoff (this file, CONTRIBUTING.md) make the project continuable. *Lessons from 0.9:* the bike exposed every layout
+weakness; fixing infrastructure beat tuning vehicles. Time of day multiplied the value of every existing place
+without adding one. Players learn patterns only if they're consistent and stated somewhere in-world (the board's
+"Now" line, signs' best times).
 
 **Cross-cutting lessons**
 - When the player says something doesn't work, believe them and **build a probe** before theorising.
@@ -255,38 +284,34 @@ man-made; signs only feel curated when they share one style.
   either alone.
 - Keep package size in mind: `Art~` ships to every user. Use 2k skies and ground, and drop unused files.
 
-## 6. Current state (0.9.0)
+## 6. Current state (1.0.0)
 
-**Strengths:** the encounter loop; camera feel; legible grading; a reserve of distinct, connected places with a
-day of changing light and wildlife rhythms; a road network sized for the bike and footpaths sized for walking;
-one coherent reserve identity; the trailhead board; tooling.
+**Strengths:** the approach-and-photograph loop; camera feel; legible grading; a reserve of distinct, connected,
+named places with signature details; a day of changing light and learnable wildlife rhythms; a road for riding and
+footpaths for walking; one coherent reserve identity; the trailhead board; a data-driven species framework; tooling
+(F3/F4, comparison capture, stale-scene detection, model setup, compile check).
 
-**Weaknesses and known limitations (honest):**
-1. **Animals are primitive placeholders.** Still the biggest gap; the Animal Model Setup tool is ready.
-2. **Trees:** structurally better, but leaf cards are lit like flat paper (no translucency), limbs are plain, there are
-   no real LODs, and only three broadleaf forms.
-3. **Time of day uses two sky images** (morning, golden) re-tinted for dawn/dusk; no true night sky, no weather.
-   Ambient light is re-derived every 2.5 s (fine visually; slight cost).
-4. **Schedules move homes, not individuals' plans**: animals commute when the period changes, which can look
-   synchronised for a group. No per-individual variation yet.
-5. The reserve still depends on the terrain it's built on; creek and road need terrain shaping.
-6. Props are flat-coloured boxes; text is TextMesh.
-7. **Unverified in Unity by the author of 0.9**: compiled everywhere; day cycle look, mist, road routing, new trees and
-   schedules need a playtest pass.
+**Remaining weaknesses (honest):**
+1. **Animals are primitive placeholders.** The biggest gap by far. No free licence-safe realistic models exist; buy
+   them and use Animal Model Setup (deer first).
+2. **Trees**: structured, but leaf cards are lit like paper (no translucency/subsurface), there are no real LODs or
+   billboards, and species silhouettes are still few (fir, pine, spreading, ovate, birch).
+3. **Props are flat-coloured boxes**; text is TextMesh (no proper font rendering, legibility at distance is poor).
+4. **Sky**: two HDRIs re-tinted through the day; no night sky, no weather.
+5. **Water is static** (no flow or ripples); no ford or cascade on the creek.
+6. **The reserve depends on the terrain it's built on**; creek and road grading need terrain shaping on.
+7. **Schedules move whole groups at period changes**: commuting can look synchronised.
+8. **Performance at reserve scale is untested on low-end hardware** (see the GPU Resident Drawer note).
+9. **The author of 0.7–1.0 never ran Unity**: everything compiles in five configurations, but every feature
+   since 0.7 was verified only through the user's screenshots. Expect tuning.
 
-**Visual priorities (in order):** believable animals → tree lighting and LODs → water that moves → textured props →
-weather and night.
-
-**Top future improvements (in order):**
-1. Playtest 0.9: each period's look, the road ring, tree silhouettes, whether schedules are learnable.
-2. One realistic deer through **WildLens ▸ Animal Model Setup**; then fox and hawk.
-3. Tree lighting (translucent leaf cards, ambient occlusion in crowns) and distance LODs/billboards.
-4. Weather (overcast, light rain, wind) as another rhythm; a night sky.
-5. Creek part two, wetland boardwalk, forest footpath, ranger cabin (ReserveExpansion.md).
+**Visual priorities (in order):** believable animals → tree lighting and LODs → textured props and legible signs →
+water that moves → weather and night.
 
 ## 7. Checklist for changes
 
-- Compile on Built-in + legacy input, Input System, and Unity 6 + URP + Input System 1.9 configurations.
+- `Tools~/CompileCheck/compile-check.sh` passes (Built-in + legacy input, Input System, Unity 6 + URP + Input System
+  1.9, and both editor builds).
 - New file or folder → commit its `.meta`.
 - Builder output changed → bump `WildLensVersion.Environment`; `Art~` changed → bump `ArtLibrary.ImportVersion`
   and update `Art~/CREDITS.md`.
@@ -298,3 +323,36 @@ weather and night.
   ≤ 0.4 m (CharacterController radius 0.35, skin 0.05, height 1.8, step offset 0.4).
 - Update `CHANGELOG.md`, `Documentation~/Systems.md` (and `VisualRoadmap.md` for art).
 - Don't commit store assets, secrets or generated `Assets/` content.
+
+## 8. What SHOULD be built next (in order)
+
+1. **Playtest-driven tuning of 1.0.** Road routing and grading, ride comfort, each destination at each time of day,
+   tree silhouettes, schedules being learnable. Ask for screenshots of specific places at specific times.
+2. **One realistic deer**, integrated with Animal Model Setup; then fox and hawk. This is still the single biggest
+   improvement available, and it is a purchase plus an afternoon, not a system.
+3. **Trees, round three**: translucent leaf cards (a small URP shader or lit-from-behind tint), crown ambient
+   occlusion, distance billboards; more species silhouettes (oak, maple, aspen).
+4. **Signs and props worth looking at**: scanned wood materials on decks, posts and signs; a real font for sign
+   lettering (TextMeshPro or textured labels).
+5. **Weather as a second rhythm**: overcast, light rain, wind strength; animals shelter in woodland in rain (a
+   `DailyRhythm`-style placement rule, not new AI). A night sky.
+6. **Expansion species, one at a time** (`Documentation~/WildlifeExpansion.md`): heron and raccoon first (they're
+   already defined), then turkey, barred owl, groundhog, songbirds.
+7. **New places with a reason**: creek ford and cascade, wetland boardwalk with a second blind, a forest footpath,
+   a ranger cabin (`Documentation~/ReserveExpansion.md`).
+8. **A hand-authored reserve terrain** shipped as CC0 data, so the reserve no longer depends on the user's terrain.
+
+## 9. What should NOT be built
+
+- **No progression, XP, currency, unlocks, missions, quests, achievements, checklists, inventory, crafting, survival,
+  combat or hunting.** They turn attention into accumulation. The journal is the only record.
+- **No faster or more capable bike** (no boost, upgrades, fuel, damage, stunts). Fix routes and infrastructure instead.
+- **No scripted wildlife events, spawns on cue, quest markers or compass HUDs.** Rhythms come from the clock and
+  placement; players find animals by learning the place.
+- **No predator–prey hunting, breeding or population simulation.** Simulation depth with little photographic payoff.
+- **No bigger map without a reason to go to the new part** (destinations, not distance).
+- **No mixing art fidelities.** Don't add stylised or low-poly assets beside the photographic reserve; don't commit
+  non-CC0 assets.
+- **No hand-edited scenes.** Everything the player sees is generated; improvements land by rebuilding.
+- **No technology for its own sake.** Unity features earn their place only with a visible gain (see the Unity 6 notes).
+

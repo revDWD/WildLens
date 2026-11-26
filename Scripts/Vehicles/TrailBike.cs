@@ -339,15 +339,35 @@ namespace WildLens.Vehicles
 
         private static Vector3 Flat(Vector3 v) { v.y = 0f; return v.sqrMagnitude > 0f ? v.normalized : Vector3.forward; }
 
+        private float _rideY, _ridePitch, _yVel, _pitchVel;
+        private bool _poseInit;
+
+        /// <summary>
+        /// Follows the ground. While riding, height and pitch are damped like soft suspension (1.0 comfort pass): small
+        /// bumps are absorbed, the view stays level, and the wheels never sink below the surface.
+        /// </summary>
         private void SnapToGround()
         {
             Vector3 fwd = Quaternion.Euler(0f, _heading, 0f) * Vector3.forward;
             float front = GroundHeight(transform.position + fwd * TrailBikeModel.FrontAxleZ);
             float rear = GroundHeight(transform.position + fwd * TrailBikeModel.RearAxleZ);
             float pitch = -Mathf.Atan2(front - rear, TrailBikeModel.FrontAxleZ - TrailBikeModel.RearAxleZ) * Mathf.Rad2Deg;
+            float y = (front + rear) * 0.5f;
+            if (!IsRidden || !_poseInit)
+            {
+                _rideY = y; _ridePitch = pitch; _yVel = 0f; _pitchVel = 0f;
+                _poseInit = true;
+            }
+            else
+            {
+                float dt = Mathf.Max(Time.deltaTime, 0.0001f);
+                _rideY = Mathf.SmoothDamp(_rideY, y, ref _yVel, 0.09f, Mathf.Infinity, dt);
+                _ridePitch = Mathf.SmoothDamp(_ridePitch, pitch, ref _pitchVel, 0.16f, Mathf.Infinity, dt);
+                if (_rideY < y - 0.03f) { _rideY = y - 0.03f; _yVel = Mathf.Max(_yVel, 0f); } // never into the ground
+            }
             Vector3 p = transform.position;
-            p.y = (front + rear) * 0.5f;
-            transform.SetPositionAndRotation(p, Quaternion.Euler(pitch, _heading, 0f));
+            p.y = _rideY;
+            transform.SetPositionAndRotation(p, Quaternion.Euler(_ridePitch, _heading, 0f));
         }
 
         private void ApplyPose(float dt)

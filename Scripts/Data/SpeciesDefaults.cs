@@ -14,6 +14,82 @@ namespace WildLens.Data
             return new List<SpeciesDefinition> { Deer(), Rabbit(), Fox(), Hawk(), Squirrel() };
         }
 
+        /// <summary>
+        /// Worked examples of the 1.0 expansion framework (generic bodies, data-driven rhythms, water habitat). Off by
+        /// default; the builder's "Preview expansion species" adds them. See Documentation~/WildlifeExpansion.md.
+        /// </summary>
+        public static List<SpeciesDefinition> CreateExpansionPreview()
+        {
+            return new List<SpeciesDefinition> { Raccoon(), Heron() };
+        }
+
+        public static SpeciesDefinition Raccoon()
+        {
+            var s = New("raccoon", "Raccoon", "Procyon lotor",
+                "A masked forager of creek banks and woodland edges. Mostly out at dusk and through the night, feeling " +
+                "for crayfish and frogs at the water's edge with nimble forepaws. The ringed tail and black mask are unmistakable.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.6f, height = 0.33f, legLength = 0.16f, neckLength = 0.05f,
+                headSize = 0.15f, snoutLength = 0.06f, earSize = 0.045f, tailLength = 0.3f, tailThickness = 0.09f,
+                faceMask = true, tailRings = true,
+            };
+            s.primaryColor = new Color(0.47f, 0.45f, 0.42f);
+            s.secondaryColor = new Color(0.86f, 0.85f, 0.82f);
+            s.accentColor = new Color(0.1f, 0.09f, 0.09f);
+            s.habitat = HabitatPreference.ForestEdge;
+            s.groupCount = 2; s.groupSize = new Vector2Int(1, 2);
+            s.spawnDistanceFromTrail = new Vector2(15f, 45f);
+            s.preferredHotspots = HotspotType.Water | HotspotType.MatureTree; s.hotspotAffinity = 0.8f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.8f; s.runSpeed = 4.5f; s.turnSpeed = 110f; s.gaitFrequency = 2.6f;
+            s.wanderRadius = 30f; s.behaviorChance = 0.7f; s.runLegChance = 0.02f;
+            Awareness(s, aware: 24f, alert: 14f, flee: 7f, gain: 0.8f, decay: 0.2f, patience: 5f, startle: 1f);
+            s.fleeDistanceRange = new Vector2(10f, 18f);
+            s.photoSizeScale = 0.8f; s.clearPhotoDistance = 24f; s.observationTime = 1.2f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 3f, 3f, 7f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 2f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 4f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 1f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 1.5f, 10f, 20f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Home, RhythmPlace.Water, RhythmPlace.Water);
+            return s;
+        }
+
+        public static SpeciesDefinition Heron()
+        {
+            var s = New("great_blue_heron", "Great Blue Heron", "Ardea herodias",
+                "A tall, patient hunter of the shallows. Stands motionless for minutes, neck folded, then strikes. Wary: " +
+                "it watches walkers from far off. Best found at the pond's edge in the quiet of early morning.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.WadingBird, length = 0.8f, height = 0.95f, legLength = 0.6f, neckLength = 0.42f,
+                headSize = 0.085f, snoutLength = 0.15f, tailLength = 0.14f, tailThickness = 0.05f,
+            };
+            s.primaryColor = new Color(0.45f, 0.52f, 0.6f);
+            s.secondaryColor = new Color(0.86f, 0.87f, 0.88f);
+            s.accentColor = new Color(0.12f, 0.12f, 0.14f);
+            s.habitat = HabitatPreference.OpenMeadow;
+            s.groupCount = 1; s.groupSize = new Vector2Int(1, 1);
+            s.spawnDistanceFromTrail = new Vector2(20f, 60f);
+            s.preferredHotspots = HotspotType.Water; s.hotspotAffinity = 1f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.4f; s.runSpeed = 2.2f; s.turnSpeed = 60f; s.gaitFrequency = 0.9f;
+            s.wanderRadius = 14f; s.behaviorChance = 0.85f; s.runLegChance = 0f;
+            Awareness(s, aware: 42f, alert: 28f, flee: 16f, gain: 1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.fleeDistanceRange = new Vector2(20f, 35f);
+            s.photoSizeScale = 1f; s.clearPhotoDistance = 45f; s.observationTime = 1.4f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 4f, 6f, 14f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 2f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 8f, 16f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water);
+            return s;
+        }
+
         public static SpeciesDefinition CreateById(string speciesId)
         {
             foreach (var s in CreateAll())

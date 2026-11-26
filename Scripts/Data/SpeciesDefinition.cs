@@ -25,10 +25,70 @@ namespace WildLens.Data
         BrushPile = 1 << 1,   // cover near grass: rabbits, foxes hunting them
         MatureTree = 1 << 2,  // big old trees: squirrels
         Perch = 1 << 3,       // tall snags and boulders overlooking open ground: hawks
+        Water = 1 << 4,       // shallows and banks of the pond and creek: herons, raccoons (1.0; appended)
     }
 
     /// <summary>Which placeholder body to build when no prefab is assigned.</summary>
-    public enum PlaceholderBody { Deer, Rabbit, Fox, Hawk, Squirrel }
+    public enum PlaceholderBody { Deer, Rabbit, Fox, Hawk, Squirrel, Generic } // append only (serialized as ints)
+
+    /// <summary>Generic placeholder body families (1.0 expansion framework).</summary>
+    public enum BodyArchetype { Quadruped, WadingBird, GroundBird, PerchingBird }
+
+    /// <summary>
+    /// Proportions for a generic placeholder body (<see cref="PlaceholderBody.Generic"/>), so a new species needs data, not
+    /// code. Metres. A purchased model (Animal Model Setup) replaces the placeholder entirely.
+    /// </summary>
+    [Serializable]
+    public class BodyPlan
+    {
+        public BodyArchetype archetype = BodyArchetype.Quadruped;
+        [Tooltip("Nose to rump (birds: breast to tail base).")] public float length = 0.6f;
+        [Tooltip("Height of the back (birds: of the body's top).")] public float height = 0.35f;
+        public float legLength = 0.2f;
+        public float neckLength = 0.08f;
+        public float headSize = 0.14f;
+        [Tooltip("Snout (mammals) or beak (birds) length.")] public float snoutLength = 0.07f;
+        public float earSize = 0.05f;
+        public float tailLength = 0.3f;
+        public float tailThickness = 0.08f;
+        [Tooltip("Dark band across the eyes (raccoon).")] public bool faceMask;
+        [Tooltip("Dark rings on the tail (raccoon).")] public bool tailRings;
+    }
+
+    /// <summary>Where a species spends each part of the day (see WildlifeSchedule). Append only.</summary>
+    public enum RhythmPlace { Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch }
+
+    /// <summary>
+    /// A species' daily rhythm as data (1.0). When <see cref="enabled"/>, WildlifeSchedule uses these instead of its
+    /// built-in rules, so new species get rhythms without code changes.
+    /// </summary>
+    [Serializable]
+    public class DailyRhythm
+    {
+        public bool enabled;
+        public RhythmPlace dawn, morning, midday, goldenHour, dusk, night;
+
+        /// <summary>By period index: 0 night, 1 dawn, 2 morning, 3 midday, 4 golden hour, 5 dusk (DayPeriod order).</summary>
+        public RhythmPlace For(int period)
+        {
+            switch (period)
+            {
+                case 1: return dawn;
+                case 2: return morning;
+                case 3: return midday;
+                case 4: return goldenHour;
+                case 5: return dusk;
+                default: return night;
+            }
+        }
+
+        public DailyRhythm() { }
+        public DailyRhythm(RhythmPlace dawn, RhythmPlace morning, RhythmPlace midday, RhythmPlace golden, RhythmPlace dusk, RhythmPlace night)
+        {
+            enabled = true;
+            this.dawn = dawn; this.morning = morning; this.midday = midday; goldenHour = golden; this.dusk = dusk; this.night = night;
+        }
+    }
 
     [Serializable]
     public class BehaviorOption
@@ -72,6 +132,12 @@ namespace WildLens.Data
         public Color primaryColor = new Color(0.5f, 0.4f, 0.3f);
         public Color secondaryColor = new Color(0.9f, 0.85f, 0.8f);
         public Color accentColor = new Color(0.15f, 0.12f, 0.1f);
+        [Tooltip("Proportions when Placeholder Body is Generic.")]
+        public BodyPlan bodyPlan = new BodyPlan();
+
+        [Header("Daily rhythm (1.0)")]
+        [Tooltip("Where this species spends each period of the day. Off: the built-in rules for the five original species.")]
+        public DailyRhythm rhythm = new DailyRhythm();
 
         [Header("Population")]
         public HabitatPreference habitat = HabitatPreference.OpenMeadow;

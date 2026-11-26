@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0] Field Season
+The first complete release of Willow Creek Nature Reserve: polish, consolidation and a handoff for future contributors.
+No new gameplay systems.
+### Reserve Road & riding
+- Road widened to 4.2 m with smoother, longer curves (relaxed after routing) and **graded**: the road bed follows a
+  smoothed ground profile (cut and fill, blended into the land; skipped at creek crossings; backed up, repeatable).
+- **Sight lines**: trees stay 7 m and shrubs 3.5 m back from the road edge.
+- **Road posts** (white with the reserve's green band) every ~60 m, alternating sides; wider road bridges.
+- **Riding comfort**: the bike's height and pitch are damped like soft suspension, so bumps no longer jolt the view.
+  Top speed unchanged.
+### Destinations
+- Planked decks on the jetty, the overlook and the blind floor.
+- Signature details: a viewing telescope and a summit cairn on the ridge; the rangers' canoe by the jetty; the roped
+  **Grandmother Oak** with its plaque in the grove; a bird feeder in front of the blind's window.
+### Trees & vegetation
+- Young trees where woodland thins into grassland (softer edges); a **pine** form (tall bare trunk, broad crown) beside
+  the firs; two more leaf tints (blue-green, fresh yellow-green) for canopy variety.
+### Wildlife expansion framework
+- **Generic placeholder bodies** from data (`BodyPlan`: quadruped, wading bird, ground bird, perching bird).
+- **Data-driven daily rhythms** (`DailyRhythm` on each species).
+- **Water** habitat hotspots at the pond.
+- Worked examples behind **Preview expansion species**: Raccoon and Great Blue Heron.
+- `Documentation~/WildlifeExpansion.md`: framework, ten planned species, asset research.
+### Release readiness
+- `Tools~/CompileCheck/`: compile the package in five configurations without Unity.
+- `CONTRIBUTING.md`; README rewritten as an index; AGENTS.md reorganised as a handoff (what to build next, what not).
+
+**Rebuild the slice after updating.**
+
 ## [0.9.0] Time of Day
 ### Added
 - **A day in the reserve**: dawn, morning, midday, golden hour and dusk, about sixteen real minutes of daylight

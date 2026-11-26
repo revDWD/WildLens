@@ -1,8 +1,8 @@
 {
   "name": "com.revdwd.wildlens",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "displayName": "WildLens",
-  "description": "First-person wildlife photography vertical slice: trail loop builder, five wildlife species with natural behaviour, photo identification and a field journal.",
+  "description": "Willow Creek Nature Reserve: a quiet first-person wildlife photography game. A generated reserve with destinations, a creek, roads and footpaths, a trail bike, a day cycle, and wildlife that keeps hours; photo grading and a field journal.",
   "unity": "2021.3",
   "author": {
     "name": "revDWD",
@@ -11,5 +11,7 @@
   "dependencies": {
     "com.unity.ugui": "1.0.0"
   },
-  "keywords": ["wildlife", "photography", "nature", "prototype"]
+  "documentationUrl": "https://github.com/revDWD/WildLens/blob/main/README.md",
+  "changelogUrl": "https://github.com/revDWD/WildLens/blob/main/CHANGELOG.md",
+  "keywords": ["wildlife", "photography", "nature", "reserve"]
 }

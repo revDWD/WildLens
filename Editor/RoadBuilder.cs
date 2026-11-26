@@ -29,7 +29,9 @@ namespace WildLens.EditorTools
 
         private bool HasRoads { get { foreach (var t in _tracks) if (t.kind == TrackKind.Road) return true; return false; } }
 
-        public void PlanRoads(Transform parent, bool meshes)
+        public const float RoadWidth = 4.2f; // 1.0: room to ride at an easy pace and pass a walker
+
+        public void PlanRoads(Transform parent, bool meshes, bool grade = true)
         {
             if (_destinationPads.Count == 0) return;
             Vector3 trailhead = _trail.GetPoint(12f);
@@ -48,17 +50,19 @@ namespace WildLens.EditorTools
                 var path = RoadPath(ring[i - 1], ring[i]);
                 if (path == null) continue;
                 path = Resample(Chaikin(Chaikin(Chaikin(path))), 4f);
+                Relax(path, 10);                 // 1.0: long, even curves instead of grid wiggles
+                path = Resample(path, 3f);
                 for (int k = 0; k < path.Count; k++) path[k] = TerrainUtil.Ground(path[k]);
                 var go = new GameObject($"Reserve Road {i}");
                 go.transform.SetParent(parent, false);
                 var road = go.AddComponent<ReserveTrack>();
                 road.title = "Reserve Road";
                 road.kind = TrackKind.Road;
-                road.SetPath(path, 3.4f);
+                road.SetPath(path, RoadWidth);
                 _tracks.Add(road);
                 if (meshes)
                 {
-                    var mesh = GeneratedAssets.Save(ProceduralMeshes.TrailRibbon(path, 3.4f, 0.8f, closed: false), "Mesh_Road_" + i);
+                    var mesh = GeneratedAssets.Save(ProceduralMeshes.TrailRibbon(path, RoadWidth, 0.8f, closed: false), "Mesh_Road_" + i);
                     var surface = new GameObject("Road Surface");
                     surface.transform.SetParent(go.transform, false);
                     surface.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -67,6 +71,8 @@ namespace WildLens.EditorTools
                     mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 }
             }
+
+            if (grade) GradeRoads();
 
             // Where the road leaves the trailhead: what it is and how to use it.
             var first = _tracks.Find(t => t.kind == TrackKind.Road);
@@ -80,6 +86,111 @@ namespace WildLens.EditorTools
                 Plank(parent, "RESERVE ROAD  ·  ride slowly\nBikes & ranger vehicles · to all destinations\nFootpaths: ride gently, or walk",
                     pos, Quaternion.LookRotation(-dir), wood, post, 1.7f);
                 AddKeepOut(pos, 1.2f);
+            }
+        }
+
+        /// <summary>Laplacian smoothing that keeps both ends fixed: removes kinks while following the same route.</summary>
+        private static void Relax(List<Vector3> p, int iterations)
+        {
+            for (int it = 0; it < iterations; it++)
+                for (int i = 1; i < p.Count - 1; i++)
+                    p[i] = Vector3.Lerp(p[i], (p[i - 1] + p[i + 1]) * 0.5f, 0.5f);
+        }
+
+        /// <summary>
+        /// Cut and fill (1.0): the road bed follows a smoothed version of the ground along it, so riding is calm instead
+        /// of bucking over every bump. Flat across the road, blending into the land over ~3 m either side. Skipped at
+        /// creek crossings (the bridge spans the channel). Converges on rebuild rather than drifting.
+        /// </summary>
+        private void GradeRoads()
+        {
+            var data = _terrain.terrainData;
+            Vector3 tPos = _terrain.transform.position, size = data.size;
+            int res = data.heightmapResolution;
+            float cx = size.x / (res - 1), cz = size.z / (res - 1);
+            float half = RoadWidth * 0.5f, reach = half + 3.2f;
+            var best = new Dictionary<int, (float d, float h)>();
+            foreach (var road in _tracks)
+            {
+                if (road.kind != TrackKind.Road) continue;
+                var pts = road.Points;
+                int n = pts.Count;
+                var raw = new float[n];
+                for (int i = 0; i < n; i++) raw[i] = TerrainUtil.SampleHeight(pts[i]);
+                var profile = new float[n];
+                for (int i = 0; i < n; i++)
+                {
+                    float sum = 0f; int cnt = 0;
+                    for (int k = Mathf.Max(0, i - 5); k <= Mathf.Min(n - 1, i + 5); k++) { sum += raw[k]; cnt++; } // ±15 m
+                    profile[i] = sum / cnt;
+                }
+                for (int i = 1; i < n; i++)
+                {
+                    Vector3 a = pts[i - 1], b = pts[i];
+                    int x0 = Mathf.Clamp(Mathf.FloorToInt((Mathf.Min(a.x, b.x) - reach - tPos.x) / cx), 0, res - 1);
+                    int x1 = Mathf.Clamp(Mathf.CeilToInt((Mathf.Max(a.x, b.x) + reach - tPos.x) / cx), 0, res - 1);
+                    int z0 = Mathf.Clamp(Mathf.FloorToInt((Mathf.Min(a.z, b.z) - reach - tPos.z) / cz), 0, res - 1);
+                    int z1 = Mathf.Clamp(Mathf.CeilToInt((Mathf.Max(a.z, b.z) + reach - tPos.z) / cz), 0, res - 1);
+                    Vector2 a2 = new Vector2(a.x, a.z), ab = new Vector2(b.x, b.z) - a2;
+                    for (int z = z0; z <= z1; z++)
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        Vector2 q = new Vector2(tPos.x + x * cx, tPos.z + z * cz);
+                        float t = ab.sqrMagnitude > 0f ? Mathf.Clamp01(Vector2.Dot(q - a2, ab) / ab.sqrMagnitude) : 0f;
+                        float d = Vector2.Distance(q, a2 + ab * t);
+                        if (d > reach) continue;
+                        int key = z * res + x;
+                        if (best.TryGetValue(key, out var cur) && cur.d <= d) continue;
+                        best[key] = (d, Mathf.Lerp(profile[i - 1], profile[i], t));
+                    }
+                }
+            }
+            if (best.Count == 0) return;
+            if (_s.backupTerrainData && !IsOwnTerrain()) BackupTerrainData(data);
+            var heights = data.GetHeights(0, 0, res, res);
+            foreach (var kv in best)
+            {
+                int x = kv.Key % res, z = kv.Key / res;
+                var p = new Vector3(tPos.x + x * cx, 0f, tPos.z + z * cz);
+                if (CreekDistance(p) < 7f) continue;
+                float w = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half + 0.6f, reach, kv.Value.d));
+                float h = tPos.y + heights[z, x] * size.y;
+                heights[z, x] = Mathf.Clamp01((Mathf.Lerp(h, kv.Value.h, w) - tPos.y) / size.y);
+            }
+            data.SetHeights(0, 0, heights);
+            foreach (var road in _tracks)
+            {
+                if (road.kind != TrackKind.Road) continue;
+                var pts = new List<Vector3>(road.Points);
+                for (int i = 0; i < pts.Count; i++) pts[i] = TerrainUtil.Ground(pts[i]);
+                road.SetPath(pts, road.Width);
+            }
+        }
+
+        /// <summary>Low edge posts every ~60 m, alternating sides: the road reads at a glance, even at dusk.</summary>
+        private void BuildRoadMarkers(Transform parent)
+        {
+            var white = GeneratedAssets.Material("RoadPost", new Color(0.86f, 0.84f, 0.78f), 0.3f);
+            var band = PropBuilder.SignTrim;
+            int side = 1;
+            foreach (var road in _tracks)
+            {
+                if (road.kind != TrackKind.Road) continue;
+                var pts = road.Points;
+                float acc = 0f;
+                for (int i = 1; i < pts.Count - 1; i++)
+                {
+                    acc += Vector3.Distance(pts[i - 1], pts[i]);
+                    if (acc < 60f) continue;
+                    acc = 0f;
+                    Vector3 dir = TerrainUtil.Flat(pts[i + 1] - pts[i - 1]).normalized, s = Vector3.Cross(Vector3.up, dir) * side;
+                    side = -side;
+                    Vector3 p = TerrainUtil.Ground(pts[i] + s * (RoadWidth * 0.5f + 0.6f));
+                    if (CreekDistance(p) < 6f || PadDistance(p) < 2f || InKeepOut(p)) continue;
+                    var g = PropBuilder.Group("Road Post", parent, p, Quaternion.LookRotation(dir));
+                    PropBuilder.Box("Post", g, new Vector3(0f, 0.45f, 0f), new Vector3(0.1f, 0.9f, 0.1f), white);
+                    PropBuilder.Box("Band", g, new Vector3(0f, 0.75f, 0f), new Vector3(0.105f, 0.08f, 0.105f), band);
+                }
             }
         }
 

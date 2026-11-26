@@ -274,9 +274,12 @@ namespace WildLens.EditorTools
             var bark = _pineBark != null ? _pineBark : Pick(_bark);
             MeshPart("Trunk", root.transform, _frustumSpire, bark, Vector3.zero, new Vector3(trunkR, h * 0.97f, trunkR), Quaternion.identity);
 
-            float crownBase = Mathf.Max(2.5f, h * R(0.12f, 0.3f));
+            // Two forms (1.0): fir/spruce (crown most of the way down) and pine (tall bare trunk, short broad crown).
+            bool pine = R() < 0.3f;
+            if (pine) root.name = "Pine";
+            float crownBase = pine ? h * R(0.52f, 0.66f) : Mathf.Max(2.5f, h * R(0.12f, 0.3f));
             float crownH = h - crownBase + 0.4f;
-            float crownR = crownH * R(0.24f, 0.33f);
+            float crownR = pine ? crownH * R(0.42f, 0.55f) : crownH * R(0.24f, 0.33f);
             var parts = new List<Transform>();
             var core = MeshPart("Core", root.transform, _cone, _coniferCore, new Vector3(0f, crownBase + crownH * 0.05f, 0f),
                 new Vector3(crownR * 0.32f, crownH * 0.88f, crownR * 0.32f), Quaternion.identity);
@@ -401,6 +404,8 @@ namespace WildLens.EditorTools
                 FoliageCards.LeafMaterial("A", new Color(1f, 1f, 1f)),
                 FoliageCards.LeafMaterial("B", new Color(0.88f, 0.96f, 0.82f)),
                 FoliageCards.LeafMaterial("C", new Color(1.05f, 1f, 0.82f)),
+                FoliageCards.LeafMaterial("D", new Color(0.8f, 0.94f, 0.9f)),   // 1.0: blue-green (shade-tolerant species)
+                FoliageCards.LeafMaterial("E", new Color(1.08f, 1.06f, 0.72f)), // 1.0: fresh yellow-green (young growth)
             };
             _branchCards = new[]
             {
@@ -488,6 +493,7 @@ namespace WildLens.EditorTools
             {
                 Vector3 p = RandomPoint();
                 if (PathDistance(p) < corridor) continue;
+                if (HasRoads && RoadDistance(p) < _s.trailWidth * 0.5f + 7f) continue; // 1.0: open sight lines along the road
                 float f = Forest(p);
                 if (R() > TreeChance(p, f)) continue;
                 if (TerrainUtil.SlopeDegrees(p) > 38f || !IsFree(p, TreeSpacing(f))) continue;
@@ -502,6 +508,15 @@ namespace WildLens.EditorTools
                 {
                     bool conifer = Mathf.PerlinNoise(_noiseOffset * 0.5f + p.x * 0.03f, p.z * 0.03f) > 0.5f;
                     tree = conifer ? Conifer(parent, p) : Deciduous(parent, p);
+                }
+                // 1.0: young trees where woodland thins into grassland, so edges grade instead of stopping dead.
+                if (prefabs.Count == 0 && f > 0.3f && f < 0.52f && R() < 0.38f)
+                {
+                    float k = R(0.42f, 0.65f);
+                    tree.transform.localScale *= k;
+                    tree.name = "Young " + tree.name;
+                    var feature = tree.GetComponent<EnvironmentFeature>();
+                    if (feature != null) { feature.radius *= k; feature.height *= k; }
                 }
                 MakeStaticExceptSway(tree);
                 if (prefabs.Count == 0) AddDistanceCull(tree, 0.012f);
@@ -613,6 +628,7 @@ namespace WildLens.EditorTools
                 Vector3 p = RandomPoint();
                 float d = PathDistance(p);
                 if (d < _s.trailWidth * 0.5f + 1.2f) continue;
+                if (HasRoads && RoadDistance(p) < _s.trailWidth * 0.5f + 3.5f) continue;
                 float f = Forest(p);
                 float chance = Mathf.Clamp01(1f - Mathf.Abs(f - 0.45f) * 3f) * 0.7f + (d < 8f ? 0.3f : 0f); // edges & trailside
                 if (R() > chance || !IsFree(p, 1.6f)) continue;

@@ -65,7 +65,7 @@ namespace WildLens.EditorTools
                 Remove();
 
                 Progress("Species data", 0.05f);
-                var database = EnsureSpeciesAssets();
+                var database = EnsureSpeciesAssets(s.previewExpansionSpecies);
 
                 Progress("Terrain", 0.1f);
                 var terrain = FindOrCreateTerrain(s);
@@ -173,7 +173,10 @@ namespace WildLens.EditorTools
 
         // ------------------------------------------------------------------ data
 
-        public static SpeciesDatabase EnsureSpeciesAssets()
+        public static SpeciesDatabase EnsureSpeciesAssets() => EnsureSpeciesAssets(LoadOrCreateSettings().previewExpansionSpecies);
+
+        /// <param name="includePreview">Also create and include the 1.0 expansion examples (raccoon, heron).</param>
+        public static SpeciesDatabase EnsureSpeciesAssets(bool includePreview)
         {
             GeneratedAssets.EnsureFolders();
             var db = AssetDatabase.LoadAssetAtPath<SpeciesDatabase>(DatabasePath);
@@ -185,6 +188,11 @@ namespace WildLens.EditorTools
 
             // Existing species assets are kept as-is so designer tuning survives rebuilds.
             var defaults = SpeciesDefaults.CreateAll();
+            var preview = SpeciesDefaults.CreateExpansionPreview();
+            var previewIds = new HashSet<string>();
+            foreach (var p in preview) previewIds.Add(p.speciesId);
+            if (includePreview) defaults.AddRange(preview);
+            else foreach (var p in preview) Object.DestroyImmediate(p);
             var ordered = new List<SpeciesDefinition>();
             foreach (var def in defaults)
             {
@@ -199,7 +207,7 @@ namespace WildLens.EditorTools
                 ordered.Add(asset);
             }
             foreach (var extra in db.species)
-                if (extra != null && !ordered.Contains(extra)) ordered.Add(extra);
+                if (extra != null && !ordered.Contains(extra) && (includePreview || !previewIds.Contains(extra.speciesId))) ordered.Add(extra);
 
             db.species = ordered;
             EditorUtility.SetDirty(db);

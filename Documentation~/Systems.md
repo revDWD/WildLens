@@ -192,6 +192,18 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## 1.0.0 additions
+* **Road grading** (`RoadBuilder.GradeRoads`): per road sample, a ±15 m moving average of ground height; heightmap
+  cells within 2.1 + 3.2 m take the nearest profile height, full weight across the road, blending out over the
+  shoulder; creek crossings skipped. Road points re-grounded afterwards. `RoadWidth` = 4.2 m. `Relax` smooths the
+  route (Laplacian, ends fixed). Sight lines: `BuildTrees`/`BuildBushes` reject points within 7 m / 3.5 m of the road
+  edge. `BuildRoadMarkers` places posts.
+* **Ride smoothing** (`TrailBike.SnapToGround`): SmoothDamp on height (0.09 s) and pitch (0.16 s) while ridden, clamped
+  so wheels never sink more than 3 cm.
+* **Expansion framework**: `PlaceholderBody.Generic` + `BodyPlan` (`PlaceholderAnimalBuilder.BuildGeneric`),
+  `DailyRhythm` (used by `WildlifeSchedule` when enabled), `HotspotType.Water`. See `WildlifeExpansion.md`.
+* **Compile check**: `Tools~/CompileCheck/compile-check.sh` (see its README).
+
 ## Time of day (0.9.0)
 * **`DayCycle`** (`Scripts/Environment/DayCycle.cs`, built by `WildLensSliceBuilder.BuildDayCycle`): `Hour` advances at
   `minutesPerHour` real minutes per hour (×`waitSpeed` while T is held and the player is still; ×`nightSpeed` at

@@ -109,7 +109,7 @@ namespace WildLens.EditorTools
             _sites.Sort((a, b) => a.track.Length.CompareTo(b.track.Length));
             for (int i = 0; i < _sites.Count; i++) _sites[i].number = i + 1;
             PlanParking(shapeTerrain);
-            PlanRoads(parent, trackMeshes); // 0.9: the Reserve Road ring through every pull-off
+            PlanRoads(parent, trackMeshes, shapeTerrain); // the Reserve Road ring through every pull-off (0.9; graded 1.0)
 
             // Meadows at the blind and around the pond get meadow grass, flowers and the meadow ground tint.
             foreach (var s in _sites)
@@ -669,7 +669,7 @@ namespace WildLens.EditorTools
             Vector3 pos = new Vector3(s.centre.x, ground, s.centre.z);
             var deck = PropBuilder.Group("Overlook Deck", group, pos, Quaternion.LookRotation(f));
             float y = 0.32f;
-            PropBuilder.Box("Deck", deck, new Vector3(0f, y, 0f), new Vector3(4f, 0.12f, 3f), wood);
+            Planks(deck, new Vector3(0f, y, 0f), new Vector3(4f, 0.12f, 3f), wood, post);
             PropBuilder.Box("Step", deck, new Vector3(0f, y * 0.45f, -1.75f), new Vector3(1.4f, y * 0.9f, 0.5f), post);
             foreach (var c in new[] { new Vector3(-1.9f, 0f, -1.4f), new Vector3(1.9f, 0f, -1.4f), new Vector3(-1.9f, 0f, 1.4f), new Vector3(1.9f, 0f, 1.4f) })
                 PropBuilder.Box("Post", deck, c + new Vector3(0f, 0.5f, 0f), new Vector3(0.13f, 1.6f, 0.13f), post);
@@ -696,6 +696,23 @@ namespace WildLens.EditorTools
             Snag(group, snag, deadwood);
             AddHotspot(group, "Perch Hotspot", HotspotType.Perch, snag, 6f);
             Anchor(group, ScheduleRole.Ridge, pos + f * 25f, 30f); // hawks soar out over the view in daylight
+
+            // Signature (1.0): a viewing telescope at the rail and a stone cairn marking the summit.
+            var brass = GeneratedAssets.Material("Brass", new Color(0.72f, 0.56f, 0.28f), 0.75f);
+            var scope = PropBuilder.Group("Viewing Telescope", deck, deck.TransformPoint(new Vector3(1.2f, y, 1.15f)), deck.rotation);
+            PrimitiveMeshes.CreatePart("Pedestal", PrimitiveType.Cylinder, scope, new Vector3(0f, 0.55f, 0f), new Vector3(0.09f, 0.55f, 0.09f), post);
+            PrimitiveMeshes.CreatePart("Body", PrimitiveType.Cylinder, scope, new Vector3(0f, 1.2f, 0.05f), new Vector3(0.14f, 0.22f, 0.14f), brass, new Vector3(80f, 0f, 0f));
+            PrimitiveMeshes.CreatePart("Eyepiece", PrimitiveType.Cylinder, scope, new Vector3(0f, 1.17f, -0.2f), new Vector3(0.07f, 0.05f, 0.07f), brass, new Vector3(80f, 0f, 0f));
+            var cairnStone = GeneratedAssets.Material("CairnStone", new Color(0.5f, 0.49f, 0.46f), 0.2f);
+            Vector3 cairn = TerrainUtil.Ground(pos - f * 3.5f - Vector3.Cross(Vector3.up, f) * 4.5f);
+            float cy = 0f;
+            for (int i = 0; i < 5; i++)
+            {
+                float sz = 0.75f - i * 0.13f;
+                MeshPart("Cairn Stone", group, Pick(_rocks), cairnStone, cairn + Vector3.up * (cy + sz * 0.3f), new Vector3(sz, sz * 0.6f, sz * 0.9f), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                cy += sz * 0.45f;
+            }
+            AddKeepOut(cairn, 1.5f);
             AddKeepOut(pos, 5f);
 
             // 0.8 identity: an exposed, rocky crest with the wind in your ears.
@@ -788,7 +805,7 @@ namespace WildLens.EditorTools
             Vector3 shore = s.centre - f * (PondRadius(s, s.centre - f * s.water) + 1.5f);
             var jetty = PropBuilder.Group("Jetty", group, new Vector3(shore.x, level, shore.z), Quaternion.LookRotation(f));
             float deckY = 0.42f, len = 7f;
-            PropBuilder.Box("Deck", jetty, new Vector3(0f, deckY, len * 0.5f - 1f), new Vector3(1.5f, 0.1f, len), wood);
+            Planks(jetty, new Vector3(0f, deckY, len * 0.5f - 1f), new Vector3(1.5f, 0.1f, len), wood, post);
             for (float z = -0.5f; z < len - 1f; z += 2f)
                 foreach (float x in new[] { -0.7f, 0.7f })
                     PropBuilder.Box("Pile", jetty, new Vector3(x, -0.2f, z), new Vector3(0.12f, 1.3f, 0.12f), post);
@@ -810,6 +827,16 @@ namespace WildLens.EditorTools
             AddHotspot(group, "Pond Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(s.centre + side * (s.water * 1.2f + 5f)), 7f);
             dest.wildlifeCentre = farShore; // across the water from the jetty
             Anchor(group, ScheduleRole.Water, farShore, 12f);
+            AddHotspot(group, "Pond Shallows", HotspotType.Water, TerrainUtil.Ground(s.centre + side * PondRadius(s, s.centre + side * s.water)), 8f);
+            AddHotspot(group, "Pond Shallows", HotspotType.Water, farShore, 8f);
+            // Signature (1.0): the rangers' canoe pulled up on the bank by the jetty, a paddle across it.
+            Vector3 canoePos = TerrainUtil.Ground(shore + side * 3.2f - f * 0.8f);
+            var canoe = PropBuilder.Group("Ranger Canoe", group, canoePos, Quaternion.LookRotation(Quaternion.Euler(0f, 25f, 0f) * f));
+            PrimitiveMeshes.CreatePart("Hull", PrimitiveType.Capsule, canoe, new Vector3(0f, 0.12f, 0f), new Vector3(0.82f, 2.1f, 0.42f),
+                GeneratedAssets.Material("CanoeHull", new Color(0.22f, 0.36f, 0.24f), 0.5f), new Vector3(90f, 0f, 0f));
+            PrimitiveMeshes.CreatePart("Gunwale", PrimitiveType.Cube, canoe, new Vector3(0f, 0.3f, 0f), new Vector3(0.7f, 0.03f, 3.6f), wood);
+            PrimitiveMeshes.CreatePart("Paddle", PrimitiveType.Cube, canoe, new Vector3(0.1f, 0.34f, 0.3f), new Vector3(0.06f, 0.03f, 1.4f), post, new Vector3(0f, 35f, 0f));
+            AddKeepOut(canoePos, 2.6f);
             Mist(group, new Vector3(s.centre.x, level + 0.6f, s.centre.z), new Vector3(maxR * 2f + 6f, 1.4f, maxR * 2f + 6f), 1f);
             AddKeepOut(shore, 4f);
         }
@@ -859,6 +886,45 @@ namespace WildLens.EditorTools
                 Occupy(p);
                 AddHotspot(group, "Mature Tree Hotspot", HotspotType.MatureTree, p, 12f);
             }
+            // Signature (1.0): the Grandmother Oak, the biggest giant, roped off with a plaque.
+            GameObject eldest = null;
+            foreach (Transform t in group) if (t.name == "Old-Growth Giant" && (eldest == null || t.localScale.x > eldest.transform.localScale.x)) eldest = t.gameObject;
+            if (eldest != null)
+            {
+                eldest.name = "Grandmother Oak";
+                eldest.transform.localScale *= 1.2f;
+                var ef = eldest.GetComponent<EnvironmentFeature>();
+                if (ef != null) { ef.radius *= 1.2f; ef.height *= 1.2f; }
+                Vector3 c = eldest.transform.position;
+                var rope = GeneratedAssets.Material("Rope", new Color(0.62f, 0.53f, 0.38f), 0.1f);
+                const int posts = 9; const float ringR = 3.4f;
+                var ring = new GameObject("Rope Ring").transform;
+                ring.SetParent(group, false);
+                ring.position = c;
+                Vector3 prev = Vector3.zero;
+                for (int i = 0; i <= posts; i++)
+                {
+                    float a2 = i / (float)posts * Mathf.PI * 2f;
+                    Vector3 pt = TerrainUtil.Ground(c + new Vector3(Mathf.Cos(a2), 0f, Mathf.Sin(a2)) * ringR);
+                    if (i < posts) PrimitiveMeshes.CreatePart("Post", PrimitiveType.Cylinder, ring, ring.InverseTransformPoint(pt) + Vector3.up * 0.4f, new Vector3(0.09f, 0.4f, 0.09f), post);
+                    if (i > 0)
+                    {
+                        Vector3 mid = (prev + pt) * 0.5f + Vector3.up * 0.62f;
+                        var seg = PrimitiveMeshes.CreatePart("Rope", PrimitiveType.Cylinder, ring, ring.InverseTransformPoint(mid), new Vector3(0.025f, Vector3.Distance(prev, pt) * 0.5f, 0.025f), rope);
+                        seg.transform.rotation = Quaternion.FromToRotation(Vector3.up, (pt - prev).normalized);
+                    }
+                    prev = pt;
+                }
+                Vector3 toClearing = TerrainUtil.Flat(s.centre - c).normalized;
+                var plaque = PropBuilder.Group("Plaque", group, TerrainUtil.Ground(c + toClearing * (ringR + 0.7f)), Quaternion.LookRotation(toClearing));
+                PropBuilder.Box("Post", plaque, new Vector3(0f, 0.35f, 0f), new Vector3(0.09f, 0.7f, 0.09f), post);
+                PropBuilder.Box("Plate", plaque, new Vector3(0f, 0.72f, 0.03f), new Vector3(0.62f, 0.34f, 0.04f), PropBuilder.SignBoard);
+                plaque.Find("Plate").localRotation = Quaternion.Euler(-30f, 0f, 0f);
+                PropBuilder.Label(plaque, new Vector3(0f, 0.74f, 0.06f), "GRANDMOTHER OAK\nabout 280 years old\nplease don't climb", 0.0065f, PropBuilder.SignText);
+                Occupy(c);
+                AddKeepOut(c, ringR + 0.5f);
+            }
+
             // 0.8: a closed canopy around the clearing. Shade, big trunks, dense stand, mostly broadleaf.
             int planted = 0;
             for (int attempt = 0; attempt < 600 && planted < 72; attempt++)
@@ -953,7 +1019,7 @@ namespace WildLens.EditorTools
             Wall(hide, "Lintel", new Vector3(0f, H - 0.12f, -D * 0.5f), new Vector3(door, 0.24f, t), wood);
             Wall(hide, "Roof", new Vector3(0f, H + 0.06f, 0.1f), new Vector3(W + 0.5f, 0.1f, D + 0.7f), post);
             // Plank floor: grass doesn't poke through, footing is level.
-            PropBuilder.Box("Floor", hide, new Vector3(0f, 0.03f, 0f), new Vector3(W - 0.1f, 0.06f, D - 0.1f), post);
+            Planks(hide, new Vector3(0f, 0.03f, 0f), new Vector3(W - 0.1f, 0.06f, D - 0.1f), post, wood);
             PropBuilder.AddCollider(hide, new Vector3(0f, 0.03f, 0f), new Vector3(W - 0.1f, 0.06f, D - 0.1f));
             PropBuilder.Box("Bench", hide, new Vector3(0f, 0.45f, D * 0.5f - 0.75f), new Vector3(W - 0.8f, 0.07f, 0.35f), wood);
             // Ranger's log on the inside of the left wall, readable from the bench.
@@ -992,12 +1058,35 @@ namespace WildLens.EditorTools
                 "brushy edges. Inside the blind your outline\nand footsteps are hidden: watch, and wait.", wood, post);
             AddViewpoint(group, "Meadow Blind", pos + Vector3.up * 1.65f + f * (D * 0.5f - 0.15f), s.centre + Vector3.up * 0.8f);
             ClearCone(pos, f, 45f, s.radius * 1.8f);
+            // Signature (1.0): a bird feeder on a pole in front of the window: life close to the glass.
+            Vector3 feeder = TerrainUtil.Ground(pos + f * 6.5f + side * 0.8f);
+            var fd = PropBuilder.Group("Bird Feeder", group, feeder, Quaternion.LookRotation(-f));
+            PrimitiveMeshes.CreatePart("Pole", PrimitiveType.Cylinder, fd, new Vector3(0f, 0.85f, 0f), new Vector3(0.05f, 0.85f, 0.05f), post);
+            PropBuilder.Box("Tray", fd, new Vector3(0f, 1.62f, 0f), new Vector3(0.42f, 0.04f, 0.42f), wood);
+            PropBuilder.Box("Roof L", fd, new Vector3(-0.12f, 1.92f, 0f), new Vector3(0.3f, 0.03f, 0.5f), post);
+            PropBuilder.Box("Roof R", fd, new Vector3(0.12f, 1.92f, 0f), new Vector3(0.3f, 0.03f, 0.5f), post);
+            fd.Find("Roof L").localRotation = Quaternion.Euler(0f, 0f, 35f);
+            fd.Find("Roof R").localRotation = Quaternion.Euler(0f, 0f, -35f);
+            PrimitiveMeshes.CreatePart("Post", PrimitiveType.Cylinder, fd, new Vector3(0f, 1.77f, 0f), new Vector3(0.025f, 0.13f, 0.025f), post);
+            AddKeepOut(feeder, 1f);
+
             Vector3 meadow = TerrainUtil.Ground(pos + f * 14f);
             AddHotspot(group, "Meadow Hotspot", HotspotType.Meadow, meadow, 12f);
             AddHotspot(group, "Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(meadow + side * 13f), 7f);
             dest.wildlifeCentre = meadow;
             dest.wildlifeRadius = 12f;
             AddKeepOut(pos, 4f);
+        }
+
+        /// <summary>Visible deck boards (1.0): a row of planks with small gaps instead of one flat box. Visual only.</summary>
+        private static void Planks(Transform parent, Vector3 centre, Vector3 size, Material a, Material b)
+        {
+            const float board = 0.16f, gap = 0.014f;
+            int count = Mathf.Max(1, Mathf.FloorToInt(size.z / (board + gap)));
+            float start = centre.z - size.z * 0.5f + board * 0.5f;
+            for (int i = 0; i < count; i++)
+                PropBuilder.Box("Plank", parent, new Vector3(centre.x, centre.y + (i % 3 == 0 ? 0.004f : 0f), start + i * (board + gap)),
+                    new Vector3(size.x * (i % 5 == 2 ? 0.985f : 1f), size.y, board), i % 4 == 1 ? b : a);
         }
 
         private static void Wall(Transform parent, string name, Vector3 centre, Vector3 size, Material mat)

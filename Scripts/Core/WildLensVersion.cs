@@ -7,15 +7,17 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "0.9.0";
-        public const string ReleaseName = "Time of Day";
+        public const string Package = "1.0.0";
+        public const string ReleaseName = "Field Season";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
         /// 8: wider blind doorway, smaller headlight (0.7.1).
         /// 9: Willow Creek, ecosystem density zones, habitat identity, storytelling, pull-offs, rebuilt blind (0.8.0).
-        /// 10: day cycle, mist, schedule anchors, Reserve Road and footpaths, structured trees, sign standard (0.9.0).</summary>
-        public const int Environment = 10;
+        /// 10: day cycle, mist, schedule anchors, Reserve Road and footpaths, structured trees, sign standard (0.9.0).
+        /// 11: wider graded Reserve Road, road posts, sight lines, planked decks, destination signatures, young trees,
+        /// pine form, water hotspots (1.0.0).</summary>
+        public const int Environment = 11;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
@@ -35,6 +37,7 @@ namespace WildLens.Core
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.0  Field season: a smoother Reserve Road, finished destinations, richer woodland edges",
             "0.9  Time of day: dawn mist, golden hour, wildlife rhythms, the Reserve Road, new trees",
             "0.8  Living landscape: Willow Creek, richer habitats, a proper blind, pull-offs",
             "0.7  The reserve opens: four destinations, reserve tracks, a trail bike",

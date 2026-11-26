@@ -25,6 +25,7 @@ namespace WildLens.Wildlife
                 case PlaceholderBody.Fox: BuildFox(species, rig); break;
                 case PlaceholderBody.Hawk: BuildHawk(species, rig); break;
                 case PlaceholderBody.Squirrel: BuildSquirrel(species, rig); break;
+                case PlaceholderBody.Generic: BuildGeneric(species, rig); break;
             }
             return rig;
         }
@@ -204,6 +205,111 @@ namespace WildLens.Wildlife
                 Leg(b, "LegL", new Vector3(-0.04f, 0.08f, 0.02f), 0.08f, 0.025f, feet),
                 Leg(b, "LegR", new Vector3(0.04f, 0.08f, 0.02f), 0.08f, 0.025f, feet),
             };
+        }
+
+        // ------------------------------------------------------------------ generic (1.0 expansion framework)
+
+        /// <summary>A placeholder body from a species' <see cref="BodyPlan"/>: new species need data, not code.</summary>
+        private static void BuildGeneric(SpeciesDefinition s, AnimalRig rig)
+        {
+            var p = s.bodyPlan ?? new BodyPlan();
+            switch (p.archetype)
+            {
+                case BodyArchetype.Quadruped: GenericQuadruped(s, p, rig); break;
+                case BodyArchetype.WadingBird: GenericBird(s, p, rig, wading: true); break;
+                case BodyArchetype.GroundBird: GenericBird(s, p, rig, wading: false); break;
+                case BodyArchetype.PerchingBird:
+                    BuildHawk(s, rig); // flight-capable body with wings, scaled to size
+                    float k = Mathf.Max(0.1f, p.length / 0.42f);
+                    rig.body.localScale = Vector3.one * k;
+                    rig.legLength *= k;
+                    break;
+            }
+        }
+
+        private static void GenericQuadruped(SpeciesDefinition s, BodyPlan p, AnimalRig rig)
+        {
+            Color c = s.primaryColor, light = s.secondaryColor, dark = s.accentColor;
+            var b = rig.body;
+            float leg = p.legLength, bodyH = Mathf.Max(0.08f, p.height - leg), y = leg + bodyH * 0.5f, L = p.length;
+            Part("Body", PrimitiveType.Sphere, b, new Vector3(0f, y, 0f), new Vector3(bodyH * 1.05f, bodyH, L * 0.75f), c);
+            Part("Haunch", PrimitiveType.Sphere, b, new Vector3(0f, y + bodyH * 0.05f, -L * 0.18f), new Vector3(bodyH * 1.15f, bodyH * 1.05f, L * 0.42f), c);
+            Part("Belly", PrimitiveType.Sphere, b, new Vector3(0f, y - bodyH * 0.18f, 0.02f), new Vector3(bodyH * 0.85f, bodyH * 0.6f, L * 0.55f), light);
+
+            rig.neck = Pivot("Neck", b, new Vector3(0f, y + bodyH * 0.25f, L * 0.33f));
+            rig.head = Pivot("Head", rig.neck, new Vector3(0f, p.neckLength, p.neckLength + p.headSize * 0.3f));
+            float hs = p.headSize;
+            Part("Skull", PrimitiveType.Sphere, rig.head, Vector3.zero, new Vector3(hs * 1.1f, hs * 0.95f, hs), c);
+            Part("Snout", PrimitiveType.Sphere, rig.head, new Vector3(0f, -hs * 0.15f, hs * 0.45f + p.snoutLength * 0.4f), new Vector3(hs * 0.5f, hs * 0.42f, p.snoutLength + hs * 0.2f), light);
+            Part("Nose", PrimitiveType.Sphere, rig.head, new Vector3(0f, -hs * 0.12f, hs * 0.5f + p.snoutLength * 0.9f), Vector3.one * hs * 0.18f, Black);
+            if (p.faceMask) Part("Mask", PrimitiveType.Sphere, rig.head, new Vector3(0f, hs * 0.08f, hs * 0.3f), new Vector3(hs * 1.12f, hs * 0.3f, hs * 0.5f), dark);
+            Eyes(rig.head, hs * 0.3f, hs * 0.1f, hs * 0.45f, hs * 0.15f);
+            float e = p.earSize;
+            rig.ears = new[]
+            {
+                Ear(rig.head, "EarL", new Vector3(-hs * 0.32f, hs * 0.38f, -hs * 0.05f), new Vector3(e, e * 1.2f, e * 0.4f), c, 20f, e * 0.4f),
+                Ear(rig.head, "EarR", new Vector3(hs * 0.32f, hs * 0.38f, -hs * 0.05f), new Vector3(e, e * 1.2f, e * 0.4f), c, -20f, e * 0.4f),
+            };
+
+            rig.legLength = leg;
+            float lx = bodyH * 0.32f, lz = L * 0.26f, lt = Mathf.Max(0.03f, bodyH * 0.28f);
+            rig.legs = new[]
+            {
+                Leg(b, "LegFL", new Vector3(-lx, leg, lz), leg, lt, dark),
+                Leg(b, "LegFR", new Vector3(lx, leg, lz), leg, lt, dark),
+                Leg(b, "LegBL", new Vector3(-lx, leg, -lz), leg, lt * 1.1f, dark),
+                Leg(b, "LegBR", new Vector3(lx, leg, -lz), leg, lt * 1.1f, dark),
+            };
+
+            if (p.tailLength > 0.01f)
+            {
+                rig.tail = Pivot("Tail", b, new Vector3(0f, y + bodyH * 0.15f, -L * 0.4f), new Vector3(-15f, 0f, 0f));
+                Part("TailMesh", PrimitiveType.Sphere, rig.tail, new Vector3(0f, 0f, -p.tailLength * 0.5f), new Vector3(p.tailThickness, p.tailThickness, p.tailLength), c);
+                if (p.tailRings)
+                    for (int i = 1; i <= 3; i++)
+                        Part("Ring", PrimitiveType.Sphere, rig.tail, new Vector3(0f, 0f, -p.tailLength * (0.22f + i * 0.2f)),
+                            new Vector3(p.tailThickness * 1.06f, p.tailThickness * 1.06f, p.tailLength * 0.08f), dark);
+            }
+        }
+
+        private static void GenericBird(SpeciesDefinition s, BodyPlan p, AnimalRig rig, bool wading)
+        {
+            Color c = s.primaryColor, light = s.secondaryColor, dark = s.accentColor;
+            Color beak = wading ? new Color(0.85f, 0.7f, 0.25f) : new Color(0.35f, 0.3f, 0.25f), feet = wading ? new Color(0.35f, 0.32f, 0.25f) : new Color(0.55f, 0.4f, 0.35f);
+            var b = rig.body;
+            float leg = p.legLength, bodyH = Mathf.Max(0.08f, p.height - leg), y = leg + bodyH * 0.5f, L = p.length;
+            Part("Body", PrimitiveType.Sphere, b, new Vector3(0f, y, 0f), new Vector3(bodyH * 0.95f, bodyH, L * 0.6f), c, new Vector3(wading ? -12f : -5f, 0f, 0f));
+            Part("Breast", PrimitiveType.Sphere, b, new Vector3(0f, y - bodyH * 0.1f, L * 0.15f), new Vector3(bodyH * 0.8f, bodyH * 0.85f, L * 0.35f), light);
+            Part("WingL", PrimitiveType.Sphere, b, new Vector3(-bodyH * 0.42f, y + bodyH * 0.05f, -L * 0.05f), new Vector3(bodyH * 0.2f, bodyH * 0.7f, L * 0.55f), Color.Lerp(c, dark, 0.3f));
+            Part("WingR", PrimitiveType.Sphere, b, new Vector3(bodyH * 0.42f, y + bodyH * 0.05f, -L * 0.05f), new Vector3(bodyH * 0.2f, bodyH * 0.7f, L * 0.55f), Color.Lerp(c, dark, 0.3f));
+
+            rig.neck = Pivot("Neck", b, new Vector3(0f, y + bodyH * 0.3f, L * 0.25f));
+            float nl = p.neckLength;
+            if (wading)
+            {
+                // The heron's S-curved neck: forward, up, then forward again.
+                Part("NeckLow", PrimitiveType.Cylinder, rig.neck, new Vector3(0f, nl * 0.25f, nl * 0.12f), new Vector3(0.05f, nl * 0.28f, 0.05f), light, new Vector3(30f, 0f, 0f));
+                Part("NeckHigh", PrimitiveType.Cylinder, rig.neck, new Vector3(0f, nl * 0.72f, nl * 0.15f), new Vector3(0.045f, nl * 0.25f, 0.045f), light, new Vector3(-20f, 0f, 0f));
+            }
+            else Part("NeckMesh", PrimitiveType.Cylinder, rig.neck, new Vector3(0f, nl * 0.5f, 0f), new Vector3(bodyH * 0.25f, nl * 0.5f, bodyH * 0.25f), c);
+            rig.head = Pivot("Head", rig.neck, new Vector3(0f, nl, nl * 0.25f));
+            float hs = p.headSize;
+            Part("Skull", PrimitiveType.Sphere, rig.head, Vector3.zero, new Vector3(hs, hs, hs * 1.2f), wading ? light : c);
+            if (wading) Part("Crown", PrimitiveType.Sphere, rig.head, new Vector3(0f, hs * 0.3f, -hs * 0.2f), new Vector3(hs * 0.7f, hs * 0.35f, hs * 1.3f), dark);
+            Part("Beak", PrimitiveType.Cube, rig.head, new Vector3(0f, -hs * 0.05f, hs * 0.55f + p.snoutLength * 0.5f), new Vector3(hs * 0.25f, hs * 0.22f, p.snoutLength), beak);
+            Eyes(rig.head, hs * 0.38f, hs * 0.1f, hs * 0.2f, hs * 0.18f);
+
+            rig.legLength = leg;
+            rig.legs = new[]
+            {
+                Leg(b, "LegL", new Vector3(-bodyH * 0.18f, leg, 0f), leg, Mathf.Max(0.015f, leg * 0.04f), feet),
+                Leg(b, "LegR", new Vector3(bodyH * 0.18f, leg, 0f), leg, Mathf.Max(0.015f, leg * 0.04f), feet),
+            };
+            if (p.tailLength > 0.01f)
+            {
+                rig.tail = Pivot("Tail", b, new Vector3(0f, y, -L * 0.3f), new Vector3(wading ? 20f : -35f, 0f, 0f));
+                Part("TailFan", PrimitiveType.Cube, rig.tail, new Vector3(0f, 0f, -p.tailLength * 0.5f), new Vector3(wading ? bodyH * 0.6f : bodyH * 1.6f, 0.03f, p.tailLength), dark);
+            }
         }
 
         // ------------------------------------------------------------------ helpers

@@ -92,6 +92,11 @@ namespace WildLens.EditorTools
         [Tooltip("Real minutes per in-game hour. 1 = a day of daylight in about sixteen minutes. Hold T in game to let time pass.")]
         [Range(0.2f, 5f)] public float minutesPerHour = 1f;
 
+        [Header("Wildlife expansion (1.0)")]
+        [Tooltip("Adds the expansion framework's worked examples (Raccoon, Great Blue Heron) with placeholder bodies. " +
+                 "See Documentation~/WildlifeExpansion.md before adding your own species.")]
+        public bool previewExpansionSpecies = false;
+
         [Header("Scene")]
         public bool configureLightingAndFog = true;
         [Tooltip("Raise shadow distance/cascades/resolution in the active render pipeline or Quality settings (project-wide).")]

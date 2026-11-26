@@ -43,7 +43,7 @@ namespace WildLens.Wildlife
             foreach (var a in _spawner.Spawned) if (a != null) Apply(a, _applied);
         }
 
-        private enum Place { Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch }
+        private enum Place { Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch } // same order as RhythmPlace
 
         private static Place Where(string species, DayPeriod p)
         {
@@ -86,7 +86,10 @@ namespace WildLens.Wildlife
             a.ActivityBias = act => Bias(id, p, act);
             Vector3 origin = a.OriginHome;
             Vector3 target = origin;
-            switch (Where(id, p))
+            // Data first (1.0): species with a DailyRhythm need no code here.
+            var rhythm = a.Species.rhythm;
+            Place place = rhythm != null && rhythm.enabled ? (Place)(int)rhythm.For((int)p) : Where(id, p);
+            switch (place)
             {
                 case Place.Meadow: target = Nearest(origin, HotspotType.Meadow, null, false) ?? origin; break;
                 case Place.MeadowEdge: target = Nearest(origin, HotspotType.Meadow, null, true) ?? origin; break;
