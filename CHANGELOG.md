@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0] More Life (in progress)
+Biodiversity pass: the reserve goes from five species to fifteen, all as data on the 1.0 species framework. No new AI.
+- **New species** (generic placeholder bodies, data rhythms): Great Blue Heron and Raccoon (now always on), Wild Turkey,
+  Barred Owl, Groundhog, Northern Cardinal, Blue Jay, Red-winged Blackbird, Virginia Opossum, Coyote.
+- **Where they live** (residents): Cattail Pond gains a heron, red-winged blackbirds and a raccoon; the Old-Growth Grove
+  a barred owl and blue jays; the Meadow Blind cardinals and a turkey flock; the Ridge Overlook a lone coyote; the
+  creek-side residence an opossum; the meadow-edge residence a groundhog.
+- **Small-bird flight**: flight altitude and circle radius are now species data (`flightAltitude`, `circleRadius`), so
+  songbirds flit 3-7 m up between perches and the owl glides low, while the hawk still soars at 20-38 m.
+- **Field marks** on generic bodies: crests (cardinal, jay), face masks on birds, red epaulettes (blackbird), a coloured
+  head (turkey's bare head with wattle, opossum's pale face), owl-sized heads, tails in body colour.
+- Pond and grove arrival notes mention their new residents. Environment version 12 (rebuild the slice).
+
 ## [1.0.0] Field Season
 The first complete release of Willow Creek Nature Reserve: polish, consolidation and a handoff for future contributors.
 No new gameplay systems.

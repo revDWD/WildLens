@@ -630,7 +630,7 @@ namespace WildLens.EditorTools
             if (drink > 0)
             {
                 Vector3 p = TerrainUtil.Ground(_creek[drink]);
-                Residence(parent, "Creek-side deer", p, 16f, "white_tailed_deer");
+                Residence(parent, "Creek-side deer", p, 16f, "white_tailed_deer", "virginia_opossum");
                 AddHotspot(parent, "Creek Meadow Hotspot", HotspotType.Meadow, p, 14f);
             }
         }
@@ -901,7 +901,7 @@ namespace WildLens.EditorTools
             {
                 Vector3 side = Vector3.Cross(Vector3.up, blind.facing);
                 Vector3 edge = TerrainUtil.Ground(blind.centre + side * blind.radius * 0.75f);
-                Residence(parent, "Meadow-edge cottontails", edge, 10f, "eastern_cottontail");
+                Residence(parent, "Meadow-edge cottontails", edge, 10f, "eastern_cottontail", "groundhog");
             }
         }
     }

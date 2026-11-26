@@ -4,23 +4,247 @@ using UnityEngine;
 namespace WildLens.Data
 {
     /// <summary>
-    /// Tuned default values for the five vertical-slice species. The editor builder writes these out as assets,
+    /// Tuned default values for the reserve's species (the five originals plus the 1.1 expansion). The editor builder writes these out as assets,
     /// and the game falls back to them at runtime if no database asset is assigned. Tune the assets, not this file.
     /// </summary>
     public static class SpeciesDefaults
     {
         public static List<SpeciesDefinition> CreateAll()
         {
-            return new List<SpeciesDefinition> { Deer(), Rabbit(), Fox(), Hawk(), Squirrel() };
+            return new List<SpeciesDefinition>
+            {
+                Deer(), Rabbit(), Fox(), Hawk(), Squirrel(),
+                // 1.1 expansion: all generic bodies and data rhythms (Documentation~/WildlifeExpansion.md).
+                Heron(), Raccoon(), Turkey(), BarredOwl(), Groundhog(), Cardinal(), BlueJay(), Blackbird(), Opossum(), Coyote(),
+            };
         }
 
         /// <summary>
-        /// Worked examples of the 1.0 expansion framework (generic bodies, data-driven rhythms, water habitat). Off by
-        /// default; the builder's "Preview expansion species" adds them. See Documentation~/WildlifeExpansion.md.
+        /// Pre-1.1 opt-in examples. Since 1.1 every species is part of <see cref="CreateAll"/>, so this is empty; kept so
+        /// the builder's old "Preview expansion species" setting still compiles and does nothing harmful.
         /// </summary>
         public static List<SpeciesDefinition> CreateExpansionPreview()
         {
-            return new List<SpeciesDefinition> { Raccoon(), Heron() };
+            return new List<SpeciesDefinition>();
+        }
+
+        // ------------------------------------------------------------------ 1.1 expansion species
+
+        public static SpeciesDefinition Turkey()
+        {
+            var s = New("wild_turkey", "Wild Turkey", "Meleagris gallopavo",
+                "Big, wary ground bird that moves through open woodland and field edges in loose flocks, scratching for " +
+                "acorns and insects. Look for the bare blue-and-red head and the bronze sheen on the back. Crosses roads unhurried.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.GroundBird, length = 0.62f, height = 0.78f, legLength = 0.36f, neckLength = 0.24f,
+                headSize = 0.075f, snoutLength = 0.03f, tailLength = 0.32f, tailThickness = 0.04f,
+                headColor = new Color(0.55f, 0.62f, 0.78f),
+            };
+            s.primaryColor = new Color(0.3f, 0.23f, 0.15f);
+            s.secondaryColor = new Color(0.22f, 0.17f, 0.12f);
+            s.accentColor = new Color(0.42f, 0.3f, 0.18f);
+            s.habitat = HabitatPreference.ForestEdge;
+            s.groupCount = 1; s.groupSize = new Vector2Int(4, 7);
+            s.spawnDistanceFromTrail = new Vector2(18f, 50f);
+            s.preferredHotspots = HotspotType.Meadow | HotspotType.BrushPile; s.hotspotAffinity = 0.8f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.8f; s.runSpeed = 5f; s.turnSpeed = 90f; s.gaitFrequency = 1.8f;
+            s.wanderRadius = 35f; s.behaviorChance = 0.75f; s.runLegChance = 0f;
+            Awareness(s, aware: 34f, alert: 22f, flee: 11f, gain: 0.9f, decay: 0.12f, patience: 4f, startle: 1.1f);
+            s.fleeDistanceRange = new Vector2(18f, 30f);
+            s.photoSizeScale = 0.9f; s.clearPhotoDistance = 30f; s.observationTime = 1.2f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 5f, 4f, 10f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.7f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 8f, 16f));
+            s.rhythm = new DailyRhythm(RhythmPlace.MeadowEdge, RhythmPlace.Meadow, RhythmPlace.Woodland, RhythmPlace.Meadow, RhythmPlace.MeadowEdge, RhythmPlace.Woodland);
+            return s;
+        }
+
+        public static SpeciesDefinition BarredOwl()
+        {
+            var s = New("barred_owl", "Barred Owl", "Strix varia",
+                "A round-headed, dark-eyed owl of mature woods near water. Sits close to the trunk through the day, " +
+                "unbothered unless you crowd it, then drifts out at dusk to hunt the meadow edges on silent wings.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan { archetype = BodyArchetype.PerchingBird, length = 0.38f, headSize = 0.17f, tailLength = 0.2f };
+            s.primaryColor = new Color(0.46f, 0.39f, 0.31f);
+            s.secondaryColor = new Color(0.86f, 0.82f, 0.72f);
+            s.accentColor = new Color(0.3f, 0.24f, 0.18f);
+            s.habitat = HabitatPreference.Sky;
+            s.locomotion = LocomotionType.Flying;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 1); // lives in the grove (resident)
+            s.spawnDistanceFromTrail = new Vector2(0f, 30f);
+            s.preferredHotspots = HotspotType.MatureTree | HotspotType.Perch; s.hotspotAffinity = 0.9f;
+            s.gait = GaitStyle.Fly;
+            s.walkSpeed = 5.5f; s.runSpeed = 9f; s.turnSpeed = 70f; s.gaitFrequency = 2.4f;
+            s.wanderRadius = 40f;
+            s.flightAltitude = new Vector2(6f, 11f); s.circleRadius = new Vector2(9f, 16f);
+            Awareness(s, aware: 26f, alert: 15f, flee: 8f, gain: 0.7f, decay: 0.18f, patience: 6f, startle: 0.9f);
+            s.photoSizeScale = 0.75f; s.clearPhotoDistance = 28f; s.observationTime = 1.3f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 6f, 45f, 90f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 1f, 8f, 15f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.MeadowEdge, RhythmPlace.MeadowEdge);
+            return s;
+        }
+
+        public static SpeciesDefinition Groundhog()
+        {
+            var s = New("groundhog", "Groundhog", "Marmota monax",
+                "A stout, grizzled marmot of field edges and road verges. Grazes close to its burrow and often sits bolt " +
+                "upright to look around, a sentry on the bank. Out in the morning and late afternoon; underground otherwise.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.5f, height = 0.27f, legLength = 0.08f, neckLength = 0.04f,
+                headSize = 0.13f, snoutLength = 0.035f, earSize = 0.025f, tailLength = 0.14f, tailThickness = 0.06f,
+            };
+            s.primaryColor = new Color(0.45f, 0.36f, 0.25f);
+            s.secondaryColor = new Color(0.6f, 0.5f, 0.37f);
+            s.accentColor = new Color(0.18f, 0.13f, 0.1f);
+            s.habitat = HabitatPreference.ForestEdge;
+            s.groupCount = 2; s.groupSize = new Vector2Int(1, 1);
+            s.spawnDistanceFromTrail = new Vector2(6f, 25f);
+            s.preferredHotspots = HotspotType.BrushPile | HotspotType.Meadow; s.hotspotAffinity = 0.8f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.5f; s.runSpeed = 3.5f; s.turnSpeed = 140f; s.gaitFrequency = 2.6f;
+            s.wanderRadius = 10f; s.behaviorChance = 0.85f; s.runLegChance = 0f;
+            Awareness(s, aware: 22f, alert: 13f, flee: 6f, gain: 1f, decay: 0.15f, patience: 4f, startle: 1.1f);
+            s.fleeDistanceRange = new Vector2(6f, 10f);
+            s.photoSizeScale = 0.75f; s.clearPhotoDistance = 20f; s.observationTime = 1f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grazing, 4f, 4f, 10f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 3f, 4f, 10f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 1f, 10f, 20f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.MeadowEdge, RhythmPlace.Brush, RhythmPlace.MeadowEdge, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        private static SpeciesDefinition Songbird(string id, string display, string sci, string notes, float length, float head,
+            Color primary, Color secondary, Color accent, HotspotType hotspots, int groups, Vector2Int size)
+        {
+            var s = New(id, display, sci, notes, PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan { archetype = BodyArchetype.PerchingBird, length = length, headSize = head, tailLength = 0.08f };
+            s.primaryColor = primary; s.secondaryColor = secondary; s.accentColor = accent;
+            s.habitat = HabitatPreference.Sky;
+            s.locomotion = LocomotionType.Flying;
+            s.groupCount = groups; s.groupSize = size;
+            s.spawnDistanceFromTrail = new Vector2(0f, 25f);
+            s.preferredHotspots = hotspots; s.hotspotAffinity = 0.9f;
+            s.gait = GaitStyle.Fly;
+            s.walkSpeed = 4.5f; s.runSpeed = 8f; s.turnSpeed = 200f; s.gaitFrequency = 9f;
+            s.wanderRadius = 25f;
+            s.flightAltitude = new Vector2(3.5f, 7f); s.circleRadius = new Vector2(4f, 9f);
+            Awareness(s, aware: 16f, alert: 9f, flee: 4.5f, gain: 1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.photoSizeScale = 0.4f; s.clearPhotoDistance = 12f; s.observationTime = 1f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 6f, 8f, 22f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2f, 4f, 8f));
+            return s;
+        }
+
+        public static SpeciesDefinition Cardinal()
+        {
+            var s = Songbird("northern_cardinal", "Northern Cardinal", "Cardinalis cardinalis",
+                "The red bird of thickets and hedgerows, crested, with a black face and a heavy seed-cracking bill. " +
+                "Shy in the open; busiest at the brush edge and the feeder at first and last light. Listen for its clear whistle.",
+                0.1f, 0.036f, new Color(0.78f, 0.1f, 0.08f), new Color(0.82f, 0.2f, 0.14f), new Color(0.06f, 0.05f, 0.05f),
+                HotspotType.BrushPile, 2, new Vector2Int(1, 2));
+            s.bodyPlan.crest = true; s.bodyPlan.faceMask = true;
+            s.rhythm = new DailyRhythm(RhythmPlace.Brush, RhythmPlace.Brush, RhythmPlace.Woodland, RhythmPlace.Brush, RhythmPlace.Brush, RhythmPlace.Woodland);
+            return s;
+        }
+
+        public static SpeciesDefinition BlueJay()
+        {
+            var s = Songbird("blue_jay", "Blue Jay", "Cyanocitta cristata",
+                "A loud, crested jay of oaks and mature woods: bright blue above, white below, with a black necklace. Raises " +
+                "the alarm at hawks and people alike. Most active in the morning, carrying acorns through the canopy.",
+                0.12f, 0.04f, new Color(0.27f, 0.45f, 0.78f), new Color(0.9f, 0.91f, 0.93f), new Color(0.08f, 0.08f, 0.1f),
+                HotspotType.MatureTree, 2, new Vector2Int(1, 3));
+            s.bodyPlan.crest = true; s.bodyPlan.faceMask = true;
+            Awareness(s, aware: 20f, alert: 12f, flee: 6f, gain: 1.1f, decay: 0.22f, patience: 2.5f, startle: 1.2f);
+            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland);
+            return s;
+        }
+
+        public static SpeciesDefinition Blackbird()
+        {
+            var s = Songbird("red_winged_blackbird", "Red-winged Blackbird", "Agelaius phoeniceus",
+                "Glossy black males flash scarlet shoulder patches from the tops of cattails and sing a gurgling " +
+                "'konk-la-ree' across the marsh. Never far from the pond and creek; noisiest at dawn.",
+                0.1f, 0.032f, new Color(0.06f, 0.06f, 0.07f), new Color(0.1f, 0.1f, 0.11f), new Color(0.86f, 0.14f, 0.06f),
+                HotspotType.Water, 2, new Vector2Int(2, 3));
+            s.bodyPlan.wingPatches = true;
+            s.rhythm = new DailyRhythm(RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water);
+            return s;
+        }
+
+        public static SpeciesDefinition Opossum()
+        {
+            var s = New("virginia_opossum", "Virginia Opossum", "Didelphis virginiana",
+                "North America's only marsupial: grizzled grey, with a pale pointed face, black ears and a long bare tail. " +
+                "Ambles slowly along creek banks and woodland floors after dark; caught out at dusk it simply freezes.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.5f, height = 0.3f, legLength = 0.1f, neckLength = 0.05f,
+                headSize = 0.12f, snoutLength = 0.09f, earSize = 0.035f, tailLength = 0.32f, tailThickness = 0.035f,
+                headColor = new Color(0.92f, 0.9f, 0.86f),
+            };
+            s.primaryColor = new Color(0.6f, 0.58f, 0.56f);
+            s.secondaryColor = new Color(0.84f, 0.82f, 0.78f);
+            s.accentColor = new Color(0.1f, 0.09f, 0.09f);
+            s.habitat = HabitatPreference.ForestEdge;
+            s.groupCount = 1; s.groupSize = new Vector2Int(1, 1);
+            s.spawnDistanceFromTrail = new Vector2(10f, 35f);
+            s.preferredHotspots = HotspotType.Water | HotspotType.MatureTree; s.hotspotAffinity = 0.8f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.55f; s.runSpeed = 2.4f; s.turnSpeed = 100f; s.gaitFrequency = 2.2f;
+            s.wanderRadius = 25f; s.behaviorChance = 0.7f;
+            // Slow and tolerant: freezes rather than flees.
+            Awareness(s, aware: 18f, alert: 10f, flee: 4f, gain: 0.7f, decay: 0.2f, patience: 7f, startle: 0.8f);
+            s.fleeDistanceRange = new Vector2(5f, 9f);
+            s.photoSizeScale = 0.75f; s.clearPhotoDistance = 18f; s.observationTime = 1.1f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 3f, 3f, 8f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 3f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1f, 2f, 4f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 2f, 12f, 25f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Woodland, RhythmPlace.Water, RhythmPlace.Water);
+            return s;
+        }
+
+        public static SpeciesDefinition Coyote()
+        {
+            var s = New("coyote", "Coyote", "Canis latrans",
+                "Lean, grizzled wild dog of open country, larger and greyer than a fox, with a black-tipped tail carried low. " +
+                "Rarely seen and gone at the first sign of you. Hunts the far meadows at dawn and dusk.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.95f, height = 0.62f, legLength = 0.38f, neckLength = 0.13f,
+                headSize = 0.19f, snoutLength = 0.13f, earSize = 0.075f, tailLength = 0.38f, tailThickness = 0.1f,
+            };
+            s.primaryColor = new Color(0.55f, 0.47f, 0.36f);
+            s.secondaryColor = new Color(0.82f, 0.76f, 0.66f);
+            s.accentColor = new Color(0.24f, 0.19f, 0.15f);
+            s.habitat = HabitatPreference.OpenMeadow;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 1); // one individual, resident below the ridge
+            s.spawnDistanceFromTrail = new Vector2(45f, 110f);
+            s.preferredHotspots = HotspotType.Meadow; s.hotspotAffinity = 0.7f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 1.4f; s.runSpeed = 10f; s.turnSpeed = 110f; s.gaitFrequency = 2f;
+            s.wanderRadius = 80f; s.behaviorChance = 0.6f; s.runLegChance = 0.03f;
+            Awareness(s, aware: 60f, alert: 40f, flee: 22f, gain: 1.1f, decay: 0.1f, patience: 3f, startle: 1.2f);
+            s.fleeDistanceRange = new Vector2(35f, 60f);
+            s.photoSizeScale = 0.95f; s.clearPhotoDistance = 45f; s.observationTime = 1.4f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 3f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2.5f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 1f, 4f, 8f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 1f, 8f, 16f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Meadow, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.MeadowEdge, RhythmPlace.Meadow, RhythmPlace.Meadow);
+            return s;
         }
 
         public static SpeciesDefinition Raccoon()
@@ -39,7 +263,7 @@ namespace WildLens.Data
             s.secondaryColor = new Color(0.86f, 0.85f, 0.82f);
             s.accentColor = new Color(0.1f, 0.09f, 0.09f);
             s.habitat = HabitatPreference.ForestEdge;
-            s.groupCount = 2; s.groupSize = new Vector2Int(1, 2);
+            s.groupCount = 1; s.groupSize = new Vector2Int(1, 2);
             s.spawnDistanceFromTrail = new Vector2(15f, 45f);
             s.preferredHotspots = HotspotType.Water | HotspotType.MatureTree; s.hotspotAffinity = 0.8f;
             s.gait = GaitStyle.Walk;

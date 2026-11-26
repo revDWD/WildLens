@@ -53,6 +53,10 @@ namespace WildLens.Data
         public float tailThickness = 0.08f;
         [Tooltip("Dark band across the eyes (raccoon).")] public bool faceMask;
         [Tooltip("Dark rings on the tail (raccoon).")] public bool tailRings;
+        [Tooltip("Pointed crest on the crown (cardinal, blue jay). 1.1")] public bool crest;
+        [Tooltip("Accent-coloured shoulder patches (red-winged blackbird's epaulettes). 1.1")] public bool wingPatches;
+        [Tooltip("If alpha > 0, colours the head (turkey's bare head, opossum's pale face). 1.1")]
+        public Color headColor = new Color(0f, 0f, 0f, 0f);
     }
 
     /// <summary>Where a species spends each part of the day (see WildlifeSchedule). Append only.</summary>
@@ -164,6 +168,12 @@ namespace WildLens.Data
         [Range(0f, 1f)] [Tooltip("Chance that a wander leg is a short run instead of a walk (e.g. deer bounding).")]
         public float runLegChance = 0f;
         public float maxSlope = 35f;
+
+        [Header("Flight (flying species, 1.1)")]
+        [Tooltip("Cruising height above the ground (min, max). Hawks soar at 20-38 m; songbirds flit at 3-8 m.")]
+        public Vector2 flightAltitude = new Vector2(20f, 38f);
+        [Tooltip("Radius of circling flight (min, max).")]
+        public Vector2 circleRadius = new Vector2(16f, 34f);
 
         [Header("Behaviours")]
         public List<BehaviorOption> behaviors = new List<BehaviorOption>();

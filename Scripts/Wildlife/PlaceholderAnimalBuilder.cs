@@ -220,11 +220,50 @@ namespace WildLens.Wildlife
                 case BodyArchetype.GroundBird: GenericBird(s, p, rig, wading: false); break;
                 case BodyArchetype.PerchingBird:
                     BuildHawk(s, rig); // flight-capable body with wings, scaled to size
+                    PerchingBirdDetails(s, p, rig);
                     float k = Mathf.Max(0.1f, p.length / 0.42f);
                     rig.body.localScale = Vector3.one * k;
                     rig.legLength *= k;
                     break;
             }
+        }
+
+        private static bool HasHeadColor(BodyPlan p) => p.headColor.a > 0.01f;
+
+        /// <summary>
+        /// Field marks on the shared flying body (1.1): a tail in the body colour, a head sized to the species (owls'
+        /// big round heads, songbirds' proportionally large ones), crest, face mask and epaulettes. Coordinates are in
+        /// the hawk body's unscaled space; the whole body is scaled afterwards.
+        /// </summary>
+        private static void PerchingBirdDetails(SpeciesDefinition s, BodyPlan p, AnimalRig rig)
+        {
+            float k = Mathf.Max(0.1f, p.length / 0.42f);
+            Color c = s.primaryColor, dark = s.accentColor;
+            if (rig.tail != null)
+            {
+                var fan = rig.tail.Find("TailFan");
+                var r = fan != null ? fan.GetComponent<MeshRenderer>() : null;
+                if (r != null) r.sharedMaterial = MaterialLibrary.Get(Color.Lerp(c, Color.black, 0.15f));
+            }
+            if (rig.head == null) return;
+            if (p.headSize > 0f) rig.head.localScale = Vector3.one * Mathf.Clamp(p.headSize / (0.12f * k), 0.6f, 2f);
+            if (HasHeadColor(p))
+            {
+                var skull = rig.head.Find("Skull");
+                var r = skull != null ? skull.GetComponent<MeshRenderer>() : null;
+                if (r != null) r.sharedMaterial = MaterialLibrary.Get(p.headColor);
+            }
+            if (p.crest)
+                Part("Crest", PrimitiveType.Sphere, rig.head, new Vector3(0f, 0.075f, -0.035f), new Vector3(0.05f, 0.09f, 0.08f),
+                    HasHeadColor(p) ? p.headColor : c, new Vector3(-35f, 0f, 0f));
+            if (p.faceMask)
+                Part("Mask", PrimitiveType.Sphere, rig.head, new Vector3(0f, -0.01f, 0.045f), new Vector3(0.105f, 0.07f, 0.06f), dark);
+            if (p.wingPatches && rig.wings != null)
+                foreach (var w in rig.wings)
+                {
+                    float side = w.name.EndsWith("L") ? -1f : 1f;
+                    Part("Epaulette", PrimitiveType.Cube, w, new Vector3(0.12f * side, 0.016f, 0.07f), new Vector3(0.16f, 0.012f, 0.09f), dark);
+                }
         }
 
         private static void GenericQuadruped(SpeciesDefinition s, BodyPlan p, AnimalRig rig)
@@ -239,8 +278,9 @@ namespace WildLens.Wildlife
             rig.neck = Pivot("Neck", b, new Vector3(0f, y + bodyH * 0.25f, L * 0.33f));
             rig.head = Pivot("Head", rig.neck, new Vector3(0f, p.neckLength, p.neckLength + p.headSize * 0.3f));
             float hs = p.headSize;
-            Part("Skull", PrimitiveType.Sphere, rig.head, Vector3.zero, new Vector3(hs * 1.1f, hs * 0.95f, hs), c);
-            Part("Snout", PrimitiveType.Sphere, rig.head, new Vector3(0f, -hs * 0.15f, hs * 0.45f + p.snoutLength * 0.4f), new Vector3(hs * 0.5f, hs * 0.42f, p.snoutLength + hs * 0.2f), light);
+            Color headC = HasHeadColor(p) ? p.headColor : c;
+            Part("Skull", PrimitiveType.Sphere, rig.head, Vector3.zero, new Vector3(hs * 1.1f, hs * 0.95f, hs), headC);
+            Part("Snout", PrimitiveType.Sphere, rig.head, new Vector3(0f, -hs * 0.15f, hs * 0.45f + p.snoutLength * 0.4f), new Vector3(hs * 0.5f, hs * 0.42f, p.snoutLength + hs * 0.2f), HasHeadColor(p) ? headC : light);
             Part("Nose", PrimitiveType.Sphere, rig.head, new Vector3(0f, -hs * 0.12f, hs * 0.5f + p.snoutLength * 0.9f), Vector3.one * hs * 0.18f, Black);
             if (p.faceMask) Part("Mask", PrimitiveType.Sphere, rig.head, new Vector3(0f, hs * 0.08f, hs * 0.3f), new Vector3(hs * 1.12f, hs * 0.3f, hs * 0.5f), dark);
             Eyes(rig.head, hs * 0.3f, hs * 0.1f, hs * 0.45f, hs * 0.15f);
@@ -294,7 +334,9 @@ namespace WildLens.Wildlife
             else Part("NeckMesh", PrimitiveType.Cylinder, rig.neck, new Vector3(0f, nl * 0.5f, 0f), new Vector3(bodyH * 0.25f, nl * 0.5f, bodyH * 0.25f), c);
             rig.head = Pivot("Head", rig.neck, new Vector3(0f, nl, nl * 0.25f));
             float hs = p.headSize;
-            Part("Skull", PrimitiveType.Sphere, rig.head, Vector3.zero, new Vector3(hs, hs, hs * 1.2f), wading ? light : c);
+            Part("Skull", PrimitiveType.Sphere, rig.head, Vector3.zero, new Vector3(hs, hs, hs * 1.2f), HasHeadColor(p) ? p.headColor : wading ? light : c);
+            if (!wading && HasHeadColor(p))
+                Part("Wattle", PrimitiveType.Sphere, rig.head, new Vector3(0f, -hs * 0.55f, hs * 0.3f), new Vector3(hs * 0.35f, hs * 0.6f, hs * 0.3f), Color.Lerp(p.headColor, new Color(0.75f, 0.1f, 0.1f), 0.6f));
             if (wading) Part("Crown", PrimitiveType.Sphere, rig.head, new Vector3(0f, hs * 0.3f, -hs * 0.2f), new Vector3(hs * 0.7f, hs * 0.35f, hs * 1.3f), dark);
             Part("Beak", PrimitiveType.Cube, rig.head, new Vector3(0f, -hs * 0.05f, hs * 0.55f + p.snoutLength * 0.5f), new Vector3(hs * 0.25f, hs * 0.22f, p.snoutLength), beak);
             Eyes(rig.head, hs * 0.38f, hs * 0.1f, hs * 0.2f, hs * 0.18f);

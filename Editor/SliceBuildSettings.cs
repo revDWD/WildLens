@@ -93,7 +93,7 @@ namespace WildLens.EditorTools
         [Range(0.2f, 5f)] public float minutesPerHour = 1f;
 
         [Header("Wildlife expansion (1.0)")]
-        [Tooltip("Adds the expansion framework's worked examples (Raccoon, Great Blue Heron) with placeholder bodies. " +
+        [Tooltip("No longer needed: since 1.1 all fifteen species are always built. Kept so older settings assets load. " +
                  "See Documentation~/WildlifeExpansion.md before adding your own species.")]
         public bool previewExpansionSpecies = false;
 

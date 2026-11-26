@@ -51,10 +51,17 @@ namespace WildLens.Wildlife
         public float Flare => _flare;
 
         private float Cruise => Species.walkSpeed * Temperament;
+        private float CircleMin => Mathf.Max(3f, Species.circleRadius.x);
+        private float CircleMax => Mathf.Max(CircleMin, Species.circleRadius.y);
 
         public override void Initialize(SpeciesDefinition species, Vector3 home, WildlifeWorld world, int seed)
         {
             base.Initialize(species, home, world, seed);
+            // 1.1: the flight envelope comes from the species, so songbirds flit low between perches and owls
+            // glide under the canopy while hawks keep soaring high.
+            minAltitude = Mathf.Max(3.5f, species.flightAltitude.x);
+            maxAltitude = Mathf.Max(minAltitude, species.flightAltitude.y);
+            landingDistance = Mathf.Clamp(minAltitude * 0.5f, 2.5f, 10f);
             _altitude = Range(minAltitude, maxAltitude);
             _circleDir = Chance(0.5f) ? 1f : -1f;
             BeginCircle(home, Range(0f, Mathf.PI * 2f));
@@ -112,7 +119,7 @@ namespace WildLens.Wildlife
         {
             _mode = Mode.Circling;
             _circleCenter = TerrainUtil.Flat(center);
-            _circleRadius = Range(16f, 34f);
+            _circleRadius = Range(CircleMin, CircleMax);
             _circleAngle = angle;
             _timer = Range(DurationFor(AnimalActivity.Flying, new Vector2(20f, 40f)));
             SetActivity(AnimalActivity.Flying);
@@ -166,7 +173,7 @@ namespace WildLens.Wildlife
             Vector3 target = _transitTarget;
             target.y = TerrainUtil.SampleHeight(target) + _altitude;
             Steer(target, Cruise * 1.2f, 0.6f, dt);
-            if (TerrainUtil.FlatDistance(transform.position, target) < 15f || _timer <= 0f)
+            if (TerrainUtil.FlatDistance(transform.position, target) < Mathf.Min(15f, CircleMin) || _timer <= 0f)
             {
                 Vector3 pos = transform.position;
                 BeginCircle(target, Mathf.Atan2(pos.z - target.z, pos.x - target.x));
@@ -266,7 +273,7 @@ namespace WildLens.Wildlife
         {
             Vector3 fwd = TerrainUtil.Flat(_vel);
             if (fwd.sqrMagnitude < 0.01f) fwd = transform.forward;
-            Vector3 target = transform.position + fwd.normalized * 20f + Vector3.up * 12f;
+            Vector3 target = transform.position + fwd.normalized * 20f + Vector3.up * Mathf.Min(12f, maxAltitude);
             Steer(target, Cruise, 1.5f, dt);
             IsFlapping = true;
 
@@ -276,7 +283,7 @@ namespace WildLens.Wildlife
                 if (_fledPerch && Awareness != null) Awareness.EndFlee();
                 // Join a circle that passes through the current position.
                 Vector3 right = Vector3.Cross(Vector3.up, fwd.normalized) * _circleDir;
-                float radius = Range(16f, 34f);
+                float radius = Range(CircleMin, CircleMax);
                 Vector3 center = transform.position + right * radius;
                 BeginCircle(center, Mathf.Atan2(transform.position.z - center.z, transform.position.x - center.x));
                 _circleRadius = radius;

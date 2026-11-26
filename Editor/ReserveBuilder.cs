@@ -244,23 +244,23 @@ namespace WildLens.EditorTools
                 case DestinationKind.RidgeOverlook:
                     site.title = "Ridge Overlook";
                     site.note = "The highest ground in the reserve. Red-tailed hawks hunt the slopes below.";
-                    site.residents = new[] { "red_tailed_hawk", "red_tailed_hawk" };
+                    site.residents = new[] { "red_tailed_hawk", "red_tailed_hawk", "coyote" };
                     break;
                 case DestinationKind.Wetland:
                     site.title = "Cattail Pond";
-                    site.note = "Still water in the low ground. Deer come down to drink at the reed edge.";
-                    site.residents = new[] { "white_tailed_deer" };
+                    site.note = "Still water in the low ground. A heron fishes the shallows at dawn; deer drink at dusk.";
+                    site.residents = new[] { "white_tailed_deer", "great_blue_heron", "red_winged_blackbird", "raccoon" };
                     site.water = 14f;
                     break;
                 case DestinationKind.OldGrowth:
                     site.title = "Old-Growth Grove";
-                    site.note = "The oldest trees in the reserve. Squirrels everywhere; a fox dens among the roots.";
-                    site.residents = new[] { "eastern_gray_squirrel", "red_fox" };
+                    site.note = "The oldest trees in the reserve. A barred owl roosts here by day; a fox dens among the roots.";
+                    site.residents = new[] { "eastern_gray_squirrel", "red_fox", "barred_owl", "blue_jay" };
                     break;
                 case DestinationKind.ObservationBlind:
                     site.title = "Wildflower Meadow Blind";
                     site.note = "A wooden hide on the meadow's edge. Step inside and you all but disappear.";
-                    site.residents = new[] { "white_tailed_deer", "eastern_cottontail" };
+                    site.residents = new[] { "white_tailed_deer", "eastern_cottontail", "northern_cardinal", "wild_turkey" };
                     break;
             }
             _sites.Add(site);
