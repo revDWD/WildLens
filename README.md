@@ -17,6 +17,7 @@ worth keeping. The reserve changes from dawn mist to golden hour to dusk, and it
 | [`Documentation~/ReserveExpansion.md`](Documentation~/ReserveExpansion.md) | Reserve design principles and next places |
 | [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md) | Adding species: the framework, ten planned species, assets |
 | [`Documentation~/VisualRoadmap.md`](Documentation~/VisualRoadmap.md) | Art sources, licences, visual weaknesses, Unity 6 notes |
+| [`Documentation~/EnvironmentMigration.md`](Documentation~/EnvironmentMigration.md) | Environment audit, free asset list, migration plan, before/after |
 
 ## Install & run
 
@@ -101,10 +102,13 @@ database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials,
   the builder settings to see the worked examples (Raccoon, Great Blue Heron).
 - Real art: **WildLens ▸ Animal Model Setup** turns an animated model into the species' prefab.
 
-### Using your own scenery assets
-In the builder settings, assign **Tree / Bush / Rock prefabs**. If there are no tree prefabs, the builder uses
-the terrain's own tree prototypes, and only then falls back to placeholders. Add `EnvironmentFeature` to any
-prefab so squirrels can climb it and hawks can perch on it.
+### Using your own scenery assets (Environment Kit, 1.2)
+Import free nature packs into your project (Unity's free **Terrain URP Demo Scene** and **Terrain Sample Asset Pack**
+are the best start), then **WildLens ▸ Vertical Slice Builder ▸ Scan Project for Nature Assets** and Rebuild. The
+kit sorts trees, shrubs, rocks, terrain layers and grass by ecological role, and the builder places each where it
+belongs with the colliders and wildlife data gameplay needs. Store assets are never committed to this repository.
+Details: [`Documentation~/EnvironmentMigration.md`](Documentation~/EnvironmentMigration.md). (The older **Tree / Bush
+/ Rock prefabs** lists in the builder settings still work, and place prefabs at random.)
 
 ## Save data
 - Journal: `Application.persistentDataPath/WildLens/journal.json`

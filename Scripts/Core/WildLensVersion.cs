@@ -7,8 +7,8 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.1.0";
-        public const string ReleaseName = "More Life";
+        public const string Package = "1.2.0";
+        public const string ReleaseName = "Habitat Kit";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
@@ -40,6 +40,7 @@ namespace WildLens.Core
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.2  Habitat kit: rock outcrops; free Unity trees, grass and ground by habitat",
             "1.1  More life: herons, owls, turkeys, songbirds and seven more species",
             "1.0  Field season: a smoother Reserve Road, finished destinations, richer woodland edges",
             "0.9  Time of day: dawn mist, golden hour, wildlife rhythms, the Reserve Road, new trees",

@@ -1,6 +1,13 @@
 # WildLens visual roadmap & asset recommendations
 
-Updated for 0.9.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
+Updated for 1.2.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
+For the environment audit, the free asset list and the migration plan, see **`EnvironmentMigration.md`**.
+
+## Integrated in 1.2.0
+| Area | Asset(s) | Result |
+|---|---|---|
+| Geology | Poly Haven *Rock Face 01* and *Rock Face 02* (CC0, 20k/30k triangles, 1k maps, 5.6 MB) | Bedrock outcrops on steep slopes and the ridge's flanks |
+| Trees, grass, ground (user's project) | **Environment Kit**: Unity's free *Terrain URP Demo Scene* (SpeedTree trees) and *Terrain Sample Asset Pack* (instanced detail vegetation) are the recommended start | Placed by ecological role; never committed (Asset Store EULA) |
 
 ## Integrated in 0.6.0
 | Area | Asset(s) | Result |
@@ -80,9 +87,10 @@ correctly scaled prefab with root motion off, and assigns it to the species. Exp
 (clip choice, yaw, size). **One beautiful deer first.**
 
 ## Trees (highest remaining environment weakness)
-* Paid, game-ready, URP, with LODs and wind: SpeedTree (Unity integration, best wind/LOD) or Asset Store nature packs
-  that ship URP shaders and LODs. Assign as tree prefabs in the builder; placement, wildlife data and sway are automatic
-  (prefab trees use the WindZone instead of FoliageSway).
+* **Free first (1.2):** Unity's *Terrain URP Demo Scene* ships custom SpeedTree trees with LODs and wind. Import it,
+  then **Scan Project for Nature Assets**; the Environment Kit places them by role with colliders and wildlife data.
+* Paid, game-ready, URP, with LODs and wind: SpeedTree or Asset Store nature packs that ship URP shaders and LODs.
+  Drop them into the kit's roles (or scan); placement, wildlife data and wind are automatic (the WindZone drives them).
 * The free Unity *Terrain Sample Asset Pack* provides URP terrain materials/details (ODbL height data).
 
 ## Remaining visual weaknesses (honest list)

@@ -1,6 +1,27 @@
 # Changelog
 
-## [1.1.0] More Life (in progress)
+## [1.2.0] Habitat Kit
+An environment pass that keeps every gameplay system as it is: better rocks now, and a supported route to
+high-quality free trees, grass and ground. Store assets can't be committed to this public repository, so they are
+imported into your own project and WildLens places them. See `Documentation~/EnvironmentMigration.md` (audit, free
+asset list, plan, before/after).
+- **Bedrock outcrops**: two scanned CC0 rock faces (Poly Haven *Rock Face 01/02*) break the surface on the steepest
+  slopes and on the ridge's flanks, turned to face downhill and set into the ground.
+- **Environment Kit** (`WildLens ▸ Environment Kit`, or the builder window): free nature assets in your project sorted
+  by ecological role (conifer, broadleaf, creek-side, old-growth, young trees; shrubs, ferns, rocks, boulders, logs,
+  stumps; five terrain layers; six grass and flower slots). The builder puts each where it belongs: creek-side trees
+  along Willow Creek, giants in the grove, saplings at woodland edges, layers and grass in their painted zones. Kit
+  trees get trunk and crown colliders and wildlife data automatically, keep their own LODs and wind, and never mix
+  with generated trees.
+- **Scan Project for Nature Assets** fills the kit from what you've imported, including the trees, grass and layers
+  inside a demo scene's terrain (Unity's free *Terrain URP Demo Scene* and *Terrain Sample Asset Pack* are the
+  recommended start). It skips stylised, low-poly and wrong-biome art and anything that would render pink in your
+  render pipeline, and says why.
+- An empty kit changes nothing: the reserve rebuilds exactly as before.
+- **Compile check fixed**: `Tools~/CompileCheck/Check.csproj` had never been committed (ignored by `*.csproj`).
+- Environment version 13; art import version 3 (**rebuild the slice**).
+
+## [1.1.0] More Life
 Biodiversity pass: the reserve goes from five species to fifteen, all as data on the 1.0 species framework. No new AI.
 - **New species** (generic placeholder bodies, data rhythms): Great Blue Heron and Raccoon (now always on), Wild Turkey,
   Barred Owl, Groundhog, Northern Cardinal, Blue Jay, Red-winged Blackbird, Virginia Opossum, Coyote.

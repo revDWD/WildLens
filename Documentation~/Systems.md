@@ -192,6 +192,39 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Environment Kit and outcrops (1.2.0)
+Plan, asset list and instructions: `EnvironmentMigration.md`.
+* **Kit asset** (`Editor/EnvironmentKit.cs`, saved at `Assets/WildLens/Data/EnvironmentKit.asset`, referenced by
+  `SliceBuildSettings.environmentKit`): prefab arrays per role (`conifers`, `broadleaf`, `riparian`, `oldGrowth`,
+  `young`, `shrubs`, `ferns`, `rocks`, `boulders`, `logs`, `stumps`), five `TerrainLayer` slots in the painter's order
+  (grass, meadow, forest floor, dirt, rock) and six `KitDetail` slots (short grass, meadow grass, yellow, white, fern,
+  purple), each an instanced mesh prefab or a billboard texture with `density` and `scale`. `treeScale`,
+  `replaceAllGeneratedTrees` (roles borrow from each other; never mix in generated trees), `mixWithBundledArt`.
+* **Placement** (`Editor/KitPlacement.cs`, a `VegetationBuilder` partial): `Conifer()` and `Deciduous()` return a kit
+  tree first, so every caller (scatter, grove, edges) is covered; `BuildTrees` asks for a **riparian** tree within 16 m
+  of the creek (75%), swaps edge "young" trees for real saplings, and the grove's giants use `GiantTree()` (kit giants
+  scaled ×1.1–1.3, not ×1.7–2). Kit props are merged into the CC0 lists (`_artShrubs`, `_artRocks` …) in
+  `PrepareAssets`, so every builder that uses scans uses them too; `PlaceArt` gives them gameplay components; shrubs
+  are used beyond 30 m only when the kit has some. Terrain: `ApplyKitLayers`, `ApplyKitDetails` (mesh details use
+  `useInstancing` on 2022.2+ by reflection), per-slot density multipliers.
+* **Gameplay components** (`EnsureTreeGameplay`, `EnsurePropGameplay`): solid trunk capsule (r = 0.12 + 1.2% of height)
+  if the prefab has no solid collider; trigger crown capsule (0.6 h centre, 0.75 h tall, 0.17 h radius) if it has no
+  trigger; `EnvironmentFeature`; one-level distance cull unless it has a LODGroup. Props: box collider from the
+  unrotated mesh bounds (trigger for shrubs) and a feature. Kit trees and shrubs are never static-batched.
+* **Determinism**: every kit check short-circuits before calling the random generator, so an empty kit leaves the
+  sequence (and the reserve) identical. Keep it that way.
+* **Scanner** (`Editor/EnvironmentKitScanner.cs`): every `TerrainData` (tree prototypes, detail meshes/textures,
+  layers), every `TerrainLayer`, every prefab/model/SpeedTree asset under `Assets/` except `Assets/WildLens`. Words
+  from the file name first, then folders (digits dropped, camelCase split); unnamed trees by silhouette (width/height
+  < 0.42 → conifer); rocks > 2.5 m → boulders, > 12 m rejected (cliffs); no named giants → broadleaf trees ≥ 1.25×
+  the median height and > 12 m. Rejects: stylised/low-poly/fantasy/wrong-biome words, dead trees, LOD1+/billboard/
+  collider parts, materials missing or for another pipeline. Up to 8 per role, sorted by path. `Rescan` replaces.
+* **Outcrops** (`VegetationBuilder.BuildOutcrops/PlaceOutcrop`, `ArtKind.Outcrop`): Poly Haven Rock Face 01/02 are open
+  shells facing up and toward +Z; `ArtLibrary.FaceForward` re-measures that from the mesh normals (meshes imported
+  readable), the material is double-sided, colliders are exact mesh colliders. Up to 9 (×population scale) on the
+  steepest free slopes of 20–48° (≥ 7 m from paths, 9 m from the road, 6 m from the creek, 9 m apart), +Z aimed
+  downhill ±20°, base sunk 18–28% of height; two more on the ridge overlook's flanks (75–105° off the view).
+
 ## 1.0.0 additions
 * **Road grading** (`RoadBuilder.GradeRoads`): per road sample, a ±15 m moving average of ground height; heightmap
   cells within 2.1 + 3.2 m take the nearest profile height, full weight across the road, blending out over the

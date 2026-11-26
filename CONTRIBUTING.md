@@ -11,7 +11,7 @@ practical side.
 
 ## The loop
 1. Change code or builder logic.
-2. **Compile check** (seconds, no Unity needed): `Tools~/CompileCheck/compile-check.sh` builds five
+2. **Compile check** (seconds, no Unity needed; needs the .NET SDK 6+): `Tools~/CompileCheck/compile-check.sh` builds five
    configurations (2021.3 legacy input, Input System, Unity 6 + URP, and both editor builds). See its README.
 3. **Rebuild the slice** in Unity (the scene is generated; never hand-edit it). Builder output changed? Bump
    `WildLensVersion.Environment`, or players' scenes won't be flagged as stale.
