@@ -11,7 +11,8 @@ without the Unity Editor) can catch compile errors before committing:
 | Editor | Editor assembly against the Legacy runtime |
 | Editor6URP | Editor assembly, Unity 6 defines, URP |
 
-It downloads reference assemblies from NuGet once (`UnityEngine.Modules` 2021.3.33 and `Unity3D.SDK` 2021.1.14.1) into
+`Check.csproj` is the MSBuild project the script drives (the repo-wide `.gitignore` ignores `*.csproj`; this folder's own
+`.gitignore` re-includes it, so it is committed). It downloads reference assemblies from NuGet once (`UnityEngine.Modules` 2021.3.33 and `Unity3D.SDK` 2021.1.14.1) into
 `~/.cache/wildlens-unityref` (override with `WILDLENS_UNITYREF`). uGUI, the Input System and URP aren't on NuGet, so
 `stubs/` declares just the members WildLens uses. **If you use a new member of those APIs, add it to a stub** (an
 error mentioning `UnityEngine.UI`, `InputSystem` or `Rendering.Universal` usually means a missing stub, not a bug).

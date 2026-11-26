@@ -1,0 +1,45 @@
+<!--
+  Compile-check project driven by compile-check.sh (not used by Unity: this folder ends in "~").
+  Properties: Part = Runtime | Editor, Config = output name, Defines = scripting defines (";" escaped as %3B),
+  UnityRef = folder holding the NuGet reference DLLs, RuntimeDll = the runtime build the Editor part references.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CS0414;CS0649;CS0169;CS0067;CS0618;CS0672;CS1701;CS1702;MSB3277;MSB3243;NU1701</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DefineConstants>$(Defines)</DefineConstants>
+    <AssemblyName>WildLens.$(Part).$(Config)</AssemblyName>
+    <OutputPath>bin/$(Config)/</OutputPath>
+    <BaseIntermediateOutputPath>obj/$(Config)/</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>obj/$(Config)/</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(Part)' == 'Runtime'">
+    <Compile Include="../../Scripts/**/*.cs" />
+    <Compile Include="stubs/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Part)' == 'Editor'">
+    <Compile Include="../../Editor/**/*.cs" />
+    <Reference Include="WildLens.Runtime">
+      <HintPath>$(RuntimeDll)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEditor">
+      <HintPath>$(UnityRef)/sdk/lib/UnityEditor.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(UnityRef)/mods/lib/net35/*.dll" Private="false" />
+  </ItemGroup>
+</Project>
