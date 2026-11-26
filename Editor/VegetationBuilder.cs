@@ -155,7 +155,7 @@ namespace WildLens.EditorTools
 
             // Scanned art (CC0, shipped in the package): replaces flat colours and primitive props where available.
             _art = _s.useScannedArt && ArtLibrary.Import();
-            if (!_art) return;
+            if (!_art) { MergeKitProps(); return; }
             var barkA = ArtLibrary.SurfaceMaterial("BarkBroadleaf", "Surfaces/bark_brown_02_diff_1k.jpg", "Surfaces/bark_brown_02_nor_gl_1k.jpg", Color.white, new Vector2(2f, 3f));
             var barkB = ArtLibrary.SurfaceMaterial("BarkBroadleafDark", "Surfaces/bark_brown_02_diff_1k.jpg", "Surfaces/bark_brown_02_nor_gl_1k.jpg", new Color(0.82f, 0.78f, 0.74f), new Vector2(2f, 3f));
             if (barkA != null && barkB != null) _bark = new[] { barkA, barkB };
@@ -172,12 +172,14 @@ namespace WildLens.EditorTools
             _artOutcrops = ArtLibrary.Prefabs(ArtKind.Outcrop);
             PrepareFoliageCards();
             PrepareTreeParts();
+            MergeKitProps(); // 1.2: the user's Environment Kit joins (or replaces) the bundled scans
         }
 
         private T Pick<T>(T[] array) => array[_rng.Next(array.Length)];
 
-        private static void MakeStatic(GameObject go)
+        private void MakeStatic(GameObject go)
         {
+            if (KeepDynamic(go)) return;
             foreach (var t in go.GetComponentsInChildren<Transform>())
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic);
         }
@@ -189,8 +191,9 @@ namespace WildLens.EditorTools
             sway.Configure(parts.ToArray(), height, amplitude, frequency);
         }
 
-        private static void MakeStaticExceptSway(GameObject go)
+        private void MakeStaticExceptSway(GameObject go)
         {
+            if (KeepDynamic(go)) return;
             MakeStatic(go);
             var sway = go.GetComponent<FoliageSway>();
             if (sway == null) return;
@@ -226,6 +229,7 @@ namespace WildLens.EditorTools
         /// </summary>
         private static void AddDistanceCull(GameObject tree, float screenHeight)
         {
+            if (tree.GetComponentInChildren<LODGroup>() != null) return; // the prefab brings its own LODs
             var lod = tree.AddComponent<LODGroup>();
             lod.SetLODs(new[] { new LOD(screenHeight, tree.GetComponentsInChildren<Renderer>()) });
             lod.RecalculateBounds();
@@ -443,7 +447,9 @@ namespace WildLens.EditorTools
         /// <summary>Places a scanned-art prefab (which already carries colliders and wildlife data), sunk slightly and tilted to sit naturally.</summary>
         private GameObject PlaceArt(List<GameObject> options, Transform parent, Vector3 p, float scale, float sink, float tilt)
         {
-            var go = InstantiatePrefab(options[_rng.Next(options.Count)], parent, p, scale);
+            var prefab = options[_rng.Next(options.Count)];
+            var go = InstantiatePrefab(prefab, parent, p, scale);
+            if (_kitProps.TryGetValue(prefab, out var kitKind)) EnsurePropGameplay(go, kitKind);
             var f = go.GetComponent<EnvironmentFeature>();
             float h = f != null ? f.height * scale : 0f;
             go.transform.position = p - Vector3.up * h * sink;
@@ -508,10 +514,19 @@ namespace WildLens.EditorTools
                 else
                 {
                     bool conifer = Mathf.PerlinNoise(_noiseOffset * 0.5f + p.x * 0.03f, p.z * 0.03f) > 0.5f;
-                    tree = conifer ? Conifer(parent, p) : Deciduous(parent, p);
+                    // 1.2: with an Environment Kit, birches and willows crowd Willow Creek.
+                    tree = HasKitTrees && CreekDistance(p) < 16f && R() < 0.75f ? KitTree(TreeRole.Riparian, parent, p) : null;
+                    if (tree == null) tree = conifer ? Conifer(parent, p) : Deciduous(parent, p);
                 }
                 // 1.0: young trees where woodland thins into grassland, so edges grade instead of stopping dead.
-                if (prefabs.Count == 0 && f > 0.3f && f < 0.52f && R() < 0.38f)
+                bool youngEdge = prefabs.Count == 0 && f > 0.3f && f < 0.52f && R() < 0.38f;
+                if (youngEdge && IsKit(tree) && KitTreeOptions(TreeRole.Young).Count > 0)
+                {
+                    Object.DestroyImmediate(tree); // the kit has real saplings: use one as authored
+                    KitTreesPlaced--;
+                    tree = KitTree(TreeRole.Young, parent, p);
+                }
+                else if (youngEdge)
                 {
                     float k = R(0.42f, 0.65f);
                     tree.transform.localScale *= k;
@@ -529,6 +544,7 @@ namespace WildLens.EditorTools
 
         private GameObject Conifer(Transform parent, Vector3 p)
         {
+            if (HasKitTrees) { var kit = KitTree(TreeRole.Conifer, parent, p); if (kit != null) return kit; }
             if (_cards) return WhorlConifer(parent, p);
             float h = R(8f, 15f);
             float trunkR = 0.16f + h * 0.012f;
@@ -569,6 +585,7 @@ namespace WildLens.EditorTools
 
         private GameObject Deciduous(Transform parent, Vector3 p)
         {
+            if (HasKitTrees) { var kit = KitTree(TreeRole.Broadleaf, parent, p); if (kit != null) return kit; }
             if (_cards) return BranchingBroadleaf(parent, p);
             float h = R(7f, 12f);
             float trunkR = 0.15f + h * 0.014f;
@@ -636,7 +653,7 @@ namespace WildLens.EditorTools
 
                 GameObject bush;
                 float s = R(0.6f, 1.4f);
-                if (prefabs.Count == 0 && _artShrubs.Count > 0 && d < 30f && R() < 0.65f)
+                if (prefabs.Count == 0 && _artShrubs.Count > 0 && (HasKitShrubs || (d < 30f && R() < 0.65f)))
                 {
                     // Scanned shrubs where the player will see them up close.
                     bush = PlaceArt(_artShrubs, parent, p, R(0.8f, 1.3f), 0.02f, 3f);

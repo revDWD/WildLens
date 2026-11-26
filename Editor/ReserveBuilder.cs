@@ -882,9 +882,10 @@ namespace WildLens.EditorTools
             {
                 Vector3 p = TerrainUtil.Ground(s.centre + Quaternion.Euler(0f, i * 120f + R(-20f, 20f), 0f) * f * R(10f, 13f));
                 Clear(p, 4f);
-                var giant = Deciduous(group, p);
+                var giant = GiantTree(group, p);
+                bool kitGiant = IsKit(giant);
                 giant.name = "Old-Growth Giant";
-                float k = R(1.7f, 2f);
+                float k = kitGiant ? R(1.1f, 1.3f) : R(1.7f, 2f); // a kit giant is already modelled big
                 giant.transform.localScale *= k;
                 var feature = giant.GetComponent<EnvironmentFeature>();
                 if (feature != null) { feature.radius *= k; feature.height *= k; }

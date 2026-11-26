@@ -152,6 +152,7 @@ namespace WildLens.EditorTools
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +
                           $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.HotspotsPlaced} habitat hotspots, " +
+                          (veg.KitTreesPlaced + veg.KitPropsPlaced > 0 ? $"Environment Kit: {veg.KitTreesPlaced} trees, {veg.KitPropsPlaced} props; " : "") +
                           $"{veg.ViewpointsPlaced} viewpoints, {veg.DestinationsPlaced} reserve destinations ({veg.TrackLength / 1000f:0.0} km of tracks, creek {veg.CreekLength:0} m), terrain {(s.paintTerrain ? "painted" : "untouched")}, grass: {(details ? "terrain details (wind)" : veg.GrassPlaced + " mesh tufts")}. " +
                           "Save the scene, then press Play.");
             }

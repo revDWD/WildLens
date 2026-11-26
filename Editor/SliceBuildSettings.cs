@@ -44,6 +44,11 @@ namespace WildLens.EditorTools
         public bool openMeadowInsideLoop = true;
 
         [Header("Use your own assets (optional)")]
+        [Tooltip("Free nature assets imported into this project (Unity's terrain demo and sample packs, free tree and rock packs), " +
+                 "sorted by ecological role. Fill it with WildLens > Environment Kit > Scan Project for Nature Assets. " +
+                 "Empty or unset: the bundled CC0 art and generated trees are used.")]
+        public EnvironmentKit environmentKit;
+        [Tooltip("Any trees, placed at random (older option). The Environment Kit above places trees by ecological role instead.")]
         public GameObject[] treePrefabs = new GameObject[0];
         public GameObject[] bushPrefabs = new GameObject[0];
         public GameObject[] rockPrefabs = new GameObject[0];

@@ -46,7 +46,7 @@ namespace WildLens.EditorTools
             var trees = new TreeGrid(_treeObjects);
 
             EditorUtility.DisplayProgressBar("WildLens", "Generating terrain textures…", 0.72f);
-            data.terrainLayers = CreateTerrainLayers();
+            data.terrainLayers = ApplyKitLayers(CreateTerrainLayers()); // 1.2: Environment Kit layers fill their slots
 
             EditorUtility.DisplayProgressBar("WildLens", "Painting terrain…", 0.76f);
             var roadField = HasRoads ? new TrailDistanceField(RoadDistance, _terrain) : null;
@@ -170,6 +170,8 @@ namespace WildLens.EditorTools
                 Detail(DetailTexture("FlowersPurple", (px, n) => DrawFlowers(px, n, new Color(0.62f, 0.45f, 0.86f))), Color.white, new Color(0.92f, 0.88f, 0.9f), 0.35f, 0.55f, 0.32f, 0.52f),
             };
             for (int i = 0; i < protos.Length; i++) protos[i] = Modern(protos[i]);
+            var kitDensity = new[] { 1f, 1f, 1f, 1f, 1f, 1f };
+            ApplyKitDetails(protos, kitDensity); // 1.2: Environment Kit grass and flowers fill their slots
             data.detailPrototypes = protos;
             SetInstanceCountScatter(data);
 
@@ -198,15 +200,15 @@ namespace WildLens.EditorTools
                 float meadow = MeadowMask(p, n);
                 float trunk = trees.Nearest(p, 2f);
 
-                layers[0][z, x] = Count(10f * open * (1f - meadow * 0.5f) * edge * (0.6f + 0.8f * n), cellArea);
-                layers[1][z, x] = Count(7f * meadow * edge * (0.5f + n), cellArea);
+                layers[0][z, x] = Count(kitDensity[0] * (10f * open * (1f - meadow * 0.5f) * edge * (0.6f + 0.8f * n)), cellArea);
+                layers[1][z, x] = Count(kitDensity[1] * (7f * meadow * edge * (0.5f + n)), cellArea);
                 float flowers = meadow * 0.7f + open * 0.04f;
-                layers[2][z, x] = Count(flowers * edge * (n > 0.55f ? 1.2f : 0.2f), cellArea);
-                layers[3][z, x] = Count(flowers * edge * (n < 0.4f ? 1f : 0.15f), cellArea);
+                layers[2][z, x] = Count(kitDensity[2] * (flowers * edge * (n > 0.55f ? 1.2f : 0.2f)), cellArea);
+                layers[3][z, x] = Count(kitDensity[3] * (flowers * edge * (n < 0.4f ? 1f : 0.15f)), cellArea);
                 float wet = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3f, 14f, creekD)); // ferns crowd the creek
-                layers[4][z, x] = trunk < 0.9f ? 0 : Count((3f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 0.75f, forest)) + 4f * wet) * (0.4f + n), cellArea);
+                layers[4][z, x] = trunk < 0.9f ? 0 : Count(kitDensity[4] * ((3f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 0.75f, forest)) + 4f * wet) * (0.4f + n)), cellArea);
                 // Purple asters in the meadows (0.8): colour that says "wildflower meadow" at a glance.
-                layers[5][z, x] = Count(meadow * edge * (n > 0.4f && n < 0.58f ? 1.1f : 0.1f), cellArea);
+                layers[5][z, x] = Count(kitDensity[5] * (meadow * edge * (n > 0.4f && n < 0.58f ? 1.1f : 0.1f)), cellArea);
             }
             for (int i = 0; i < 6; i++) data.SetDetailLayer(0, 0, i, layers[i]);
 

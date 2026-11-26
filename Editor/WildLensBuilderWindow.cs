@@ -79,6 +79,20 @@ namespace WildLens.EditorTools
             EditorGUILayout.EndScrollView();
 
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Environment Kit (free nature packs in this project)", EditorStyles.boldLabel);
+            var kit = _settings.environmentKit;
+            EditorGUILayout.HelpBox(kit == null || kit.IsEmpty
+                ? "None. Import free packs (Unity's Terrain URP Demo Scene and Terrain Sample Asset Pack are the best start; see " +
+                  "Documentation~/EnvironmentMigration.md), then Scan. Until then the bundled CC0 art and generated trees are used."
+                : kit.Summary(), MessageType.None);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                using (new EditorGUI.DisabledScope(Application.isPlaying))
+                    if (GUILayout.Button("Scan Project for Nature Assets")) EnvironmentKitScanner.ScanAndAssign(false);
+                if (GUILayout.Button("Select Kit", GUILayout.Width(90))) EnvironmentKitScanner.SelectKit();
+            }
+
+            EditorGUILayout.Space();
             using (new EditorGUI.DisabledScope(Application.isPlaying))
             {
                 bool exists = WildLensSliceBuilder.FindExistingRoot() != null;
