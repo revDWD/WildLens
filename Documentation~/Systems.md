@@ -192,6 +192,30 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Time of day (0.9.0)
+* **`DayCycle`** (`Scripts/Environment/DayCycle.cs`, built by `WildLensSliceBuilder.BuildDayCycle`): `Hour` advances at
+  `minutesPerHour` real minutes per hour (×`waitSpeed` while T is held and the player is still; ×`nightSpeed` at
+  night). Periods: Dawn 5–7, Morning 7–11, Midday 11–15:30, Golden hour 15:30–18:30, Dusk 18:30–20:30, Night.
+  `SunPosition` (azimuth 95°→265°, elevation peaking at 49°); a key table sets sun intensity/colour, ambient, sky
+  exposure/tint, fog density/tint, white-balance and exposure offsets. Sky images: morning before 15:30, golden after,
+  rotated (`_Rotation = skyAz − sunAz`) so the painted sun matches the light. Runtime copies of sky materials and the
+  volume profile, so Play never edits assets. `DynamicGI.UpdateEnvironment` every 2.5 s. Settings: *Time of day* in the
+  builder settings (on/off, start hour, minutes per hour).
+* **`MistPatch`**: particle mist in a flat box; opacity from `MistPatch.Intensity(hour)` (dawn peak, gone by 09:00,
+  light dusk haze). Material made by the builder (`M_DawnMist`) for the active pipeline.
+* **`WildlifeSchedule`** (`Scripts/Wildlife/`): on each period change, moves every animal's home (`AnimalAgent.SetHome`)
+  to the nearest place of the right kind within 320 m of its `OriginHome` (450 m for the ridge): meadow / meadow
+  edge / brush / perch hotspots, or `ScheduleAnchor`s (Water: pond far shore and creek banks; Woodland: dense cover;
+  Ridge: over the overlook view). Sets `ActivityBias` (`SpeciesDefinition.PickBehavior` multiplies weights). Rules
+  are a small table in code (`Where`, `Bias`); no new AI.
+* **Trail hierarchy** (`Editor/RoadBuilder.cs`): `ReserveTrack.kind` Road/Footpath. The road ring routes trailhead →
+  each destination pull-off (in bearing order) → trailhead with an A* that strongly prefers gentle grades and stays
+  outside the loop. `PathDistance` measures to each path's *edge* (normalised to the loop's width), so clearance and
+  painting work for every width; roads paint as gravel (`RoadDistance` field). `TrailBike.Surface` sets the speed
+  tier.
+* **Trees** (`VegetationBuilder.WhorlConifer`, `BranchingBroadleaf`; `FoliageCards.ConiferCrown`;
+  `ProceduralMeshes.Frustum`): see the 0.9 changelog. Placeholder trees without foliage cards keep the old builders.
+
 ## Ecosystem pass (0.8.0)
 * **Willow Creek** (`Editor/EcosystemBuilder.cs` → `PlanCreek`): source on the ridge's flank, mouth in the pond
   (falls back to highest/lowest ground if either is missing). A* on 5 m cells that penalises climbing (water runs

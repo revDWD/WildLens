@@ -24,6 +24,13 @@ Ecological structure (dense, open, sparse), water that connects places, habitats
 evidence of stewardship, and wildlife found where it would really be. Someone should want to spend an afternoon here:
 walking trails, riding the trail bike, stopping at overlooks, watching wildlife, taking photographs.
 
+**Direction (from 0.9): a place with rhythms.** The reserve changes through the day (dawn mist, golden hour, dusk),
+and so does its wildlife. Players should come to think *"I want the pond at dawn"*, *"I'll ride to the ridge before
+sunset"*, *"deer come to the creek in the evening"*, and those decisions should emerge from the world, not from
+quests or markers. **Why a believable place instead of more game systems:** every playtest since 0.6 has rewarded
+realism of place (light, habitat, water, signs) and been indifferent to mechanics. A photography game's content *is*
+what's in front of the lens: a real-feeling reserve produces endless photographs; another system produces menus.
+
 Inspirations:
 - *Pokémon Snap*: the photograph is the reward, and grading it is the game.
 - *Firewatch*: a place that feels real, painterly light, and a calm pace.
@@ -80,6 +87,12 @@ an animal is always on foot. You can raise the camera stopped in the saddle, but
   riparian corridor, wetland edge), not just from distance. Avoid uniform density anywhere.
 - **Encounters from placement, not mechanics.** Deer at water, deer crossing a track, rabbits on brushy edges,
   hawks on the ridge snag, squirrels in mature forest: achieved with hotspots and residences, no new AI.
+- **Rhythms from the clock, not from scripts.** Time of day moves light, mist and animals' home ranges; it never
+  spawns or despawns animals or triggers events. Patterns must be learnable and consistent: deer at water at dusk
+  every evening, not "sometimes".
+- **Trail hierarchy.** The Reserve Road is for getting between destinations (riding); footpaths and the loop are for
+  being somewhere (walking). Roads stop at pull-offs; you always walk the last stretch. Never make the bike faster:
+  fix the routes.
 - **Stewardship, lightly.** Signs, bridges, benches, marker posts, a ranger's log: enough to say "someone looks
   after this place", never enough to feel like a theme park.
 - **The trailhead board is the dashboard.** Players (and testers) see the version, build, features and recent
@@ -121,12 +134,13 @@ Scripts/
   Wildlife/      AnimalAgent → GroundAnimal / FlyingAnimal (behaviour states), Awareness/WildlifeAwareness
                  (Calm/Aware/Alert/Fleeing), WildlifeSpawner, WildlifeWorld (trees, perches, hotspots),
                  PlaceholderAnimalBuilder + AnimalRig + ProceduralAnimalAnimator (placeholder bodies),
-                 AnimalAnimatorBridge (drives Mecanim on authored prefabs)
+                 AnimalAnimatorBridge (drives Mecanim on authored prefabs), WildlifeSchedule (daily rhythms)
   Environment/   HabitatHotspot, ScenicViewpoint, EnvironmentFeature, TrailPath, FoliageSway, WildLensWind,
                  SliceInfo (build version marker), ReserveDestination (named place, residents, arrival note),
                  ReserveTrack (track polyline), ObservationBlind (concealment), ReserveInfoBoard (trailhead board + map),
                  ReserveCreek (creek line), ReserveParking (bike pull-offs), WildlifeResidence (species at a place),
-                 RideableSurface (bridge decks the bike rides), AmbientSound (procedural wind/brook)
+                 RideableSurface (bridge decks the bike rides), AmbientSound (procedural wind/brook),
+                 DayCycle (clock, sun, sky, fog, grading), MistPatch (dawn mist), ScheduleAnchor (water/woodland/ridge)
   Journal/       JournalService, JournalData (save + migration)
   UI/            HudController (owns views), ViewfinderView, PhotoPreviewView (prints, keeper), ShutterEffectView,
                  NoticeView, JournalUI, UIFactory
@@ -135,7 +149,8 @@ Scripts/
 Editor/
   WildLensSliceBuilder (pipeline), WildLensBuilderWindow, SliceBuildSettings, TrailBuilder, PropBuilder,
   VegetationBuilder (+ partials TerrainPainter, HabitatHotspotBuilder, ViewpointBuilder, ReserveBuilder,
-  EcosystemBuilder: creek, pull-offs, storytelling, residences), FoliageCards,
+  EcosystemBuilder: creek, pull-offs, storytelling, residences, anchors, mist; RoadBuilder: Reserve Road),
+  FoliageCards (leaf clusters, conifer crowns),
   ArtLibrary (CC0 art import, prefabs, sky), GeneratedAssets, ProceduralMeshes, ComparisonCapture,
   SpeciesAssetMigrator, AnimalModelSetup (bought model → species prefab)
 Art~/            CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
@@ -164,6 +179,8 @@ Key flows:
   carve, water) → blind pad → tracks (cross the creek squarely) → **pull-offs** → scenery (density zones; riparian
   bias; creek and keep-out exclusion) → destinations → **ecosystem build** (bridges, creek life, markers,
   residences) → painting (creek bed/banks; asters; no grass in keep-outs).
+- **Time of day (0.9):** `DayCycle` → sun/sky/fog/grading each frame; `PeriodChanged` → `WildlifeSchedule` moves homes
+  and sets activity bias, HUD shows a field note, board updates its "Now" line; `MistPatch` reads the hour.
 - **Riding:** `TrailBike` disables the walking controller and parents the player to the seat; it reports presence
   (with `EngineNoise`) and blocks camera raise while moving; parking puts the player back on foot beside it.
 
@@ -212,7 +229,7 @@ screenshot *is* before theorising; usually it's geometry seen from an angle nobo
 *0.7.1:* the first reserve playtest couldn't get into the Meadow Blind: its doorway (0.7 m) was narrower than the
 player's capsule (0.7 m + skin). *Lesson:* size every walkable opening against the CharacterController.
 
-**0.8.0 Ecosystem Pass** (current). The 0.7 playtest confirmed the foundations (zoom, photography, destinations,
+**0.8.0 Ecosystem Pass.** The 0.7 playtest confirmed the foundations (zoom, photography, destinations,
 kiosk, bike) and said the reserve felt like isolated destinations with too-even density, and the blind didn't work
 as a space. So: Willow Creek as the backbone (carved, bridged, alive), density zones, a distinct identity for each
 destination, light-touch stewardship, pull-offs that make "ride → stop → observe" natural, residences that put
@@ -220,6 +237,15 @@ animals where they'd really be, and a rebuilt blind. *Lessons from 0.7 playtesti
 place; it needs surroundings that lead up to it. A perfect circle (the first pond) reads as man-made instantly.
 A "grove" is defined by shade and enclosure, not by three big trees. A space the player must enter needs designing
 from the inside: door, floor, sightline, and a message that says what it's for.
+
+**0.9.0 Time of Day** (current). 0.8 worked: the reserve became enjoyable to simply be in, Willow Creek tied it
+together. The reserve was frozen in one moment, so 0.9 gave it a day: periods with distinct light, dawn mist, and
+wildlife that keeps hours by placement. Riding exposed a layout problem (every path was a footpath), solved with a
+trail hierarchy (Reserve Road + footpaths) rather than a faster bike. Trees got real structure. The reserve got a name
+and one sign standard. *Lessons from 0.8 playtesting:* connective tissue (the creek) did more for "realness" than any
+destination; density needs to be *felt* along a route, not just measured; the blind worked once designed from inside;
+the grove still read as parkland until the canopy actually closed; a perfectly circular feature always reads as
+man-made; signs only feel curated when they share one style.
 
 **Cross-cutting lessons**
 - When the player says something doesn't work, believe them and **build a probe** before theorising.
@@ -229,35 +255,34 @@ from the inside: door, floor, sightline, and a message that says what it's for.
   either alone.
 - Keep package size in mind: `Art~` ships to every user. Use 2k skies and ground, and drop unused files.
 
-## 6. Current state (0.8.0)
+## 6. Current state (0.9.0)
 
-**Strengths:** the encounter loop; camera feel; legible grading; real skies and light; believable meadows; a reserve
-of distinct places joined by tracks and a creek; a relaxed trail bike with natural places to stop; the trailhead
-board; tooling (F3/F4, comparison capture, stale-scene detection, model setup).
+**Strengths:** the encounter loop; camera feel; legible grading; a reserve of distinct, connected places with a
+day of changing light and wildlife rhythms; a road network sized for the bike and footpaths sized for walking;
+one coherent reserve identity; the trailhead board; tooling.
 
 **Weaknesses and known limitations (honest):**
 1. **Animals are primitive placeholders.** Still the biggest gap; the Animal Model Setup tool is ready.
-2. **Trees read as procedural** (cones dressed in cards; lumpy broadleaf crowns; bare trunks). Now the strongest
-   "generated" signal, more so as the world improves around them. Top visual priority after animals.
-3. **The reserve depends on the terrain it's built on.** Flat ground yields a raised hill and dug pond; the creek is
-   only built when terrain shaping is on. A hand-authored heightmap would fix this.
-4. **Creek water is static** (no flow animation or foam); the creek has no ford or cascade yet.
-5. Props (kiosk, decks, hide, bridges, signs) are flat-coloured boxes; text is TextMesh.
-6. Trail bike: placeholder model, simple kinematic handling, no rider body.
-7. Performance at reserve scale untested on low-end hardware; see the Unity 6 GPU Resident Drawer note in
-   VisualRoadmap.md.
-8. **Unverified in Unity by the author of 0.8**: compiled everywhere, but creek routing/carving, bridges, density
-   zones and the new blind need a playtest pass.
+2. **Trees:** structurally better, but leaf cards are lit like flat paper (no translucency), limbs are plain, there are
+   no real LODs, and only three broadleaf forms.
+3. **Time of day uses two sky images** (morning, golden) re-tinted for dawn/dusk; no true night sky, no weather.
+   Ambient light is re-derived every 2.5 s (fine visually; slight cost).
+4. **Schedules move homes, not individuals' plans**: animals commute when the period changes, which can look
+   synchronised for a group. No per-individual variation yet.
+5. The reserve still depends on the terrain it's built on; creek and road need terrain shaping.
+6. Props are flat-coloured boxes; text is TextMesh.
+7. **Unverified in Unity by the author of 0.9**: compiled everywhere; day cycle look, mist, road routing, new trees and
+   schedules need a playtest pass.
 
-**Visual priorities (in order):** believable animals → believable trees → water that moves → textured props →
-light (golden hour, shafts under the canopy).
+**Visual priorities (in order):** believable animals → tree lighting and LODs → water that moves → textured props →
+weather and night.
 
 **Top future improvements (in order):**
-1. Playtest 0.8: creek course and bridges, blind usability, density feel, pull-off placement.
+1. Playtest 0.9: each period's look, the road ring, tree silhouettes, whether schedules are learnable.
 2. One realistic deer through **WildLens ▸ Animal Model Setup**; then fox and hawk.
-3. Trees: rebuilt procedural conifers (branch whorls) and broadleaf crowns, or a game-ready pack with LODs.
-4. Time of day (dawn mist, golden hour) with animal schedules following it.
-5. Creek part two (ford, cascade), wetland boardwalk, forest footpath, ranger cabin (ReserveExpansion.md).
+3. Tree lighting (translucent leaf cards, ambient occlusion in crowns) and distance LODs/billboards.
+4. Weather (overcast, light rain, wind) as another rhythm; a night sky.
+5. Creek part two, wetland boardwalk, forest footpath, ranger cabin (ReserveExpansion.md).
 
 ## 7. Checklist for changes
 

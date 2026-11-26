@@ -41,6 +41,7 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 | J or Tab | Field journal (pauses the world) · W/S to browse |
 | **R** | Ride the trail bike (next to it) · park and step off (while riding) |
 | W / S · A / D (riding) | Throttle / brake (and slow reverse) · steer |
+| **Hold T** | Let time pass (standing still): wait for dawn, golden hour, dusk |
 | H | Toggle control hints |
 | F3 / F4 | Camera diagnostics overlay / zoom self-test |
 | Esc | Release mouse / close journal |
@@ -50,6 +51,11 @@ squirrels live around big old trees, and hawks perch on dead snags at meadow edg
 animal in the viewfinder to **identify** it (no photo needed). Then **crouch** and creep closer. When it stops and
 stares, freeze until it relaxes. The viewfinder brackets turn green (Good) or gold (Excellent) when the shot is
 right.
+
+**Time of day (0.9):** the reserve runs from dawn to dusk (about sixteen minutes of daylight; hold T to let time
+pass). Mist lies on the pond at dawn, the ridge glows at golden hour, deer move to the meadows in the morning, bed
+down in the woods at midday and come to the water at dusk. The trailhead board says what's happening now and when
+each destination is best. Ride the **Reserve Road** between destinations; footpaths are for walking.
 
 **Willow Creek (0.8)** runs from the ridge to the pond; cross it on footbridges, listen for it, and look for deer
 drinking where it runs through open ground. Riding into a **pull-off** the HUD offers to park; the walk from there

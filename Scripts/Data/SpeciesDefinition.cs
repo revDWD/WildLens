@@ -128,16 +128,17 @@ namespace WildLens.Data
         [Tooltip("Seconds of steady observation (centred in camera mode) needed to identify the species without a photo.")]
         public float observationTime = 1.2f;
 
-        public BehaviorOption PickBehavior(System.Random rng = null)
+        public BehaviorOption PickBehavior(System.Random rng = null, Func<AnimalActivity, float> bias = null)
         {
             if (behaviors == null || behaviors.Count == 0) return null;
+            float W(BehaviorOption b) => Mathf.Max(0f, b.weight) * (bias != null ? Mathf.Max(0f, bias(b.activity)) : 1f);
             float total = 0f;
-            foreach (var b in behaviors) total += Mathf.Max(0f, b.weight);
+            foreach (var b in behaviors) total += W(b);
             if (total <= 0f) return behaviors[0];
             float roll = (rng != null ? (float)rng.NextDouble() : UnityEngine.Random.value) * total;
             foreach (var b in behaviors)
             {
-                roll -= Mathf.Max(0f, b.weight);
+                roll -= W(b);
                 if (roll <= 0f) return b;
             }
             return behaviors[behaviors.Count - 1];

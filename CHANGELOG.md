@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.9.0] Time of Day
+### Added
+- **A day in the reserve**: dawn, morning, midday, golden hour and dusk, about sixteen real minutes of daylight
+  (configurable), with night passing as a short time-lapse. The sun crosses from east to west; the two sky images swap
+  and rotate to match it; sun colour, ambient light, fog (thick at dawn), sky tint and URP grading follow hand-tuned
+  keys. **Hold T** (standing still) to let time pass. The HUD shows the period and time; each change of light brings a
+  short field note about what the reserve is doing.
+- **Dawn mist** over the pond and the creek's low reaches, burning off by mid-morning; a faint haze at dusk.
+- **Wildlife rhythms by placement**: when the period changes, animals' home ranges move to where their species is
+  at that time, and they travel there themselves. Deer: meadows morning and golden hour, woodland cover at midday,
+  water at dusk. Cottontails: meadow edges at dawn and dusk. Foxes: hunting meadow edges at dawn and dusk. Hawks:
+  over the ridge in daylight, on meadow snags at the ends of the day. Squirrels busiest morning and late afternoon.
+  Behaviour weights shift too (deer bed down at midday).
+- **Trail hierarchy**: the **Reserve Road**, a 3.4 m gravel ring from the trailhead through every destination's
+  pull-off, gently graded and kept outside the Meadow Loop; destination paths become narrow **footpaths**. The bike
+  rides at its usual pace on the road, gently on footpaths (≈22 km/h) and across country (≈20 km/h). Road bridges
+  are wider. The HUD says what you're riding on.
+- **Reserve identity**: it is now **Willow Creek Nature Reserve** (Willow Creek Conservation Trust, est. 1962). One
+  sign standard everywhere (stained boards, cream lettering, green rule), reserve guidelines at the trailhead, a
+  Reserve Road sign, and best times on every destination sign.
+- Trailhead board: a live **"Now"** line (period, time, what the wildlife is doing), each destination's **best
+  times**, the road on the map, and a taller board to fit them.
+### Changed
+- **Trees rebuilt with structure**: conifers grow branch whorls up a tapering trunk (ragged, cone-shaped crowns,
+  a slim dark core, dead lower branches); broadleaf trees come in three forms: spreading (short trunk, 3–5 limbs,
+  wide low crown), ovate (taller, steeper limbs), and multi-stem birch (pale stems, light crowns). Limbs show under
+  and between the leaf clusters.
+- The Old-Growth Grove is twice as dense, for real shade.
+- The Ridge Overlook prefers a view toward the sunset.
+
+**Rebuild the slice after updating.**
+
 ## [0.8.0] Ecosystem Pass: a living landscape
 ### Added
 - **Willow Creek**, the reserve's backbone: a stream from the ridge's flank to Cattail Pond, routed downhill and

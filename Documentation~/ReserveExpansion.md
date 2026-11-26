@@ -56,10 +56,17 @@ From "a collection of destinations" to "a living landscape":
   log, bike pull-offs short of each destination.
 * **Encounters by placement**: deer at the creek and on a track crossing; cottontails on the meadow edge.
 
+## 0.9.0 Time of Day (implemented)
+
+The reserve now has rhythms. Destinations change with the light (mist on the pond at dawn, the ridge at golden hour,
+the grove's shade at midday, the meadow busy early and late) and wildlife moves through the day by placement: deer
+to water at dusk, cottontails on the meadow edges early, hawks over the ridge in daylight. The trailhead board says
+what's happening now and when each place is best. The **Reserve Road** gives the bike a proper route between
+destinations; footpaths stay for walking.
+
 ## Next steps (proposed, in order)
 
-1. **Time of day: golden hour and dawn.** Morning mist on the pond and creek, golden light on the ridge; animals'
-   schedules follow (deer at the pond at dusk). Turns "where" into "where and when", the naturalist's question.
+1. ~~**Time of day.**~~ Done in 0.9. Remaining: weather (overcast, light rain), seasons later.
 2. **Creek, part two.** Stepping stones at a ford, a small cascade where it leaves the ridge, a tributary.
 3. **Wetland edge.** Widen the pond into a marsh: a boardwalk loop, sedges, a second blind. Natural home for a
    future heron or wood duck (new species are data plus a model).

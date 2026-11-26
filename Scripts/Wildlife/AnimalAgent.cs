@@ -25,6 +25,21 @@ namespace WildLens.Wildlife
 
         public event Action<AnimalAgent, AnimalActivity> ActivityChanged;
 
+        /// <summary>The home range the animal was given at spawn (its territory). Schedules move the current home
+        /// around this, never far from it.</summary>
+        public Vector3 OriginHome { get; private set; }
+
+        /// <summary>
+        /// Optional time-of-day weighting of behaviours (0.9), e.g. deer bed down at midday. Multiplies each option's
+        /// weight when the animal picks what to do next. Set by <c>WildlifeSchedule</c>.
+        /// </summary>
+        public Func<AnimalActivity, float> ActivityBias { get; set; }
+
+        /// <summary>Move the animal's home range (it walks or flies there on its own, at its own pace).</summary>
+        public virtual void SetHome(Vector3 home) => HomePosition = home;
+
+        protected BehaviorOption PickBehavior() => Species.PickBehavior(Rng, ActivityBias);
+
         protected WildlifeWorld World { get; private set; }
         /// <summary>Perception of the player (optional; animals without one simply never react).</summary>
         public WildlifeAwareness Awareness { get; private set; }
@@ -38,6 +53,7 @@ namespace WildLens.Wildlife
         {
             Species = species;
             HomePosition = home;
+            OriginHome = home;
             World = world;
             Awareness = GetComponent<WildlifeAwareness>();
             Rng = new System.Random(seed);

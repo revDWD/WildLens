@@ -13,6 +13,8 @@ namespace WildLens.EditorTools
 
         /// <summary>Places the builder must keep clear of scenery (kiosk, bike parking).</summary>
         public static readonly System.Collections.Generic.List<Footprint> Footprints = new System.Collections.Generic.List<Footprint>();
+        /// <summary>Where the bike is parked at the trailhead: the Reserve Road starts here (0.9).</summary>
+        public static Vector3 BikeParking;
 
         public static void Build(TrailPath trail, TrailBuilder.Loop loop, Transform parent, bool trailBike = true)
         {
@@ -23,6 +25,7 @@ namespace WildLens.EditorTools
             float half = trail.Width * 0.5f;
 
             Footprints.Clear();
+            BikeParking = Vector3.zero;
             Vector3 spawn = trail.GetPoint(0f);
 
             // Trailhead kiosk: a roofed park notice board with the live reserve board (ReserveInfoBoard), angled to
@@ -49,6 +52,7 @@ namespace WildLens.EditorTools
                 WildLens.Vehicles.TrailBikeModel.Build(model, (name, c, sm) => GeneratedAssets.Material(name, c, sm));
                 bike.AddComponent<WildLens.Vehicles.TrailBike>();
                 Footprints.Add(new Footprint { position = pos, radius = 2.5f });
+                BikeParking = pos;
             }
 
             // Numbered marker posts.
@@ -88,7 +92,7 @@ namespace WildLens.EditorTools
         {
             var roofMat = GeneratedAssets.Material("KioskRoof", new Color(0.24f, 0.27f, 0.22f), 0.15f);
             var kiosk = Group("Trailhead Kiosk", parent, pos, rot);
-            const float W = 2.8f, boardY = 1.62f, boardH = 1.72f;
+            const float W = 2.8f, boardY = 1.66f, boardH = 1.86f; // 0.9: taller, for the "now" line and best times
             foreach (float x in new[] { -W * 0.5f - 0.05f, W * 0.5f + 0.05f })
                 PrimitiveMeshes.CreatePart("Post", PrimitiveType.Cylinder, kiosk, new Vector3(x, 1.45f, 0f), new Vector3(0.2f, 1.45f, 0.2f), _woodDark);
             Box("Backboard", kiosk, new Vector3(0f, boardY, -0.02f), new Vector3(W, boardH, 0.08f), _wood);
@@ -103,8 +107,8 @@ namespace WildLens.EditorTools
                 slab.name = side < 0f ? "Roof Back" : "Roof Front";
             }
             Box("Ridge", kiosk, new Vector3(0f, 3.04f, 0f), new Vector3(W + 0.72f, 0.08f, 0.1f), _woodDark);
-            Box("Header Plank", kiosk, new Vector3(0f, 2.66f, 0.06f), new Vector3(1.9f, 0.26f, 0.05f), _wood);
-            Label(kiosk, new Vector3(0f, 2.66f, 0.09f), "MEADOW LOOP TRAILHEAD", 0.012f);
+            Box("Header Plank", kiosk, new Vector3(0f, 2.74f, 0.06f), new Vector3(1.9f, 0.24f, 0.05f), SignBoard);
+            Label(kiosk, new Vector3(0f, 2.74f, 0.09f), "MEADOW LOOP TRAILHEAD", 0.012f, SignText);
 
             var face = new GameObject("Board Face");
             face.transform.SetParent(kiosk, false);
@@ -112,6 +116,16 @@ namespace WildLens.EditorTools
             face.AddComponent<ReserveInfoBoard>().size = new Vector2(W - 0.16f, boardH - 0.12f);
 
             AddCollider(kiosk, new Vector3(0f, 1.5f, 0f), new Vector3(W + 0.3f, 3f, 0.3f));
+
+            // Reserve guidelines: a small post beside the kiosk. Quiet evidence that this place is looked after.
+            var rules = Group("Reserve Guidelines", parent, kiosk.TransformPoint(new Vector3(W * 0.5f + 1.3f, 0f, 0.3f)), kiosk.rotation * Quaternion.Euler(0f, -15f, 0f));
+            rules.position = TerrainUtil.Ground(rules.position);
+            Box("Post", rules, new Vector3(0f, 0.65f, 0f), new Vector3(0.1f, 1.3f, 0.1f), _woodDark);
+            Box("Board", rules, new Vector3(0f, 1.2f, 0.06f), new Vector3(0.95f, 0.7f, 0.05f), SignBoard);
+            Box("Rule", rules, new Vector3(0f, 1.48f, 0.087f), new Vector3(0.87f, 0.012f, 0.005f), SignTrim);
+            Label(rules, new Vector3(0f, 1.18f, 0.09f),
+                "PLEASE\nKeep to trails & footpaths\nRide slowly on the Reserve Road\nGive wildlife space\nLeave nothing but footprints", 0.0075f, SignText);
+            AddCollider(rules, new Vector3(0f, 0.65f, 0f), new Vector3(0.12f, 1.3f, 0.12f));
         }
 
         private static Vector3 Outward(Vector3 p, TrailBuilder.Loop loop)
@@ -140,7 +154,15 @@ namespace WildLens.EditorTools
             c.size = size;
         }
 
-        internal static void Label(Transform parent, Vector3 localPos, string text, float charSize)
+        /// <summary>Reserve sign standard (0.9): stained board, cream lettering, green rule.</summary>
+        internal static Material SignBoard => GeneratedAssets.Material("SignBoard", new Color(0.24f, 0.16f, 0.1f), 0.2f);
+        internal static Material SignTrim => GeneratedAssets.Material("SignTrim", new Color(0.24f, 0.36f, 0.22f), 0.3f);
+        internal static readonly Color SignText = new Color(0.93f, 0.88f, 0.72f);
+
+        internal static void Label(Transform parent, Vector3 localPos, string text, float charSize) =>
+            Label(parent, localPos, text, charSize, new Color(0.12f, 0.1f, 0.07f));
+
+        internal static void Label(Transform parent, Vector3 localPos, string text, float charSize, Color colour)
         {
             var go = new GameObject("Label");
             go.transform.SetParent(parent, false);
@@ -154,7 +176,7 @@ namespace WildLens.EditorTools
             tm.characterSize = charSize;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
-            tm.color = new Color(0.12f, 0.1f, 0.07f);
+            tm.color = colour;
             var mr = go.GetComponent<MeshRenderer>();
             if (tm.font != null) mr.sharedMaterial = tm.font.material;
         }

@@ -64,6 +64,17 @@ namespace WildLens.Wildlife
             if (Awareness != null) Awareness.StateChanged += OnAwarenessChanged;
         }
 
+        /// <summary>A new territory centre: glide over to it and circle there.</summary>
+        public override void SetHome(Vector3 home)
+        {
+            base.SetHome(home);
+            if (_mode == Mode.Perched || _mode == Mode.Approach || _mode == Mode.TakingOff) return; // finish what it's doing
+            _transitTarget = home;
+            _mode = Mode.Transit;
+            _timer = 60f;
+            SetActivity(AnimalActivity.Flying);
+        }
+
         private void OnDestroy()
         {
             if (Awareness != null) Awareness.StateChanged -= OnAwarenessChanged;
@@ -132,7 +143,7 @@ namespace WildLens.Wildlife
 
         private void ChooseNextFlight()
         {
-            var option = Species.PickBehavior(Rng);
+            var option = PickBehavior();
             if (option != null && option.activity == AnimalActivity.Perched && TryStartPerch()) return;
 
             if (Chance(0.4f))

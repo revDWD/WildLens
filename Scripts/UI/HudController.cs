@@ -25,6 +25,7 @@ namespace WildLens.UI
         private Image _crosshair;
         private Text _statusText, _hintsText, _pausedText, _crouchText, _promptText, _rideText, _hiddenText;
         private bool _wasConcealed;
+        private float _clockTimer;
         private string _walkHints;
         private bool _riding;
         private const string RideHints =
@@ -65,6 +66,7 @@ namespace WildLens.UI
             if (game != null) game.Journal.Changed += RefreshStatus;
             RefreshStatus();
             WildLens.Environment.ReserveDestination.Arrived += OnArrived;
+            if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged += OnPeriodChanged;
 
             // A scene built by an older package hides every art improvement since. Say so instead of letting it
             // pass for the current look (0.6: a stale scene was mistaken for the 0.5 art).
@@ -88,6 +90,27 @@ namespace WildLens.UI
             var game = WildLensGame.Instance;
             if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
             WildLens.Environment.ReserveDestination.Arrived -= OnArrived;
+            if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged -= OnPeriodChanged;
+        }
+
+        private float _lastPeriodNotice = -100f;
+
+        /// <summary>A field note at each change of light: what the reserve is doing now (0.9).</summary>
+        private void OnPeriodChanged(WildLens.Environment.DayPeriod p)
+        {
+            if (_notice == null || Time.time - _lastPeriodNotice < 3f) return;
+            _lastPeriodNotice = Time.time;
+            string note;
+            switch (p)
+            {
+                case WildLens.Environment.DayPeriod.Dawn: note = "Mist on the pond and creek. Cottontails venture onto the meadow edges."; break;
+                case WildLens.Environment.DayPeriod.Morning: note = "Deer graze the meadows. Hawks start to soar over the ridge."; break;
+                case WildLens.Environment.DayPeriod.Midday: note = "Deer bed down in woodland shade. A quiet time: try the grove."; break;
+                case WildLens.Environment.DayPeriod.GoldenHour: note = "Warm, low light. Head for the ridge; deer return to the meadows."; break;
+                case WildLens.Environment.DayPeriod.Dusk: note = "Deer come down to the water. Foxes hunt the meadow edges."; break;
+                default: note = "Night falls over the reserve. Time passes quickly until dawn."; break;
+            }
+            _notice.Show($"<b>{WildLens.Environment.DayCycle.PeriodName(p)}</b>\n<size=20>{note}</size>", 6f);
         }
 
         private void OnArrived(WildLens.Environment.ReserveDestination d)
@@ -107,13 +130,13 @@ namespace WildLens.UI
             _viewfinder = new ViewfinderView(root, _lens != null ? _lens.Levels : new[] { 1f });
 
             _statusText = UIFactory.CreateText("Status", root, "", 22, new Color(1f, 1f, 1f, 0.85f), TextAnchor.UpperRight);
-            UIFactory.Place(_statusText.rectTransform, new Vector2(1f, 1f), new Vector2(-28f, -24f), new Vector2(520f, 40f));
+            UIFactory.Place(_statusText.rectTransform, new Vector2(1f, 1f), new Vector2(-28f, -24f), new Vector2(760f, 40f));
             UIFactory.AddShadow(_statusText);
 
             _walkHints =
                 "<b>WASD</b> walk   <b>Shift</b> sprint   <b>C</b> crouch   <b>J</b> journal   <b>R</b> ride (at the bike)\n" +
                 "<b>Hold RMB</b> or <b>Scroll</b> camera + zoom   <b>LMB</b> shutter\n" +
-                "Hold an animal in view to identify it   <b>H</b> hide hints";
+                "Hold an animal in view to identify it   <b>Hold T</b> let time pass   <b>H</b> hide hints";
             _hintsText = UIFactory.CreateText("Hints", root, _walkHints, 19, new Color(1f, 1f, 1f, 0.75f), TextAnchor.LowerLeft);
             UIFactory.Place(_hintsText.rectTransform, new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(900f, 90f));
             UIFactory.AddShadow(_hintsText);
@@ -170,6 +193,8 @@ namespace WildLens.UI
 
             if (GameInput.ToggleHintsPressed) _hintsText.enabled = !_hintsText.enabled;
             UpdateBike(blend);
+            _clockTimer -= dt;
+            if (_clockTimer <= 0f) { _clockTimer = 0.5f; RefreshStatus(); }
             _pausedText.enabled = Cursor.lockState != CursorLockMode.Locked;
         }
 
@@ -185,7 +210,8 @@ namespace WildLens.UI
             if (riding)
             {
                 float kmh = Mathf.Abs(bike.Speed) * 3.6f;
-                string where = bike.OnTrack ? "on track" : "across country";
+                string where = bike.Surface == WildLens.Vehicles.TrailBike.RideSurface.Road ? "Reserve Road"
+                    : bike.Surface == WildLens.Vehicles.TrailBike.RideSurface.Footpath ? "footpath · ride gently" : "across country";
                 _rideText.text = bike.IsParking ? "Parking…" : $"{kmh:0} km/h   <size=16>{where}</size>";
                 _rideText.color = new Color(1f, 1f, 1f, 0.85f * (1f - blend));
                 // 0.8: pull-offs suggest themselves as you roll past.
@@ -251,7 +277,9 @@ namespace WildLens.UI
         {
             var game = WildLensGame.Instance;
             if (game == null || _statusText == null) return;
-            _statusText.text = $"Species {game.Journal.DiscoveredCount}/{game.Journal.TotalSpecies}    Photos {game.Journal.TotalPhotos}";
+            var clock = WildLens.Environment.DayCycle.Instance;
+            string time = clock != null ? $"{WildLens.Environment.DayCycle.PeriodName(clock.Period)} · {clock.ClockText}{(clock.IsWaiting ? "  <i>time passing…</i>" : "")}      " : "";
+            _statusText.text = $"{time}Species {game.Journal.DiscoveredCount}/{game.Journal.TotalSpecies}    Photos {game.Journal.TotalPhotos}";
         }
     }
 }

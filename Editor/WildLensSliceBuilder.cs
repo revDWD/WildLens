@@ -136,6 +136,7 @@ namespace WildLens.EditorTools
 
                 Progress("Lighting", 0.85f);
                 if (s.configureLightingAndFog) ConfigureLighting(root.transform, s);
+                if (s.configureLightingAndFog && s.timeOfDay) BuildDayCycle(root.transform, s);
                 if (s.configureRenderQuality) ConfigureRenderQuality();
                 if (s.postProcessing) BuildPostProcessing(root.transform, s);
 
@@ -295,6 +296,38 @@ namespace WildLens.EditorTools
                 Debug.LogWarning("[WildLens] HDRI sky not found; using the procedural sky.");
             }
             ConfigureProceduralLighting(root);
+        }
+
+        /// <summary>
+        /// The reserve's day (0.9): a DayCycle driving the sun, both sky images (morning and golden hour, rotated to the
+        /// sun), fog, ambient light and grading through dawn, morning, midday, golden hour and dusk.
+        /// </summary>
+        private static void BuildDayCycle(Transform root, SliceBuildSettings s)
+        {
+            var go = new GameObject("Day Cycle");
+            go.transform.SetParent(root, false);
+            var day = go.AddComponent<DayCycle>();
+            day.startHour = s.startHour;
+            day.minutesPerHour = s.minutesPerHour;
+            day.sun = FindOrCreateSun(root);
+            if (s.useScannedArt && ArtLibrary.Import())
+            {
+                var morning = ArtLibrary.Sky(SkyAsset(SkyMood.LateMorning));
+                var golden = ArtLibrary.Sky(SkyAsset(SkyMood.GoldenHour));
+                if (morning != null)
+                {
+                    day.morningSky = ArtLibrary.SkyMaterial(morning.name, 1f);
+                    day.morningSkySunAzimuth = Mathf.Atan2(morning.SunDirection.x, morning.SunDirection.z) * Mathf.Rad2Deg;
+                    day.morningFog = SkyInfo.ToColor(morning.fogColor);
+                }
+                if (golden != null)
+                {
+                    day.goldenSky = ArtLibrary.SkyMaterial(golden.name, 1.1f);
+                    day.goldenSkySunAzimuth = Mathf.Atan2(golden.SunDirection.x, golden.SunDirection.z) * Mathf.Rad2Deg;
+                    day.goldenFog = SkyInfo.ToColor(golden.fogColor);
+                }
+            }
+            Debug.Log($"[WildLens] Time of day on: starts at {s.startHour:0.0}h, {s.minutesPerHour:0.##} real min per hour (hold T to let time pass).");
         }
 
         private static Light FindOrCreateSun(Transform root)
@@ -598,6 +631,7 @@ namespace WildLens.EditorTools
             world.SetTrail(trail);
             var spawner = go.AddComponent<WildlifeSpawner>();
             spawner.Configure(db, world);
+            go.AddComponent<WildlifeSchedule>(); // daily rhythms (idle without a DayCycle)
 
             var hud = go.AddComponent<HudController>();
             hud.Configure(photo);

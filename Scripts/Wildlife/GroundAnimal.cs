@@ -65,7 +65,7 @@ namespace WildLens.Wildlife
             if (Awareness != null) Awareness.StateChanged += OnAwarenessChanged;
 
             // Start mid-behaviour so a group doesn't all set off walking on frame one.
-            if (Chance(0.65f)) StartBehavior(species.PickBehavior(Rng));
+            if (Chance(0.65f)) StartBehavior(PickBehavior());
             else StartMove(PickWanderTarget(), species.walkSpeed, false);
         }
 
@@ -169,7 +169,7 @@ namespace WildLens.Wildlife
 
         private void BeginNextAction(bool afterMove)
         {
-            if (afterMove && Chance(Species.behaviorChance)) { StartBehavior(Species.PickBehavior(Rng)); return; }
+            if (afterMove && Chance(Species.behaviorChance)) { StartBehavior(PickBehavior()); return; }
             // Calm animals occasionally break into a short run (deer bounding); suspicious ones never do.
             bool run = AwarenessNow == AwarenessState.Calm && Chance(Species.runLegChance);
             float speed = run ? Species.runSpeed * Range(0.45f, 0.65f) : Species.walkSpeed * Range(0.85f, 1.15f);

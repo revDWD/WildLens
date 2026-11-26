@@ -28,7 +28,8 @@ namespace WildLens.Vehicles
     {
         [Header("Handling")]
         [SerializeField] private float maxSpeed = 11f;          // ≈40 km/h on tracks
-        [SerializeField] private float offTrackMaxSpeed = 6.5f;  // ≈23 km/h across country
+        [SerializeField] private float footpathMaxSpeed = 6f;    // ≈22 km/h on the loop and footpaths: ride gently
+        [SerializeField] private float offTrackMaxSpeed = 5.5f;  // ≈20 km/h across country
         [SerializeField] private float acceleration = 2.6f;
         [SerializeField] private float braking = 6f;
         [SerializeField] private float reverseSpeed = 1f;        // paddling backwards
@@ -49,7 +50,10 @@ namespace WildLens.Vehicles
         public float MaxSpeed => maxSpeed;
         public bool IsRidden => _player != null && Ridden == this;
         public bool IsParking => _parkRequested;
-        public bool OnTrack { get; private set; }
+        public bool OnTrack => Surface != RideSurface.Country;
+        public enum RideSurface { Road, Footpath, Country }
+        /// <summary>What the bike is on (0.9 trail hierarchy): the Reserve Road is for riding; footpaths are for walking.</summary>
+        public RideSurface Surface { get; private set; }
 
         private TrailBikeModel.Parts _parts;
         private Quaternion _steerBase;
@@ -180,8 +184,8 @@ namespace WildLens.Vehicles
             float throttle = _parkRequested ? 0f : move.y;
             _steerInput = Mathf.SmoothDamp(_steerInput, _parkRequested ? 0f : move.x, ref _steerVelocity, 0.18f);
 
-            OnTrack = ReserveTrack.DistanceToAnyPath(transform.position, WildlifeWorldTrail()) < 2.6f;
-            float top = OnTrack ? maxSpeed : offTrackMaxSpeed;
+            Surface = SurfaceAt(transform.position);
+            float top = Surface == RideSurface.Road ? maxSpeed : Surface == RideSurface.Footpath ? footpathMaxSpeed : offTrackMaxSpeed;
             float grade = Grade(); // degrees, + uphill
             float climb = Mathf.Sin(grade * Mathf.Deg2Rad) * 9.81f * 0.55f;
 
@@ -228,6 +232,20 @@ namespace WildLens.Vehicles
             CameraModeController.RaiseBlocked = IsRidden && Mathf.Abs(_speed) > 0.4f;
             _engine.SetLoad(load, Mathf.Clamp01(throttle));
             _kick = Mathf.MoveTowards(_kick, 0f, dt * 3f);
+        }
+
+        private RideSurface SurfaceAt(Vector3 p)
+        {
+            float road = float.MaxValue, foot = float.MaxValue;
+            foreach (var t in ReserveTrack.All)
+            {
+                float d = t.EdgeDistance(p);
+                if (t.kind == TrackKind.Road) road = Mathf.Min(road, d); else foot = Mathf.Min(foot, d);
+            }
+            var trail = WildlifeWorldTrail();
+            if (trail != null) foot = Mathf.Min(foot, trail.DistanceToTrail(p) - trail.Width * 0.5f);
+            if (road < 0.8f || ReserveParking.At(p, 0.5f) != null) return RideSurface.Road;
+            return foot < 0.8f ? RideSurface.Footpath : RideSurface.Country;
         }
 
         private TrailPath WildlifeWorldTrail()

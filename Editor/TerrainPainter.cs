@@ -49,7 +49,8 @@ namespace WildLens.EditorTools
             data.terrainLayers = CreateTerrainLayers();
 
             EditorUtility.DisplayProgressBar("WildLens", "Painting terrain…", 0.76f);
-            PaintSplat(data, trailField, trees);
+            var roadField = HasRoads ? new TrailDistanceField(RoadDistance, _terrain) : null;
+            PaintSplat(data, trailField, trees, roadField);
 
             if (details)
             {
@@ -79,7 +80,7 @@ namespace WildLens.EditorTools
 
         // ------------------------------------------------------------------ splat
 
-        private void PaintSplat(TerrainData data, TrailDistanceField trail, TreeGrid trees)
+        private void PaintSplat(TerrainData data, TrailDistanceField trail, TreeGrid trees, TrailDistanceField road = null)
         {
             int res = data.alphamapResolution;
             Vector3 origin = _terrain.transform.position, size = data.size;
@@ -116,6 +117,14 @@ namespace WildLens.EditorTools
                     rock = Mathf.Max(rock, bed * 0.85f);
                     tread = Mathf.Max(tread, bankCut * 0.6f);
                     forest = Mathf.Max(forest, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(4f, 10f, creek)));
+                }
+
+                // The Reserve Road reads as gravel (stone mixed into the dirt), footpaths as worn earth (0.9).
+                if (road != null)
+                {
+                    float rd = road.Sample(p) + (n - 0.5f) * 0.4f;
+                    float gravel = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half * 0.4f, half + 0.4f, rd));
+                    rock = Mathf.Max(rock, gravel * 0.32f);
                 }
 
                 float wRock = rock;

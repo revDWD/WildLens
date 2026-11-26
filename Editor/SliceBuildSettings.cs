@@ -84,6 +84,14 @@ namespace WildLens.EditorTools
         [Tooltip("The WildLens fallback terrain is grown to at least this size so the reserve has room (your own terrains are never resized).")]
         public float reserveTerrainSize = 900f;
 
+        [Header("Time of day (0.9)")]
+        [Tooltip("Dawn → morning → midday → golden hour → dusk, with lighting, mist and wildlife rhythms. Off: one fixed moment (the sky mood above).")]
+        public bool timeOfDay = true;
+        [Tooltip("Hour the day starts at when you press Play (5 = dawn, 7.5 = morning, 16.5 = golden hour).")]
+        [Range(4.5f, 20.5f)] public float startHour = 7.5f;
+        [Tooltip("Real minutes per in-game hour. 1 = a day of daylight in about sixteen minutes. Hold T in game to let time pass.")]
+        [Range(0.2f, 5f)] public float minutesPerHour = 1f;
+
         [Header("Scene")]
         public bool configureLightingAndFog = true;
         [Tooltip("Raise shadow distance/cascades/resolution in the active render pipeline or Quality settings (project-wide).")]

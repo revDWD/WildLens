@@ -18,6 +18,8 @@ namespace WildLens.Environment
         public int number = 1;
         public string title = "Destination";
         [TextArea(2, 4)] public string fieldNote = "";
+        [Tooltip("When to come (shown on the trailhead board), e.g. \"dawn mist · deer at dusk\".")]
+        public string bestTimes = "";
         public DestinationKind kind;
         [Tooltip("Species ids that live here (one group each).")]
         public string[] residentSpecies = new string[0];

@@ -68,6 +68,38 @@ namespace WildLens.EditorTools
             return (xy + yz + zx) / 3f;
         }
 
+        /// <summary>
+        /// Tapered tube for trunks and limbs (0.9): base radius 1 at y = 0, <paramref name="topRatio"/> at y = 1, no caps,
+        /// cylindrical UVs (bark wraps twice around, repeats along the length).
+        /// </summary>
+        public static Mesh Frustum(int segments, float topRatio)
+        {
+            var verts = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var tris = new List<int>();
+            for (int ring = 0; ring <= 1; ring++)
+            for (int i = 0; i <= segments; i++)
+            {
+                float a = i / (float)segments * Mathf.PI * 2f, r = ring == 0 ? 1f : topRatio;
+                verts.Add(new Vector3(Mathf.Cos(a) * r, ring, Mathf.Sin(a) * r));
+                uvs.Add(new Vector2(i / (float)segments * 2f, ring * 3f));
+            }
+            int row = segments + 1;
+            for (int i = 0; i < segments; i++)
+            {
+                int a = i, b = i + 1, c = row + i, d = row + i + 1;
+                tris.Add(a); tris.Add(c); tris.Add(b);
+                tris.Add(b); tris.Add(c); tris.Add(d);
+            }
+            var m = new Mesh { name = "Frustum" };
+            m.SetVertices(verts);
+            m.SetUVs(0, uvs);
+            m.SetTriangles(tris, 0);
+            m.RecalculateNormals();
+            m.RecalculateBounds();
+            return m;
+        }
+
         /// <summary>Flat unit disc (radius 1) in the XZ plane, facing up. Used for pond water.</summary>
         public static Mesh Disc(int segments)
         {

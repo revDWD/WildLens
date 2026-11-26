@@ -50,8 +50,10 @@ namespace WildLens.EditorTools
         /// <summary>Distance to the trail loop or the nearest reserve track.</summary>
         private float PathDistance(Vector3 p)
         {
+            // Widths differ (0.9 hierarchy): measure to each path's edge, offset so the loop-width rules hold for all.
+            float half = _s.trailWidth * 0.5f;
             float d = _trail.DistanceToTrail(p);
-            foreach (var t in _tracks) d = Mathf.Min(d, t.DistanceTo(p));
+            foreach (var t in _tracks) d = Mathf.Min(d, t.DistanceTo(p) - (t.Width * 0.5f - half));
             return Mathf.Min(d, PadDistance(p)); // pull-offs paint and clear like path
         }
 
@@ -107,6 +109,7 @@ namespace WildLens.EditorTools
             _sites.Sort((a, b) => a.track.Length.CompareTo(b.track.Length));
             for (int i = 0; i < _sites.Count; i++) _sites[i].number = i + 1;
             PlanParking(shapeTerrain);
+            PlanRoads(parent, trackMeshes); // 0.9: the Reserve Road ring through every pull-off
 
             // Meadows at the blind and around the pond get meadow grass, flowers and the meadow ground tint.
             foreach (var s in _sites)
@@ -416,6 +419,10 @@ namespace WildLens.EditorTools
                 float sum = 0f;
                 for (float r = 60f; r <= 180f; r += 30f) sum += TerrainUtil.SampleHeight(p + d * r) - h0;
                 if (TerrainUtil.FindTerrainAt(p + d * 180f) == null) sum += 1000f; // looking off the edge of the world
+                // 0.9: an overlook is a golden-hour destination, so favour views toward the setting sun (west).
+                DayCycle.SunPosition(17.5f, out float sunAz, out _);
+                float toSunset = Mathf.Abs(Mathf.DeltaAngle(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, sunAz));
+                sum -= Mathf.Cos(toSunset * Mathf.Deg2Rad) * 25f;
                 if (sum < best) { best = sum; dir = d; }
             }
             return dir;
@@ -439,13 +446,14 @@ namespace WildLens.EditorTools
                 go.transform.SetParent(parent, false);
                 var track = go.AddComponent<ReserveTrack>();
                 track.title = s.title;
-                track.SetPath(path, 2.4f);
+                track.SetPath(path, 1.5f); // a footpath: walking first (0.9 hierarchy)
+                track.kind = TrackKind.Footpath;
                 _tracks.Add(track);
                 s.track = track;
 
                 if (meshes)
                 {
-                    var mesh = GeneratedAssets.Save(ProceduralMeshes.TrailRibbon(path, 2.2f, 0.6f, closed: false), "Mesh_Track_" + s.kind);
+                    var mesh = GeneratedAssets.Save(ProceduralMeshes.TrailRibbon(path, 1.5f, 0.6f, closed: false), "Mesh_Track_" + s.kind);
                     var surface = new GameObject("Track Surface");
                     surface.transform.SetParent(go.transform, false);
                     surface.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -573,6 +581,7 @@ namespace WildLens.EditorTools
                 dest.kind = s.kind;
                 dest.residentSpecies = s.residents;
                 dest.waterRadius = s.water;
+                dest.bestTimes = BestTimes(s.kind);
                 dest.wildlifeRadius = s.kind == DestinationKind.Wetland ? s.water + 12f : s.radius * 0.7f;
                 dest.arrivalRadius = s.kind == DestinationKind.Wetland ? s.water + 14f : 20f;
 
@@ -584,6 +593,19 @@ namespace WildLens.EditorTools
                     case DestinationKind.ObservationBlind: BuildBlind(group, s, wood, woodDark, dest); break;
                 }
                 Fingerpost(group, s, wood, woodDark);
+            }
+        }
+
+        /// <summary>When each destination is at its best (0.9): shown on the trailhead board and in its signs.</summary>
+        private static string BestTimes(DestinationKind kind)
+        {
+            switch (kind)
+            {
+                case DestinationKind.RidgeOverlook: return "golden hour · hawks all day";
+                case DestinationKind.Wetland: return "dawn mist · deer at dusk";
+                case DestinationKind.OldGrowth: return "midday shade · squirrels morning & evening";
+                case DestinationKind.ObservationBlind: return "early morning & late afternoon";
+                default: return "";
             }
         }
 
@@ -599,12 +621,19 @@ namespace WildLens.EditorTools
             foreach (var d in doomed) Object.DestroyImmediate(d);
         }
 
+        /// <summary>
+        /// The reserve's sign standard (0.9): dark stained boards with cream routed lettering and a thin green rule,
+        /// the same everywhere, so the place reads as one curated reserve rather than scattered props.
+        /// </summary>
         private static void Plank(Transform parent, string text, Vector3 pos, Quaternion rot, Material wood, Material post, float width = 1.3f)
         {
             var sign = PropBuilder.Group("Sign", parent, pos, rot);
-            PropBuilder.Box("Post", sign, new Vector3(0f, 0.6f, 0f), new Vector3(0.1f, 1.2f, 0.1f), post);
-            PropBuilder.Box("Board", sign, new Vector3(0f, 1.15f, 0.06f), new Vector3(width, 0.42f, 0.05f), wood);
-            PropBuilder.Label(sign, new Vector3(0f, 1.15f, 0.09f), text, 0.011f);
+            int lines = text.Split('\n').Length;
+            float h = 0.22f + lines * 0.13f;
+            PropBuilder.Box("Post", sign, new Vector3(0f, 0.65f, 0f), new Vector3(0.11f, 1.3f, 0.11f), post);
+            PropBuilder.Box("Board", sign, new Vector3(0f, 1.15f, 0.06f), new Vector3(width, h, 0.05f), PropBuilder.SignBoard);
+            PropBuilder.Box("Rule", sign, new Vector3(0f, 1.15f + h * 0.5f - 0.035f, 0.087f), new Vector3(width - 0.08f, 0.012f, 0.005f), PropBuilder.SignTrim);
+            PropBuilder.Label(sign, new Vector3(0f, 1.13f, 0.09f), text, 0.012f, PropBuilder.SignText);
         }
 
         /// <summary>A fingerpost where the track leaves the loop: "→ Cattail Pond 0.4 km".</summary>
@@ -617,13 +646,13 @@ namespace WildLens.EditorTools
             Vector3 pos = TerrainUtil.Ground(start + dir * 2.5f + side * 2.3f);
             var sign = PropBuilder.Group("Fingerpost: " + s.title, group, pos, Quaternion.LookRotation(side));
             PropBuilder.Box("Post", sign, new Vector3(0f, 0.85f, 0f), new Vector3(0.11f, 1.7f, 0.11f), post);
-            PropBuilder.Box("Finger", sign, new Vector3(-0.55f, 1.45f, 0f), new Vector3(1.2f, 0.24f, 0.05f), wood);
-            PropBuilder.Box("Point", sign, new Vector3(-1.2f, 1.45f, 0f), new Vector3(0.17f, 0.17f, 0.05f), wood); // arrow tip
+            PropBuilder.Box("Finger", sign, new Vector3(-0.55f, 1.45f, 0f), new Vector3(1.2f, 0.24f, 0.05f), PropBuilder.SignBoard);
+            PropBuilder.Box("Point", sign, new Vector3(-1.2f, 1.45f, 0f), new Vector3(0.17f, 0.17f, 0.05f), PropBuilder.SignBoard); // arrow tip
             sign.Find("Point").localRotation = Quaternion.Euler(0f, 0f, 45f);
             float km = s.track.Length / 1000f;
             string text = $"{s.number}  {s.title.ToUpperInvariant()}  {km:0.0} km";
-            PropBuilder.Label(sign, new Vector3(-0.55f, 1.45f, 0.03f), text, 0.0085f);
-            PropBuilder.Label(sign, new Vector3(-0.55f, 1.45f, -0.03f), text, 0.0085f);
+            PropBuilder.Label(sign, new Vector3(-0.55f, 1.45f, 0.03f), text, 0.0085f, PropBuilder.SignText);
+            PropBuilder.Label(sign, new Vector3(-0.55f, 1.45f, -0.03f), text, 0.0085f, PropBuilder.SignText);
             sign.GetChild(sign.childCount - 1).localRotation = Quaternion.identity; // second label reads from the back
             Clear(pos, 1.5f);
         }
@@ -656,7 +685,7 @@ namespace WildLens.EditorTools
                 PropBuilder.AddCollider(deck, new Vector3(x, y + 0.6f, 0f), new Vector3(0.1f, 1.2f, 3f));
             PropBuilder.AddCollider(deck, new Vector3(0f, y + 0.6f, 1.45f), new Vector3(4f, 1.2f, 0.1f));
 
-            Plank(group, "RIDGE OVERLOOK\nHawks hunt the slopes below", TerrainUtil.Ground(pos - f * 4.2f + Vector3.Cross(Vector3.up, f) * 2.6f),
+            Plank(group, "RIDGE OVERLOOK\nBest at golden hour · hawks hunt the slopes", TerrainUtil.Ground(pos - f * 4.2f + Vector3.Cross(Vector3.up, f) * 2.6f),
                 Quaternion.LookRotation(-f), wood, post);
             ClearCone(pos, f, 35f, 160f);
             AddViewpoint(group, "Ridge Overlook", pos + Vector3.up * (y + 1.65f), TerrainUtil.Ground(pos + f * 120f) + Vector3.up * 3f);
@@ -666,6 +695,7 @@ namespace WildLens.EditorTools
             Vector3 snag = TerrainUtil.Ground(pos + Quaternion.Euler(0f, 70f, 0f) * f * 16f);
             Snag(group, snag, deadwood);
             AddHotspot(group, "Perch Hotspot", HotspotType.Perch, snag, 6f);
+            Anchor(group, ScheduleRole.Ridge, pos + f * 25f, 30f); // hawks soar out over the view in daylight
             AddKeepOut(pos, 5f);
 
             // 0.8 identity: an exposed, rocky crest with the wind in your ears.
@@ -770,7 +800,7 @@ namespace WildLens.EditorTools
             PropBuilder.AddCollider(jetty, new Vector3(0.75f, deckY + 0.6f, len * 0.5f), new Vector3(0.08f, 1.2f, len - 2f));
             PropBuilder.AddCollider(jetty, new Vector3(0f, deckY + 0.6f, len - 1.5f), new Vector3(1.5f, 1.2f, 0.08f));
 
-            Plank(group, "CATTAIL POND\nDeer drink here at dusk", TerrainUtil.Ground(shore - f * 3.5f + side * 2.2f), Quaternion.LookRotation(-f), wood, post);
+            Plank(group, "CATTAIL POND\nMist at dawn · deer drink at dusk", TerrainUtil.Ground(shore - f * 3.5f + side * 2.2f), Quaternion.LookRotation(-f), wood, post);
             InterpretivePanel(group, TerrainUtil.Ground(shore - f * 3.2f - side * 2.4f), -f, "LIFE AT THE WATER'S EDGE",
                 "Cattails and reeds shelter frogs and nesting birds.\nDeer come down to drink in the cool of evening.\n" +
                 "Stand still on the jetty: the far shore is\nwhere they step out of the trees.", wood, post);
@@ -779,6 +809,8 @@ namespace WildLens.EditorTools
             AddHotspot(group, "Pond Edge Hotspot", HotspotType.Meadow, farShore, 10f);
             AddHotspot(group, "Pond Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(s.centre + side * (s.water * 1.2f + 5f)), 7f);
             dest.wildlifeCentre = farShore; // across the water from the jetty
+            Anchor(group, ScheduleRole.Water, farShore, 12f);
+            Mist(group, new Vector3(s.centre.x, level + 0.6f, s.centre.z), new Vector3(maxR * 2f + 6f, 1.4f, maxR * 2f + 6f), 1f);
             AddKeepOut(shore, 4f);
         }
 
@@ -829,11 +861,11 @@ namespace WildLens.EditorTools
             }
             // 0.8: a closed canopy around the clearing. Shade, big trunks, dense stand, mostly broadleaf.
             int planted = 0;
-            for (int attempt = 0; attempt < 600 && planted < 34; attempt++)
+            for (int attempt = 0; attempt < 600 && planted < 72; attempt++)
             {
-                float a = R(0f, Mathf.PI * 2f), r = Mathf.Lerp(12f, 46f, Mathf.Sqrt(R()));
+                float a = R(0f, Mathf.PI * 2f), r = Mathf.Lerp(9f, 40f, Mathf.Sqrt(R())); // 0.9: twice as dense: real shade
                 Vector3 p = TerrainUtil.Ground(s.centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
-                if (PathDistance(p) < 3.5f || TerrainUtil.SlopeDegrees(p) > 30f || !IsFree(p, 3.2f)) continue;
+                if (PathDistance(p) < 3.5f || TerrainUtil.SlopeDegrees(p) > 30f || !IsFree(p, 2.6f)) continue;
                 var tree = R() < 0.75f ? Deciduous(group, p) : Conifer(group, p);
                 float k = R(1.15f, 1.5f);
                 tree.transform.localScale *= k;
@@ -879,7 +911,7 @@ namespace WildLens.EditorTools
             PropBuilder.Box("LegL", bench, new Vector3(-0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), post);
             PropBuilder.Box("LegR", bench, new Vector3(0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), post);
             PropBuilder.AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.8f, 0.9f, 0.5f));
-            Plank(group, "OLD-GROWTH GROVE\nQuiet please: squirrels at work", TerrainUtil.Ground(s.centre - f * 5f + Vector3.Cross(Vector3.up, f) * 3f),
+            Plank(group, "OLD-GROWTH GROVE\nCool shade at midday · squirrels at work", TerrainUtil.Ground(s.centre - f * 5f + Vector3.Cross(Vector3.up, f) * 3f),
                 Quaternion.LookRotation(-f), wood, post);
             InterpretivePanel(group, TerrainUtil.Ground(s.centre - f * 5f - Vector3.Cross(Vector3.up, f) * 3f), -f, "OLD GROWTH",
                 "Some of these trees are older than the reserve.\nFallen trunks feed the soil; mosses and ferns\n" +
@@ -954,7 +986,7 @@ namespace WildLens.EditorTools
                 if (_art && _artShrubs.Count > 0) PlaceArt(_artShrubs, group, p, R(0.9f, 1.3f), 0.02f, 3f);
             }
 
-            Plank(group, "MEADOW BLIND\nEnter quietly. Inside, wildlife can't see you", TerrainUtil.Ground(s.arrival + side * 2.2f), Quaternion.LookRotation(-along), wood, post, 1.6f);
+            Plank(group, "MEADOW BLIND\nBest early morning & late afternoon\nEnter quietly. Inside, wildlife can't see you", TerrainUtil.Ground(s.arrival + side * 2.2f), Quaternion.LookRotation(-along), wood, post, 1.6f);
             InterpretivePanel(group, TerrainUtil.Ground(s.arrival - side * 2.4f), -along, "A MEADOW FOR EVERYONE",
                 "Wildflowers feed the insects that feed the birds.\nDeer graze here at dawn; cottontails keep to the\n" +
                 "brushy edges. Inside the blind your outline\nand footsteps are hidden: watch, and wait.", wood, post);

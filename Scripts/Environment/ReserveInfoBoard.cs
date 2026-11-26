@@ -70,9 +70,9 @@ namespace WildLens.Environment
             // Header band
             var header = UIFactory.CreateImage("Header", _root, Green);
             Top(header.rectTransform, 0f, 0f, w, 92f);
-            var title = UIFactory.CreateText("Title", header.rectTransform, "WILDLENS NATURE RESERVE", 46, Cream, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var title = UIFactory.CreateText("Title", header.rectTransform, "WILLOW CREEK NATURE RESERVE", 44, Cream, TextAnchor.MiddleLeft, FontStyle.Bold);
             UIFactory.Stretch(title.rectTransform, 30f, 0f, 300f, 0f);
-            var sub = UIFactory.CreateText("Subtitle", header.rectTransform, "Visitor Information\n<size=20>Observe quietly · Keep to trails & tracks</size>", 24, Cream, TextAnchor.MiddleRight);
+            var sub = UIFactory.CreateText("Subtitle", header.rectTransform, "Visitor Information\n<size=19>Willow Creek Conservation Trust · est. 1962</size>", 24, Cream, TextAnchor.MiddleRight);
             UIFactory.Stretch(sub.rectTransform, 0f, 0f, 30f, 0f);
 
             // Left: map, legend
@@ -83,9 +83,9 @@ namespace WildLens.Environment
             UIFactory.Stretch(map.rectTransform, 4f, 4f, 4f, 4f);
             BuildMap(map, mapSize);
             var legend = UIFactory.CreateText("Legend", _root,
-                "<color=#8a5a2b><b>——</b></color> Meadow Loop   <color=#a0784a><b>– –</b></color> Reserve tracks   " +
+                "<color=#b8996b><b>——</b></color> Reserve Road   <color=#8a5a2b><b>——</b></color> Meadow Loop   <color=#a0784a><b>– –</b></color> Footpaths   " +
                 "<color=#5b8fb3><b>——</b></color> Creek   <color=#c0392b><b>●</b></color> You are here   (map faces the way you do)", 19, Ink);
-            Top(legend.rectTransform, 30f, 128f + mapSize, mapSize, 30f);
+            Top(legend.rectTransform, 30f, 126f + mapSize, mapSize, 60f);
 
             // Right column
             float x = 566f, cw = w - x - 30f, y = 110f;
@@ -129,8 +129,8 @@ namespace WildLens.Environment
             var footer = UIFactory.CreateImage("Footer", _root, new Color(0.76f, 0.72f, 0.58f));
             Top(footer.rectTransform, 0f, h - 52f, w, 52f);
             var tip = UIFactory.CreateText("Ranger Tip", footer.rectTransform,
-                "<b>Ranger's tip:</b> wildlife hears engines from far off. Park the bike (R), walk the last stretch, " +
-                "crouch (C) and let them settle.", 20, Ink, TextAnchor.MiddleCenter);
+                "<b>Ranger's tip:</b> ride the Reserve Road, park at the pull-offs and walk the last stretch. " +
+                "Wildlife keeps hours: come back at a different time of day.", 20, Ink, TextAnchor.MiddleCenter);
             UIFactory.Stretch(tip.rectTransform, 20f, 0f, 20f, 0f);
         }
 
@@ -163,6 +163,8 @@ namespace WildLens.Environment
             if (_status == null) return;
             var sb = new StringBuilder();
             var game = WildLensGame.Instance;
+            var clock = DayCycle.Instance;
+            if (clock != null) sb.Append($"<b>Now: {DayCycle.PeriodName(clock.Period)}, {clock.ClockText}.</b> {RightNow(clock.Period)}\n");
             int species = game != null && game.Species != null ? game.Species.Count : 0;
             int seen = game != null && game.Journal != null ? game.Journal.DiscoveredCount : 0;
             sb.Append($"Species living here: <b>{species}</b>   ·   in your journal: <b>{seen}</b>\n");
@@ -172,7 +174,9 @@ namespace WildLens.Environment
             foreach (var t in ReserveTrack.All) tracks += t.Length;
             sb.Append("Trails: <b>Meadow Loop</b>");
             if (trail != null) sb.Append($" {trail.Length / 1000f:0.0} km");
-            if (ReserveTrack.All.Count > 0) sb.Append($"   ·   <b>{ReserveTrack.All.Count}</b> reserve tracks, {tracks / 1000f:0.0} km");
+            float road = 0f; foreach (var t in ReserveTrack.All) if (t.kind == TrackKind.Road) road += t.Length;
+            if (road > 0f) sb.Append($"   ·   <b>Reserve Road</b> {road / 1000f:0.0} km");
+            if (ReserveTrack.All.Count > 0) sb.Append($"   ·   footpaths {(tracks - road) / 1000f:0.0} km");
             sb.Append('\n');
             int views = SceneQuery.FindAll<ScenicViewpoint>().Length;
             sb.Append($"Scenic viewpoints: <b>{views}</b>   ·   Destinations: <b>{ReserveDestination.All.Count}</b>");
@@ -185,9 +189,36 @@ namespace WildLens.Environment
             foreach (var d in dests)
             {
                 float km = TerrainUtil.FlatDistance(d.transform.position, transform.position) / 1000f;
-                sb.Append($"<b>{d.number}</b>  {d.title}  <color=#5b5444>{km:0.0} km · {Short(d.fieldNote)}</color>\n");
+                string when = string.IsNullOrEmpty(d.bestTimes) ? Short(d.fieldNote) : "best: " + d.bestTimes;
+                sb.Append($"<b>{d.number}</b>  {d.title}  <color=#5b5444>{km:0.0} km · {when}</color>\n");
             }
             _status.text = sb.ToString().TrimEnd('\n');
+        }
+
+        /// <summary>What the reserve is doing at this time of day: the patterns, said plainly.</summary>
+        private static string RightNow(DayPeriod p)
+        {
+            switch (p)
+            {
+                case DayPeriod.Dawn: return "Mist on the water; cottontails on the meadow edges.";
+                case DayPeriod.Morning: return "Deer in the meadows; hawks rising over the ridge.";
+                case DayPeriod.Midday: return "Deer resting in the woods; the grove is cool and quiet.";
+                case DayPeriod.GoldenHour: return "Best light on the ridge; deer back in the meadows.";
+                case DayPeriod.Dusk: return "Deer at the pond and creek; foxes on the meadow edges.";
+                default: return "The reserve sleeps.";
+            }
+        }
+
+        private float _refresh;
+        private DayPeriod _lastPeriod = (DayPeriod)(-1);
+
+        private void Update()
+        {
+            _refresh -= Time.deltaTime;
+            if (_refresh > 0f) return;
+            _refresh = 2f;
+            if (DayCycle.Instance != null && DayCycle.Instance.Period != _lastPeriod) _lastPeriod = DayCycle.Instance.Period;
+            RefreshStatus(); // keeps the clock line current
         }
 
         private static string Short(string note)
@@ -267,7 +298,9 @@ namespace WildLens.Environment
             foreach (var d in ReserveDestination.All)
                 if (d.waterRadius > 0f) Disc(px, res, ToPx(d.transform.position), d.waterRadius / cell, water);
             foreach (var c in ReserveCreek.All) Polyline(px, res, c.Points, ToPx, 1.4f, new Color(0.36f, 0.56f, 0.7f), dashed: false);
-            foreach (var t in ReserveTrack.All) Polyline(px, res, t.Points, ToPx, 1.2f, new Color(0.63f, 0.47f, 0.29f), dashed: true);
+            foreach (var t in ReserveTrack.All)
+                if (t.kind == TrackKind.Road) Polyline(px, res, t.Points, ToPx, 2f, new Color(0.72f, 0.6f, 0.42f), dashed: false);
+                else Polyline(px, res, t.Points, ToPx, 1.1f, new Color(0.6f, 0.44f, 0.27f), dashed: true);
             if (trail != null)
             {
                 var loop = new List<Vector3>(trail.Points);

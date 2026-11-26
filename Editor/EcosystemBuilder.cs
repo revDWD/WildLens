@@ -403,6 +403,7 @@ namespace WildLens.EditorTools
                 string hint = s.kind == DestinationKind.ObservationBlind ? $"walk {walk:0} m quietly to the blind" : $"walk {walk:0} m to {s.title}";
                 AddPullOff(pad, side, $"{s.title} parking", hint, shapeTerrain, wood, post,
                     $"P  BIKE PARKING\n{s.title}: walk from here", false);
+                _destinationPads.Add(_pads[_pads.Count - 1].p);
 
                 // Midway scenic pull-off on tracks long enough to want a pause.
                 if (s.track.Length > 160f)
@@ -508,6 +509,7 @@ namespace WildLens.EditorTools
             var wood = GeneratedAssets.Material("Wood", new Color(0.52f, 0.39f, 0.26f));
             var post = GeneratedAssets.Material("WoodDark", new Color(0.33f, 0.24f, 0.16f));
             if (_creek.Count > 1) BuildCreekLife(parent, wood, post);
+            BuildWoodlandCover(parent);
             BuildTrackMarkers(parent, post);
             BuildResidences(parent, wood, post);
             foreach (var stop in _scenicStops) AddViewpoint(parent, stop.title, stop.p + stop.view * 2.2f + Vector3.up * 1.2f, TerrainUtil.Ground(stop.p + stop.view * 80f) + Vector3.up * 2f);
@@ -526,7 +528,8 @@ namespace WildLens.EditorTools
 
             // Crossings: footbridges where the loop or a track meets the creek.
             var crossings = new List<(Vector3 p, Vector3 dir)>();
-            void Cross(IReadOnlyList<Vector3> path, bool closed)
+            var crossingWidth = new List<float>();
+            void Cross(IReadOnlyList<Vector3> path, bool closed, float width)
             {
                 int count = closed ? path.Count : path.Count - 1;
                 for (int i = 0; i < count; i++)
@@ -537,14 +540,15 @@ namespace WildLens.EditorTools
                         if (!SegmentsIntersect(a, b, _creek[k - 1], _creek[k], out Vector3 hit)) continue;
                         bool near = false;
                         foreach (var c in crossings) if (TerrainUtil.FlatDistance(c.p, hit) < 12f) near = true;
-                        if (!near) crossings.Add((hit, TerrainUtil.Flat(b - a).normalized));
+                        if (!near) { crossings.Add((hit, TerrainUtil.Flat(b - a).normalized)); crossingWidth.Add(width); }
                     }
                 }
             }
-            Cross(_trail.Points, true);
-            foreach (var t in _tracks) Cross(t.Points, false);
-            int bridgeIndex = 0;
-            foreach (var c in crossings) Footbridge(creek, c.p, c.dir, wood, post, bridgeIndex++ == 0);
+            foreach (var t in _tracks) if (t.kind == TrackKind.Road) Cross(t.Points, false, 3.8f); // road bridges first (wider)
+            Cross(_trail.Points, true, 2.3f);
+            foreach (var t in _tracks) if (t.kind != TrackKind.Road) Cross(t.Points, false, 2f);
+            for (int i = 0; i < crossings.Count; i++)
+                Footbridge(creek, crossings[i].p, crossings[i].dir, wood, post, i == 0, crossingWidth[i]);
 
             // Bed stones and bank rocks (erosion), a fallen log, reeds, brook voices.
             var stone = GeneratedAssets.Material("CreekStone", new Color(0.42f, 0.41f, 0.38f), 0.35f);
@@ -601,6 +605,20 @@ namespace WildLens.EditorTools
                 amb.audibleRadius = 28f;
             }
 
+            // Dawn mist settles in the creek's low reaches (0.9).
+            for (int k = 1; k <= 4; k++)
+            {
+                int i = Mathf.Clamp(n * k / 5, 0, n - 1);
+                Mist(creek, new Vector3(_creek[i].x, _creekWater[i] + 0.5f, _creek[i].z), new Vector3(16f, 1.2f, 16f), 0.7f);
+            }
+            // Water anchors: where deer come to drink at dusk.
+            for (int k = 1; k <= 3; k++)
+            {
+                int i = Mathf.Clamp(n * k / 4, 0, n - 1);
+                Vector3 dir = TerrainUtil.Flat(_creek[Mathf.Min(n - 1, i + 1)] - _creek[Mathf.Max(0, i - 1)]).normalized;
+                Anchor(creek, ScheduleRole.Water, TerrainUtil.Ground(_creek[i] + Vector3.Cross(Vector3.up, dir) * 4.5f), 10f);
+            }
+
             // Deer come down to drink where the creek runs through open ground.
             int drink = -1; float bestOpen = float.MaxValue;
             for (int i = n / 5; i < n * 4 / 5; i += 4)
@@ -614,6 +632,94 @@ namespace WildLens.EditorTools
                 Residence(parent, "Creek-side deer", p, 16f, "white_tailed_deer");
                 AddHotspot(parent, "Creek Meadow Hotspot", HotspotType.Meadow, p, 14f);
             }
+        }
+
+        // ================================================================== time of day (0.9)
+
+        private void Anchor(Transform parent, ScheduleRole role, Vector3 p, float radius)
+        {
+            var go = new GameObject("Schedule: " + role);
+            go.transform.SetParent(parent, false);
+            go.transform.position = p;
+            var a = go.AddComponent<ScheduleAnchor>();
+            a.role = role;
+            a.radius = radius;
+        }
+
+        /// <summary>Woodland cover where deer bed down at midday: dense stands away from paths, spread over the reserve.</summary>
+        private void BuildWoodlandCover(Transform parent)
+        {
+            var chosen = new List<Vector3>();
+            for (int i = 0; i < 4000 && chosen.Count < 9; i++)
+            {
+                Vector3 p = RandomPoint();
+                if (Forest(p) < 0.6f || PathDistance(p) < 10f || CreekDistance(p) < 5f || TerrainUtil.SlopeDegrees(p) > 25f) continue;
+                bool far = true;
+                foreach (var c in chosen) if (TerrainUtil.FlatDistance(c, p) < 70f) { far = false; break; }
+                if (!far) continue;
+                chosen.Add(p);
+                Anchor(parent, ScheduleRole.Woodland, p, 14f);
+            }
+        }
+
+        private Material _mist;
+
+        private void Mist(Transform parent, Vector3 at, Vector3 size, float strength)
+        {
+            if (_mist == null) _mist = MistMaterial();
+            if (_mist == null) return;
+            var go = new GameObject("Dawn Mist");
+            go.transform.SetParent(parent, false);
+            go.transform.position = at;
+            var m = go.AddComponent<MistPatch>();
+            m.size = size;
+            m.material = _mist;
+            m.strength = strength;
+        }
+
+        /// <summary>A soft, noisy puff texture and an unlit transparent particle material for the active pipeline.</summary>
+        private static Material MistMaterial()
+        {
+            bool srp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
+            var shader = srp ? Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                             : (Shader.Find("Legacy Shaders/Particles/Alpha Blended") ?? Shader.Find("Particles/Standard Unlit"));
+            if (shader == null) return null;
+            var tex = GeneratedAssets.LoadOrCreate("T_MistPuff", () =>
+            {
+                const int size = 64;
+                var t = new Texture2D(size, size, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp };
+                for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x + 0.5f) / size - 0.5f, dy = (y + 0.5f) / size - 0.5f;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                    float n = Mathf.PerlinNoise(x * 0.11f, y * 0.11f) * 0.6f + Mathf.PerlinNoise(x * 0.27f + 7f, y * 0.27f) * 0.4f;
+                    float a = Mathf.Clamp01(1f - r) * Mathf.Clamp01(1f - r) * (0.55f + 0.45f * n);
+                    t.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+                t.Apply();
+                return t;
+            });
+            string path = GeneratedAssets.Folder + "/M_DawnMist.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null) { mat = new Material(shader); AssetDatabase.CreateAsset(mat, path); }
+            mat.shader = shader;
+            foreach (var prop in new[] { "_BaseMap", "_MainTex" }) if (mat.HasProperty(prop)) mat.SetTexture(prop, tex);
+            foreach (var prop in new[] { "_BaseColor", "_Color" }) if (mat.HasProperty(prop)) mat.SetColor(prop, new Color(1f, 1f, 1f, 0f));
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", new Color(0.5f, 0.5f, 0.5f, 0f));
+            if (srp)
+            {
+                mat.SetFloat("_Surface", 1f);
+                mat.SetFloat("_Blend", 0f);
+                mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetFloat("_ZWrite", 0f);
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.SetOverrideTag("RenderType", "Transparent");
+            }
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         private static bool SegmentsIntersect(Vector3 a, Vector3 b, Vector3 c, Vector3 d, out Vector3 hit)
@@ -631,9 +737,9 @@ namespace WildLens.EditorTools
             return true;
         }
 
-        private void Footbridge(Transform parent, Vector3 at, Vector3 dir, Material wood, Material post, bool panel)
+        private void Footbridge(Transform parent, Vector3 at, Vector3 dir, Material wood, Material post, bool panel, float width = 2.3f)
         {
-            const float len = 9.5f, width = 2.3f;
+            const float len = 9.5f;
             float hA = TerrainUtil.SampleHeight(at - dir * len * 0.5f), hB = TerrainUtil.SampleHeight(at + dir * len * 0.5f);
             float deck = Mathf.Max(hA, hB) + 0.1f;
             Clear(at, 6f);

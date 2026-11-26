@@ -170,6 +170,7 @@ namespace WildLens.EditorTools
             _artStumps = ArtLibrary.Prefabs(ArtKind.Stump);
             _artLogs = ArtLibrary.Prefabs(ArtKind.Log);
             PrepareFoliageCards();
+            PrepareTreeParts();
         }
 
         private T Pick<T>(T[] array) => array[_rng.Next(array.Length)];
@@ -227,6 +228,162 @@ namespace WildLens.EditorTools
             var lod = tree.AddComponent<LODGroup>();
             lod.SetLODs(new[] { new LOD(screenHeight, tree.GetComponentsInChildren<Renderer>()) });
             lod.RecalculateBounds();
+        }
+
+        // ---- tree pass (0.9): trees with structure. Read from the trail (trunks, limbs, crown base), at photo distance
+        // (ragged crowns, depth) and from overlooks (varied silhouettes and sizes).
+
+        private Mesh _frustumTrunk, _frustumLimb, _frustumSpire;
+        private Material _birchBark;
+
+        private void PrepareTreeParts()
+        {
+            _frustumTrunk = GeneratedAssets.LoadOrCreate("Mesh_FrustumTrunk", () => ProceduralMeshes.Frustum(10, 0.7f));
+            _frustumLimb = GeneratedAssets.LoadOrCreate("Mesh_FrustumLimb", () => ProceduralMeshes.Frustum(8, 0.4f));
+            _frustumSpire = GeneratedAssets.LoadOrCreate("Mesh_FrustumSpire", () => ProceduralMeshes.Frustum(8, 0.08f));
+            _birchBark = GeneratedAssets.Material("BirchBark", new Color(0.82f, 0.8f, 0.74f), 0.15f);
+        }
+
+        /// <summary>A tapered tube from <paramref name="from"/> along <paramref name="dir"/> (local to the tree root).</summary>
+        private void Limb(Transform root, string name, Mesh mesh, Material mat, Vector3 from, Vector3 dir, float length, float radius)
+        {
+            MeshPart(name, root, mesh, mat, from, new Vector3(radius, length, radius), Quaternion.FromToRotation(Vector3.up, dir.normalized));
+        }
+
+        /// <summary>A leaf cluster: dark core inside a shell of leaf cards. Returns the swaying part.</summary>
+        private Transform Cluster(Transform root, Vector3 at, float size, float squash, Material cards)
+        {
+            var core = MeshPart("Crown", root, Pick(_canopies), _leafCore, at,
+                new Vector3(size, size * squash, size) * 0.82f, Quaternion.Euler(0f, R(0f, 360f), 0f));
+            AddCards(core.transform, FoliageCards.Canopy(_rng), cards);
+            return core.transform;
+        }
+
+        /// <summary>
+        /// A fir/spruce that grows like one: a tapering trunk to the tip, a crown of branch whorls (cone-shaped but ragged),
+        /// a slim dark core for depth, and a few dead lower branches below the living crown.
+        /// </summary>
+        private GameObject WhorlConifer(Transform parent, Vector3 p)
+        {
+            float h = R(9f, 17f);
+            float trunkR = 0.14f + h * 0.012f;
+            var root = new GameObject("Conifer");
+            root.transform.SetParent(parent, false);
+            root.transform.position = p;
+            root.transform.rotation = Quaternion.Euler(R(-1.5f, 1.5f), R(0f, 360f), R(-1.5f, 1.5f));
+            var bark = _pineBark != null ? _pineBark : Pick(_bark);
+            MeshPart("Trunk", root.transform, _frustumSpire, bark, Vector3.zero, new Vector3(trunkR, h * 0.97f, trunkR), Quaternion.identity);
+
+            float crownBase = Mathf.Max(2.5f, h * R(0.12f, 0.3f));
+            float crownH = h - crownBase + 0.4f;
+            float crownR = crownH * R(0.24f, 0.33f);
+            var parts = new List<Transform>();
+            var core = MeshPart("Core", root.transform, _cone, _coniferCore, new Vector3(0f, crownBase + crownH * 0.05f, 0f),
+                new Vector3(crownR * 0.32f, crownH * 0.88f, crownR * 0.32f), Quaternion.identity);
+            parts.Add(core.transform);
+            var crown = MeshPart("Crown", root.transform, FoliageCards.ConiferCrown(_rng), _branchCards[_rng.Next(_branchCards.Length)],
+                new Vector3(0f, crownBase, 0f), new Vector3(crownR, crownH, crownR), Quaternion.Euler(0f, R(0f, 360f), 0f));
+            parts.Add(crown.transform);
+            // Dead lower branches: bare twigs below the living crown, as on real forest conifers.
+            int dead = _rng.Next(2, 5);
+            for (int i = 0; i < dead; i++)
+            {
+                float y = R(1.9f, crownBase);
+                float a = R(0f, Mathf.PI * 2f);
+                Vector3 dir = new Vector3(Mathf.Cos(a), R(-0.35f, -0.1f), Mathf.Sin(a));
+                Limb(root.transform, "Dead Branch", _frustumLimb, bark, new Vector3(0f, y, 0f), dir, R(0.6f, 1.3f), trunkR * 0.18f);
+            }
+            AddSway(root, parts, h, R(1.1f, 1.7f), R(0.26f, 0.34f));
+
+            var trunkCol = root.AddComponent<CapsuleCollider>();
+            trunkCol.center = new Vector3(0f, 1.5f, 0f); trunkCol.height = 3f; trunkCol.radius = trunkR;
+            var foliage = root.AddComponent<CapsuleCollider>();
+            foliage.isTrigger = true;
+            foliage.center = new Vector3(0f, crownBase + crownH * 0.45f, 0f); foliage.height = crownH; foliage.radius = crownR * 0.7f;
+            AddFeature(root, FeatureKind.Tree, trunkR, h * 0.95f);
+            return root;
+        }
+
+        /// <summary>
+        /// Broadleaf trees with real structure, in three forms so stands vary:
+        ///   spreading (oak-like)   short trunk, 3–5 limbs angled out, a wide, low crown of clusters
+        ///   ovate (maple-like)     taller trunk, 2–3 steep limbs, a narrower, taller crown
+        ///   multi-stem (birch-like) 2–3 slender pale stems from the ground, light crowns
+        /// Limbs show beneath and between the leaf clusters, so a tree reads as a tree from the trail.
+        /// </summary>
+        private GameObject BranchingBroadleaf(Transform parent, Vector3 p)
+        {
+            float roll = R();
+            int form = roll < 0.14f ? 2 : roll < 0.45f ? 1 : 0;
+            float h = form == 2 ? R(8f, 13f) : R(8f, 14f);
+            float trunkR = form == 2 ? 0.08f + h * 0.006f : 0.14f + h * 0.016f;
+            var root = new GameObject(form == 0 ? "Broadleaf (spreading)" : form == 1 ? "Broadleaf (ovate)" : "Birch");
+            root.transform.SetParent(parent, false);
+            root.transform.position = p;
+            root.transform.rotation = Quaternion.Euler(0f, R(0f, 360f), 0f);
+            var bark = form == 2 ? _birchBark : Pick(_bark);
+            var cards = form == 2 ? _leafCards[2 % _leafCards.Length] : _leafCards[_rng.Next(_leafCards.Length)];
+            var parts = new List<Transform>();
+            float top = 0f, crownW;
+            Vector3 crownCentre;
+
+            if (form == 2)
+            {
+                int stems = _rng.Next(2, 4);
+                crownW = h * 0.3f;
+                crownCentre = Vector3.up * h * 0.75f;
+                for (int sIdx = 0; sIdx < stems; sIdx++)
+                {
+                    float az = sIdx * 360f / stems + R(-30f, 30f);
+                    Vector3 dir = Quaternion.Euler(0f, az, 0f) * Quaternion.Euler(R(4f, 11f), 0f, 0f) * Vector3.up;
+                    float hs = h * R(0.78f, 1f);
+                    Vector3 basePt = Quaternion.Euler(0f, az, 0f) * Vector3.forward * 0.12f;
+                    Limb(root.transform, "Stem", _frustumLimb, bark, basePt, dir, hs, trunkR);
+                    foreach (float t in new[] { 0.62f, 0.8f, 0.97f })
+                    {
+                        Vector3 at = basePt + dir * hs * t + new Vector3(R(-0.4f, 0.4f), 0f, R(-0.4f, 0.4f));
+                        parts.Add(Cluster(root.transform, at, h * R(0.13f, 0.19f) * (1.15f - t * 0.4f), R(0.95f, 1.2f), cards));
+                        top = Mathf.Max(top, at.y + h * 0.08f);
+                    }
+                }
+            }
+            else
+            {
+                float fork = h * (form == 0 ? R(0.3f, 0.4f) : R(0.42f, 0.52f));
+                Vector3 lean = new Vector3(R(-0.06f, 0.06f), 1f, R(-0.06f, 0.06f));
+                Limb(root.transform, "Trunk", _frustumTrunk, bark, Vector3.zero, lean, fork + 0.3f, trunkR);
+                Vector3 forkPt = lean.normalized * fork;
+                crownW = h * (form == 0 ? R(0.58f, 0.7f) : R(0.38f, 0.46f));
+                int limbs = form == 0 ? _rng.Next(3, 6) : _rng.Next(2, 4);
+                float spread = form == 0 ? R(38f, 55f) : R(16f, 28f);
+                float az0 = R(0f, 360f);
+                for (int i = 0; i < limbs; i++)
+                {
+                    float az = az0 + i * 360f / limbs + R(-22f, 22f);
+                    Vector3 dir = Quaternion.Euler(0f, az, 0f) * Quaternion.Euler(spread + R(-10f, 10f), 0f, 0f) * Vector3.up;
+                    float len = (h - fork) * R(0.55f, 0.78f);
+                    Limb(root.transform, "Limb", _frustumLimb, bark, forkPt - dir * 0.15f, dir, len, trunkR * 0.62f);
+                    Vector3 end = forkPt + dir * len;
+                    float size = crownW * R(0.4f, 0.55f);
+                    parts.Add(Cluster(root.transform, end, size, form == 0 ? R(0.7f, 0.85f) : R(0.95f, 1.15f), cards));
+                    top = Mathf.Max(top, end.y + size * 0.35f);
+                }
+                // A leading cluster over the fork fills the crown's centre.
+                Vector3 lead = forkPt + Vector3.up * (h - fork) * R(0.65f, 0.8f);
+                float leadSize = crownW * (form == 0 ? 0.5f : 0.58f);
+                parts.Add(Cluster(root.transform, lead, leadSize, form == 0 ? 0.8f : 1.15f, cards));
+                top = Mathf.Max(top, lead.y + leadSize * 0.4f);
+                crownCentre = (forkPt + lead) * 0.5f + Vector3.up * (h - fork) * 0.15f;
+            }
+            AddSway(root, parts, h, R(1.3f, 2.1f), R(0.3f, 0.42f));
+
+            var trunkCol = root.AddComponent<CapsuleCollider>();
+            trunkCol.center = new Vector3(0f, 1.5f, 0f); trunkCol.height = 3f; trunkCol.radius = Mathf.Max(0.12f, trunkR);
+            var canopy = root.AddComponent<SphereCollider>();
+            canopy.isTrigger = true;
+            canopy.center = crownCentre; canopy.radius = crownW * 0.45f;
+            AddFeature(root, FeatureKind.Tree, trunkR, Mathf.Max(top, h * 0.85f));
+            return root;
         }
 
         // ---- foliage cards (0.6): alpha-cut leaf/branch cards over a darker core volume
@@ -356,6 +513,7 @@ namespace WildLens.EditorTools
 
         private GameObject Conifer(Transform parent, Vector3 p)
         {
+            if (_cards) return WhorlConifer(parent, p);
             float h = R(8f, 15f);
             float trunkR = 0.16f + h * 0.012f;
             var root = new GameObject("Conifer");
@@ -395,6 +553,7 @@ namespace WildLens.EditorTools
 
         private GameObject Deciduous(Transform parent, Vector3 p)
         {
+            if (_cards) return BranchingBroadleaf(parent, p);
             float h = R(7f, 12f);
             float trunkR = 0.15f + h * 0.014f;
             var root = new GameObject("Broadleaf");
