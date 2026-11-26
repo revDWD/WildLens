@@ -18,8 +18,9 @@ namespace WildLens.Core
         /// 11: wider graded Reserve Road, road posts, sight lines, planked decks, destination signatures, young trees,
         /// pine form, water hotspots (1.0.0).
         /// 12: fifteen species (heron, raccoon, turkey, barred owl, groundhog, cardinal, blue jay, red-winged
-        /// blackbird, opossum, coyote) with residents at each destination (1.1 in progress).</summary>
-        public const int Environment = 12;
+        /// blackbird, opossum, coyote) with residents at each destination (1.1 in progress).
+        /// 13: scanned rock-face outcrops on slopes and the ridge; Environment Kit (free packs by ecological role) (1.2).</summary>
+        public const int Environment = 13;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =

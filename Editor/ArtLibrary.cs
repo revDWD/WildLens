@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 
 namespace WildLens.EditorTools
 {
-    public enum ArtKind { Fern, Shrub, RockPiece, Boulder, Stump, Log }
+    public enum ArtKind { Fern, Shrub, RockPiece, Boulder, Stump, Log, Outcrop }
 
     /// <summary>Sun and colour data measured from an HDRI (written by the asset pipeline into Art~/Sky/*.json).</summary>
     [Serializable]
@@ -30,8 +30,8 @@ namespace WildLens.EditorTools
 
     /// <summary>
     /// Scanned art shipped with the package in <c>Art~</c> (all CC0 from Poly Haven; see Art~/CREDITS.md):
-    /// two HDRI skies, five terrain materials, bark and rock surfaces, and eight models (fern, shrubs, mossy rock sets,
-    /// boulder, stump, fallen trunk).
+    /// two HDRI skies, five terrain materials, bark and rock surfaces, and ten models (fern, shrubs, mossy rock sets,
+    /// boulder, stump, fallen trunk, and two hillside rock faces).
     ///
     /// Folders ending in "~" are ignored by Unity's importer, so <see cref="Import"/> copies the files into
     /// Assets/WildLens/Art and applies import settings (normal maps, HDR sky without mips, alpha-coverage-preserving
@@ -43,7 +43,7 @@ namespace WildLens.EditorTools
     {
         public const string Destination = GeneratedAssets.Root + "/Art";
         private const string PrefabFolder = Destination + "/Prefabs";
-        private const string ImportVersion = "2"; // 2: Foliage card textures
+        private const string ImportVersion = "3"; // 2: Foliage card textures. 3: rock faces (outcrops)
 
         private struct ModelSpec
         {
@@ -64,7 +64,18 @@ namespace WildLens.EditorTools
             new ModelSpec { name = "boulder_01", kind = ArtKind.Boulder, maxDimension = 1.83f },
             new ModelSpec { name = "tree_stump_01", kind = ArtKind.Stump, maxDimension = 1.59f },
             new ModelSpec { name = "dead_tree_trunk_02", kind = ArtKind.Log, maxDimension = 4.05f },
+            // 1.2: scanned hillside rock faces (open shells that face up and out, ~45° lean): outcrops on slopes.
+            new ModelSpec { name = "rock_face_01", kind = ArtKind.Outcrop, maxDimension = 7.11f },
+            new ModelSpec { name = "rock_face_02", kind = ArtKind.Outcrop, maxDimension = 4.87f },
         };
+
+        /// <summary>Models whose mesh data is read when their prefab is made (outcrops are turned to face +Z).</summary>
+        private static bool NeedsReadableMesh(string assetPath)
+        {
+            foreach (var spec in Models)
+                if (spec.kind == ArtKind.Outcrop && assetPath.EndsWith("/" + spec.name + ".fbx")) return true;
+            return false;
+        }
 
         private static string _sourceRoot;
         private static bool _imported;
@@ -138,7 +149,7 @@ namespace WildLens.EditorTools
                 model.importAnimation = false;
                 model.importCameras = false;
                 model.importLights = false;
-                model.isReadable = false;
+                model.isReadable = NeedsReadableMesh(assetPath);
                 model.SaveAndReimport();
                 return;
             }
@@ -296,6 +307,8 @@ namespace WildLens.EditorTools
             var normal = Texture($"{folder}/{spec.name}_nor_gl_1k.jpg");
             Material mat = spec.alpha ? FoliageMaterial(spec.name, albedo, normal)
                                       : SurfaceMaterial(spec.name, $"{folder}/{spec.name}_diff.jpg", $"{folder}/{spec.name}_nor_gl_1k.jpg", Color.white, Vector2.one, 0.12f);
+            // A rock face is a scanned shell with an open back: seen from uphill it must read as rock, not a hole.
+            if (spec.kind == ArtKind.Outcrop && mat != null) { MaterialLibrary.MakeDoubleSided(mat); EditorUtility.SetDirty(mat); }
 
             var instance = (GameObject)Object.Instantiate(source);
             instance.transform.position = Vector3.zero;
@@ -332,6 +345,7 @@ namespace WildLens.EditorTools
                         for (int i = 0; i < mats.Length; i++) mats[i] = mat;
                         r.sharedMaterials = mats;
                     }
+                    if (spec.kind == ArtKind.Outcrop) FaceForward(instance.transform);
                     // Size from the real dimensions in case the FBX unit scale differs from metres.
                     Bounds b = Recenter(root, instance.transform);
                     float measured = Mathf.Max(b.size.x, b.size.y, b.size.z);
@@ -351,6 +365,25 @@ namespace WildLens.EditorTools
                 if (instance != null) Object.DestroyImmediate(instance);
             }
             return existing;
+        }
+
+        /// <summary>
+        /// Turns a scanned rock face so its open side looks along +Z (the builder then aims +Z downhill and the open back
+        /// is buried in the slope). The facing is the summed vertex normal; FBX axis conversion can rotate the node, so
+        /// it is measured rather than assumed. Measured in Python when added: both scans face up and toward +Z.
+        /// </summary>
+        private static void FaceForward(Transform content)
+        {
+            Vector3 sum = Vector3.zero;
+            foreach (var mf in content.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh == null || !mesh.isReadable) continue;
+                foreach (var n in mesh.normals) sum += mf.transform.TransformDirection(n);
+            }
+            Vector3 flat = new Vector3(sum.x, 0f, sum.z);
+            if (flat.sqrMagnitude < 1e-6f) return;
+            content.rotation = Quaternion.FromToRotation(flat.normalized, Vector3.forward) * content.rotation;
         }
 
         /// <summary>Moves <paramref name="content"/> so the combined bounds sit centred on the root's origin, base at y = 0.</summary>
@@ -379,6 +412,12 @@ namespace WildLens.EditorTools
                         col.convex = true;
                     }
                     else AddBox(root, b, false);
+                    AddFeature(root, FeatureKind.Rock, radius, b.size.y);
+                    break;
+                case ArtKind.Outcrop:
+                    // Static scenery: an exact (non-convex) collider, so the player walks over and around the real shape.
+                    foreach (var mf in root.GetComponentsInChildren<MeshFilter>())
+                        if (mf.sharedMesh != null) mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
                     AddFeature(root, FeatureKind.Rock, radius, b.size.y);
                     break;
                 case ArtKind.Stump:

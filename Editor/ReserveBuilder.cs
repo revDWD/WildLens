@@ -723,6 +723,13 @@ namespace WildLens.EditorTools
                 if (_art && i < 2 && _artBoulders.Count > 0) PlaceArt(_artBoulders, group, p, R(0.8f, 1.2f), 0.15f, 8f);
                 else if (_art && _artRocks.Count > 0) PlaceArt(_artRocks, group, p, R(0.8f, 1.6f), 0.15f, 12f);
             }
+            // 1.2: bedrock breaks the surface on the ridge's flanks (to the sides, so the view stays open).
+            for (int i = 0; i < 2 && _artOutcrops.Count > 0; i++)
+            {
+                Vector3 p = TerrainUtil.Ground(pos + Quaternion.Euler(0f, (i == 0 ? -1f : 1f) * R(75f, 105f), 0f) * f * R(11f, 17f));
+                if (InKeepOut(p) || PathDistance(p) < 5f || !IsFree(p, 5f)) continue;
+                PlaceOutcrop(group, p, R(0.6f, 0.85f));
+            }
             var wind = new GameObject("Ridge Wind");
             wind.transform.SetParent(group, false);
             wind.transform.position = pos + Vector3.up * 3f;

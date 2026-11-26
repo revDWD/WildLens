@@ -31,7 +31,7 @@ namespace WildLens.EditorTools
         private Material _pineBark;
         private List<GameObject> _artFerns = new List<GameObject>(), _artShrubs = new List<GameObject>(),
             _artRocks = new List<GameObject>(), _artBoulders = new List<GameObject>(),
-            _artStumps = new List<GameObject>(), _artLogs = new List<GameObject>();
+            _artStumps = new List<GameObject>(), _artLogs = new List<GameObject>(), _artOutcrops = new List<GameObject>();
         private bool _art;
         public int FernsPlaced { get; private set; }
         private readonly List<GameObject> _treeObjects = new List<GameObject>();
@@ -169,6 +169,7 @@ namespace WildLens.EditorTools
             _artBoulders = ArtLibrary.Prefabs(ArtKind.Boulder);
             _artStumps = ArtLibrary.Prefabs(ArtKind.Stump);
             _artLogs = ArtLibrary.Prefabs(ArtKind.Log);
+            _artOutcrops = ArtLibrary.Prefabs(ArtKind.Outcrop);
             PrepareFoliageCards();
             PrepareTreeParts();
         }
@@ -678,8 +679,54 @@ namespace WildLens.EditorTools
             }
         }
 
+        /// <summary>
+        /// Bedrock showing through on real slopes (1.2): scanned hillside rock faces turned to face downhill and sunk into
+        /// the ground so their open backs are buried. Few and large; geology, not decoration. Steep ground first.
+        /// </summary>
+        private void BuildOutcrops(Transform parent)
+        {
+            if (_artOutcrops.Count == 0) return;
+            int wanted = Mathf.Max(3, Scaled(9)), placed = 0;
+            var candidates = new List<(Vector3 p, float slope)>();
+            for (int i = 0; i < 1500; i++)
+            {
+                Vector3 p = RandomPoint();
+                float slope = TerrainUtil.SlopeDegrees(p);
+                if (slope < 20f || slope > 48f) continue;
+                if (PathDistance(p) < 7f || (HasRoads && RoadDistance(p) < 9f) || CreekDistance(p) < 6f || InKeepOut(p)) continue;
+                candidates.Add((p, slope));
+            }
+            candidates.Sort((a, b) => b.slope.CompareTo(a.slope));
+            foreach (var c in candidates)
+            {
+                if (placed >= wanted) break;
+                if (!IsFree(c.p, 9f)) continue;
+                PlaceOutcrop(parent, c.p, R(0.55f, 0.9f));
+                placed++;
+            }
+        }
+
+        /// <summary>One rock face at <paramref name="p"/>, its open side facing downhill, base sunk into the slope.</summary>
+        private GameObject PlaceOutcrop(Transform parent, Vector3 p, float scale)
+        {
+            Vector3 n = TerrainUtil.SampleNormal(p);
+            Vector3 downhill = TerrainUtil.Flat(n);
+            if (downhill.sqrMagnitude < 1e-4f) downhill = Quaternion.Euler(0f, R(0f, 360f), 0f) * Vector3.forward;
+            var go = InstantiatePrefab(_artOutcrops[_rng.Next(_artOutcrops.Count)], parent, p, scale);
+            var f = go.GetComponent<EnvironmentFeature>();
+            float h = f != null ? f.height * scale : 3f;
+            go.transform.position = p - Vector3.up * h * R(0.18f, 0.28f);
+            go.transform.rotation = Quaternion.LookRotation(downhill.normalized) * Quaternion.Euler(0f, R(-20f, 20f), 0f);
+            if (f != null) { f.radius *= scale; f.height *= scale; }
+            MakeStatic(go);
+            Occupy(p);
+            RocksPlaced++;
+            return go;
+        }
+
         public void BuildRocks(Transform parent)
         {
+            BuildOutcrops(parent);
             var prefabs = new List<GameObject>();
             foreach (var p in _s.rockPrefabs) if (p != null) prefabs.Add(p);
             // Rocks read as geology, not confetti: most sit in outcrops (clusters, favouring slopes and woodland
