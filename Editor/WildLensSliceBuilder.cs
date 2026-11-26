@@ -119,6 +119,8 @@ namespace WildLens.EditorTools
                 {
                     Progress("Reserve: destinations", 0.69f);
                     veg.BuildDestinations(reserve);
+                    Progress("Reserve: creek, pull-offs, signs", 0.695f);
+                    veg.BuildEcosystem(reserve);
                 }
                 Progress("Undergrowth", 0.7f);
                 veg.BuildUndergrowth(Child(env, "Undergrowth"));
@@ -149,7 +151,7 @@ namespace WildLens.EditorTools
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +
                           $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.HotspotsPlaced} habitat hotspots, " +
-                          $"{veg.ViewpointsPlaced} viewpoints, {veg.DestinationsPlaced} reserve destinations ({veg.TrackLength / 1000f:0.0} km of tracks), terrain {(s.paintTerrain ? "painted" : "untouched")}, grass: {(details ? "terrain details (wind)" : veg.GrassPlaced + " mesh tufts")}. " +
+                          $"{veg.ViewpointsPlaced} viewpoints, {veg.DestinationsPlaced} reserve destinations ({veg.TrackLength / 1000f:0.0} km of tracks, creek {veg.CreekLength:0} m), terrain {(s.paintTerrain ? "painted" : "untouched")}, grass: {(details ? "terrain details (wind)" : veg.GrassPlaced + " mesh tufts")}. " +
                           "Save the scene, then press Play.");
             }
             finally

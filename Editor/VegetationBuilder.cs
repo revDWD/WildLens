@@ -86,7 +86,7 @@ namespace WildLens.EditorTools
 
         private bool IsFree(Vector3 p, float spacing)
         {
-            if (InKeepOut(p)) return false;
+            if (InKeepOut(p) || CreekDistance(p) < 3.6f) return false;
             var c = new Vector2Int(Mathf.FloorToInt(p.x / OccupancyCell), Mathf.FloorToInt(p.z / OccupancyCell));
             int r = Mathf.CeilToInt(spacing / OccupancyCell);
             for (int x = -r; x <= r; x++)
@@ -198,6 +198,25 @@ namespace WildLens.EditorTools
                     foreach (var t in part.GetComponentsInChildren<Transform>())
                         GameObjectUtility.SetStaticEditorFlags(t.gameObject, 0);
         }
+
+        /// <summary>
+        /// Ecological structure instead of uniform density (0.8). The same tree budget, distributed as:
+        ///   dense woodland (forest &gt; 0.62)   closed canopy, tight spacing: the fern-floored interior
+        ///   woodland (0.45–0.62)              clumped stands with gaps
+        ///   quiet woodland (0.3–0.45)         small groves scattered through grass: transition zones
+        ///   open grassland (&lt; 0.3)            the occasional lone tree, so meadows and view corridors stay open
+        /// Because placement stops at the budget, packing the dense zones tighter leaves the open ground emptier.
+        /// </summary>
+        private float TreeChance(Vector3 p, float f)
+        {
+            float clump = Mathf.PerlinNoise(_noiseOffset * 1.7f + p.x * 0.09f, p.z * 0.09f);
+            if (f > 0.62f) return 1f;
+            if (f > 0.45f) return Mathf.Lerp(0.25f, 0.9f, Mathf.InverseLerp(0.45f, 0.62f, f)) * (0.4f + clump);
+            if (f > 0.3f) return clump > 0.62f ? 0.4f : 0.03f;
+            return clump > 0.82f ? 0.1f : 0f;
+        }
+
+        private static float TreeSpacing(float f) => f > 0.62f ? 2.2f : f > 0.45f ? 2.8f : 4f;
 
         /// <summary>
         /// Stops drawing a tree once it is tiny on screen. With the larger reserve (0.7) most trees are far from the
@@ -313,8 +332,8 @@ namespace WildLens.EditorTools
                 Vector3 p = RandomPoint();
                 if (PathDistance(p) < corridor) continue;
                 float f = Forest(p);
-                if (R() > Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.3f, 0.65f, f))) continue;
-                if (TerrainUtil.SlopeDegrees(p) > 38f || !IsFree(p, 2.6f)) continue;
+                if (R() > TreeChance(p, f)) continue;
+                if (TerrainUtil.SlopeDegrees(p) > 38f || !IsFree(p, TreeSpacing(f))) continue;
 
                 GameObject tree;
                 if (prefabs.Count > 0)

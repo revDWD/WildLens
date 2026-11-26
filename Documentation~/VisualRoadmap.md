@@ -1,6 +1,6 @@
 # WildLens visual roadmap & asset recommendations
 
-Updated for 0.7.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
+Updated for 0.8.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
 
 ## Integrated in 0.6.0
 | Area | Asset(s) | Result |
@@ -102,3 +102,16 @@ correctly scaled prefab with root motion off, and assigns it to the species. Exp
 2. Game-ready trees with LODs (1 day once purchased).
 3. Anti-tiling terrain shader or macro variation texture.
 4. Hand-sculpt the terrain around the overlook and lookout.
+
+## Unity 6 investigation (0.8)
+
+Looked for Unity 6 features with a *visible* payoff for WildLens. Findings:
+
+| Area | Unity 6 option | Verdict |
+|---|---|---|
+| Water | URP has no built-in water system (HDRP's Water System is HDRP-only) | Kept custom water; added a **realtime reflection probe** (rendered once on load) at the pond so it reflects banks and trees, not just the sky. Works on every version. **Done.** |
+| Terrain details | `DetailPrototype.alignToGround`, `positionJitter` (2022.2+) | Grass leans with slopes and scatters less grid-like, most visible on creek banks and hills. Set by reflection so 2021.3 still compiles. **Done.** |
+| Draw-call cost | **GPU Resident Drawer** (URP, Forward+) | The biggest *performance* win for the reserve's ~2× trees (thousands of foliage renderers). Not enabled automatically because it changes project-wide settings: URP asset → GPU Resident Drawer: *Instanced Drawing*; renderer → *Forward+*; Project Settings → Graphics → *BatchRendererGroup Variants: Keep All*. **Recommended manual step** if frame rate drops. |
+| GI | **Adaptive Probe Volumes** (URP 17) | Would add soft bounce light under the grove canopy, but needs a bake, which conflicts with "rebuild, don't hand-edit". Revisit with time of day. |
+| Upscaling | **STP** spatial-temporal upscaler | Performance on high-res displays; no visual change at native. Optional. |
+| Volumetrics | Not in URP 17 | Light shafts would need a custom renderer feature. Deferred. |

@@ -301,10 +301,22 @@ namespace WildLens.Vehicles
 
         private float Grade()
         {
-            float front = TerrainUtil.SampleHeight(transform.position + Flat(transform.forward) * TrailBikeModel.FrontAxleZ);
-            float rear = TerrainUtil.SampleHeight(transform.position + Flat(transform.forward) * TrailBikeModel.RearAxleZ);
+            float front = GroundHeight(transform.position + Flat(transform.forward) * TrailBikeModel.FrontAxleZ);
+            float rear = GroundHeight(transform.position + Flat(transform.forward) * TrailBikeModel.RearAxleZ);
             float g = Mathf.Atan2(front - rear, TrailBikeModel.FrontAxleZ - TrailBikeModel.RearAxleZ) * Mathf.Rad2Deg;
             return _speed < 0f ? -g : g;
+        }
+
+        /// <summary>Terrain height, or the top of a bridge deck (<see cref="RideableSurface"/>) when riding over one.</summary>
+        private float GroundHeight(Vector3 p)
+        {
+            float terrain = TerrainUtil.SampleHeight(p);
+            var origin = new Vector3(p.x, Mathf.Max(terrain, transform.position.y) + 1.2f, p.z);
+            var hits = Physics.RaycastAll(origin, Vector3.down, 3f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            float best = terrain;
+            foreach (var h in hits)
+                if (h.point.y > best && h.collider.GetComponent<RideableSurface>() != null) best = h.point.y;
+            return best;
         }
 
         private static Vector3 Flat(Vector3 v) { v.y = 0f; return v.sqrMagnitude > 0f ? v.normalized : Vector3.forward; }
@@ -312,8 +324,8 @@ namespace WildLens.Vehicles
         private void SnapToGround()
         {
             Vector3 fwd = Quaternion.Euler(0f, _heading, 0f) * Vector3.forward;
-            float front = TerrainUtil.SampleHeight(transform.position + fwd * TrailBikeModel.FrontAxleZ);
-            float rear = TerrainUtil.SampleHeight(transform.position + fwd * TrailBikeModel.RearAxleZ);
+            float front = GroundHeight(transform.position + fwd * TrailBikeModel.FrontAxleZ);
+            float rear = GroundHeight(transform.position + fwd * TrailBikeModel.RearAxleZ);
             float pitch = -Mathf.Atan2(front - rear, TrailBikeModel.FrontAxleZ - TrailBikeModel.RearAxleZ) * Mathf.Rad2Deg;
             Vector3 p = transform.position;
             p.y = (front + rear) * 0.5f;

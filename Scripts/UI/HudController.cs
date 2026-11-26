@@ -23,7 +23,8 @@ namespace WildLens.UI
 
         private Canvas _canvas;
         private Image _crosshair;
-        private Text _statusText, _hintsText, _pausedText, _crouchText, _promptText, _rideText;
+        private Text _statusText, _hintsText, _pausedText, _crouchText, _promptText, _rideText, _hiddenText;
+        private bool _wasConcealed;
         private string _walkHints;
         private bool _riding;
         private const string RideHints =
@@ -124,6 +125,9 @@ namespace WildLens.UI
             _promptText = UIFactory.CreateText("Prompt", root, "", 24, Color.white, TextAnchor.MiddleCenter);
             UIFactory.Place(_promptText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(600f, 34f));
             UIFactory.AddShadow(_promptText);
+            _hiddenText = UIFactory.CreateText("Hidden", root, "HIDDEN  <size=15>wildlife can't see you</size>", 18, new Color(0.75f, 1f, 0.75f, 0.85f), TextAnchor.MiddleCenter);
+            UIFactory.Place(_hiddenText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 68f), new Vector2(420f, 26f));
+            UIFactory.AddShadow(_hiddenText);
             _rideText = UIFactory.CreateText("Ride", root, "", 20, new Color(1f, 1f, 1f, 0.85f), TextAnchor.MiddleCenter);
             UIFactory.Place(_rideText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(420f, 28f));
             UIFactory.AddShadow(_rideText);
@@ -149,6 +153,12 @@ namespace WildLens.UI
             float blend = _mode != null ? _mode.Blend : 0f;
             _viewfinder.Update(BuildViewfinderState(blend), dt);
             _crouchText.enabled = PlayerPresence.IsCrouching;
+            bool concealed = PlayerPresence.IsConcealed;
+            _hiddenText.enabled = concealed;
+            _hiddenText.color = new Color(0.75f, 1f, 0.75f, 0.85f * (1f - blend * 0.7f));
+            if (concealed && !_wasConcealed)
+                _notice.Show("<b>Inside the blind</b>\n<size=20>Wildlife can't see you here. Sit tight at the window; they'll come closer.</size>", 6f);
+            _wasConcealed = concealed;
             _crosshair.color = new Color(1f, 1f, 1f, 0.55f * (1f - blend));
             // Hints and counters step back while the camera is up.
             _hintsText.color = new Color(1f, 1f, 1f, 0.75f * (1f - blend)); // gone in camera mode: it overlapped the viewfinder corner
@@ -178,7 +188,10 @@ namespace WildLens.UI
                 string where = bike.OnTrack ? "on track" : "across country";
                 _rideText.text = bike.IsParking ? "Parking…" : $"{kmh:0} km/h   <size=16>{where}</size>";
                 _rideText.color = new Color(1f, 1f, 1f, 0.85f * (1f - blend));
-                _promptText.text = "";
+                // 0.8: pull-offs suggest themselves as you roll past.
+                var pull = WildLens.Environment.ReserveParking.At(bike.transform.position);
+                _promptText.text = pull != null && !bike.IsParking && Mathf.Abs(bike.Speed) < 7f
+                    ? $"<b>R</b>  Park here  <size=18>· {pull.title}{(string.IsNullOrEmpty(pull.hint) ? "" : " · " + pull.hint)}</size>" : "";
             }
             else
             {

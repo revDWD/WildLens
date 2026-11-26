@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.8.0] Ecosystem Pass: a living landscape
+### Added
+- **Willow Creek**, the reserve's backbone: a stream from the ridge's flank to Cattail Pond, routed downhill and
+  carved into the terrain (repeatably, backed up), with flowing water, footbridges wherever the loop or a track
+  crosses it, stones in the bed and rocks in the cut banks, a fallen log, reeds, ferns crowding the banks,
+  riparian woodland, brook sounds and creek-side deer. Drawn on the trailhead map.
+- **Bike pull-offs**: gravel parking short of each destination (out of the residents' earshot) and scenic pull-offs
+  with a bench on longer tracks. Riding into one, the HUD suggests parking and says how far the walk is.
+- **Environmental storytelling**: interpretive panels (ridge, pond, grove, meadow, creek), numbered track marker
+  posts, a deer-crossing sign, nest boxes in the grove, a ranger's log in the blind.
+- **Encounter variety by placement**: deer that drink at the creek, deer whose range straddles a track, cottontails
+  on the meadow's brushy edge, two hawks on the ridge, more squirrels and a fox in the grove.
+- Ridge wind ambience; purple asters in the meadows; a realtime reflection probe so the pond reflects its banks.
+### Changed
+- **Meadow Blind rebuilt**: roomier (4.2 × 3.2 m), levelled pad and plank floor, centred 1.2 m doorway reached by
+  duckboards, a long window usable standing *and* crouched, brush screening, grass kept out. It sits inside the
+  meadow edge with the wildlife hotspot 14 m in front, so animals come close. Inside, the HUD shows **HIDDEN** and
+  explains the blind on first entry.
+- **Habitat density**: trees now form dense woodland, clumped stands, quiet transition groves and open grassland
+  with the odd lone tree, instead of an even scatter. Ferns concentrate under dense canopy and along the creek.
+- **Destination identity**: the pond has an irregular shoreline with coves, thick reeds and lily pads; the grove has
+  a closed canopy of big trees, mossy rocks, fallen timber and ferns; the ridge is a rocky, windy crest.
+- Terrain grass leans with slopes and scatters less evenly on Unity 2022.2+ / 6.
+- The trail bike rides over bridge decks.
+
+**Rebuild the slice after updating.**
+
 ## [0.7.1] Fixes from the first reserve playtest
 ### Fixed
 - **Couldn't get into the Meadow Blind:** its doorway was 0.7 m, narrower than the player's collision capsule.

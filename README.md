@@ -51,6 +51,10 @@ animal in the viewfinder to **identify** it (no photo needed). Then **crouch** a
 stares, freeze until it relaxes. The viewfinder brackets turn green (Good) or gold (Excellent) when the shot is
 right.
 
+**Willow Creek (0.8)** runs from the ridge to the pond; cross it on footbridges, listen for it, and look for deer
+drinking where it runs through open ground. Riding into a **pull-off** the HUD offers to park; the walk from there
+keeps your engine out of the animals' earshot. In the **Meadow Blind** the HUD shows *HIDDEN*: sit at the window.
+
 **The reserve (0.7):** the trailhead board's map shows four destinations beyond the Meadow Loop: **Ridge Overlook**
 (hawks, the widest view), **Cattail Pond** (deer drink at the reed edge), **Old-Growth Grove** (squirrels, a fox) and
 the **Wildflower Meadow Blind** (step inside the hide and wildlife can't see you). Fingerposts mark where each reserve

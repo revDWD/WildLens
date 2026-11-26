@@ -43,21 +43,31 @@ The builder reads the terrain and chooses sites for what the land offers (`Edito
   progress, trails, viewpoints, destinations with distances, and a heads-up topographic map.
 * The **trail bike** is parked at the trailhead.
 
+## 0.8.0 Ecosystem Pass (implemented)
+
+From "a collection of destinations" to "a living landscape":
+* **Willow Creek** ties the ridge to the pond: a natural landmark, a water source, a wildlife corridor and a reason
+  for bridges. It's routed downhill and carved into the land; tracks and the loop cross it on footbridges.
+* **Ecological structure**: dense woodland, clumped stands, quiet transition groves and open grassland, so a ride
+  passes through noticeably different places. Ferns gather under dense canopy and along the creek.
+* **Identity**: rocky, windy ridge with two hawks; irregular reedy pond with lily pads and reflections; a shaded,
+  mossy old-growth grove; a colourful meadow with a proper blind.
+* **Management, lightly**: interpretive panels, numbered track posts, a deer-crossing sign, nest boxes, a ranger's
+  log, bike pull-offs short of each destination.
+* **Encounters by placement**: deer at the creek and on a track crossing; cottontails on the meadow edge.
+
 ## Next steps (proposed, in order)
 
-1. **Creek corridor.** A stream from the ridge down to the pond, carved into the terrain (spline, bed and bank
-   shaping, a water ribbon mesh, stepping stones and a footbridge where a track crosses). Gives the reserve a spine,
-   and gives deer and foxes a travel corridor that players can learn.
-2. **Wetland edge.** Widen the pond into a marsh: boardwalk loop, sedges, a second blind. Natural home for a
+1. **Time of day: golden hour and dawn.** Morning mist on the pond and creek, golden light on the ridge; animals'
+   schedules follow (deer at the pond at dusk). Turns "where" into "where and when", the naturalist's question.
+2. **Creek, part two.** Stepping stones at a ford, a small cascade where it leaves the ridge, a tributary.
+3. **Wetland edge.** Widen the pond into a marsh: a boardwalk loop, sedges, a second blind. Natural home for a
    future heron or wood duck (new species are data plus a model).
-3. **Forest interior trail.** A narrow footpath (bikes not allowed, marked by a gate) through the grove and on to
-   a hidden glade: intimacy and darkness as a contrast to the open ridge.
-4. **Ranger cabin.** A small building near the loop where the journal lives, with a porch to sit on at golden hour.
-   Environmental storytelling: a desk with field notes, maps pinned to the wall. No NPCs needed.
-5. **Bigger terrain authoring.** A hand-shaped 1–2 km heightmap (ridge, valley, creek line) shipped as CC0 data,
-   so the reserve doesn't depend on the user's terrain. Terrain streaming isn't needed at this size.
-6. **Time of day.** Morning mist on the pond, golden hour on the ridge; animals' schedules follow (deer at the pond
-   at dusk). This turns "where" into "where and when", the real naturalist's question.
+4. **Forest interior footpath.** A narrow path (no bikes, marked by a gate) through the grove to a hidden glade:
+   intimacy and shade as a contrast to the open ridge.
+5. **Ranger cabin.** Near the loop: the journal on a desk, maps on the wall, a porch for golden hour. No NPCs.
+6. **Hand-authored reserve terrain.** A 1–2 km heightmap (ridge, valley, creek line) shipped as CC0 data, so the
+   reserve doesn't depend on the user's terrain.
 
 ## Scale and performance notes
 

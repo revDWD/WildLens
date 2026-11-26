@@ -107,6 +107,17 @@ namespace WildLens.EditorTools
                 // Mid-scale patches (~20 m) of the second grass tint break up visible texture repetition.
                 meadow = Mathf.Max(meadow, (1f - forest) * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 0.7f, mid)) * 0.55f);
 
+                // Willow Creek (0.8): stony bed, exposed cut banks, a dark moist margin.
+                float creek = CreekDistance(p) + (n - 0.5f) * 0.8f;
+                if (creek < 10f)
+                {
+                    float bed = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.8f, 1.8f, creek));
+                    float bankCut = (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(2f, 4f, creek))) * (1f - bed);
+                    rock = Mathf.Max(rock, bed * 0.85f);
+                    tread = Mathf.Max(tread, bankCut * 0.6f);
+                    forest = Mathf.Max(forest, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(4f, 10f, creek)));
+                }
+
                 float wRock = rock;
                 float rest = 1f - wRock;
                 float wDirt = rest * Mathf.Max(tread, worn * 0.28f);
@@ -147,7 +158,9 @@ namespace WildLens.EditorTools
                 Detail(DetailTexture("FlowersYellow", (px, n) => DrawFlowers(px, n, new Color(0.98f, 0.82f, 0.22f))), Color.white, new Color(0.95f, 0.9f, 0.8f), 0.35f, 0.55f, 0.3f, 0.5f),
                 Detail(DetailTexture("FlowersWhite", (px, n) => DrawFlowers(px, n, new Color(0.97f, 0.96f, 0.92f))), Color.white, new Color(0.95f, 0.93f, 0.85f), 0.35f, 0.55f, 0.3f, 0.48f),
                 Detail(DetailTexture("Fern", DrawFern), new Color(0.32f, 0.48f, 0.2f), new Color(0.45f, 0.5f, 0.24f), 0.7f, 1.1f, 0.45f, 0.75f),
+                Detail(DetailTexture("FlowersPurple", (px, n) => DrawFlowers(px, n, new Color(0.62f, 0.45f, 0.86f))), Color.white, new Color(0.92f, 0.88f, 0.9f), 0.35f, 0.55f, 0.32f, 0.52f),
             };
+            for (int i = 0; i < protos.Length; i++) protos[i] = Modern(protos[i]);
             data.detailPrototypes = protos;
             SetInstanceCountScatter(data);
 
@@ -155,8 +168,8 @@ namespace WildLens.EditorTools
             Vector3 origin = _terrain.transform.position, size = data.size;
             float cellArea = (size.x / res) * (size.z / res);
             float half = _s.trailWidth * 0.5f;
-            var layers = new int[5][,];
-            for (int i = 0; i < 5; i++) layers[i] = new int[res, res];
+            var layers = new int[6][,];
+            for (int i = 0; i < 6; i++) layers[i] = new int[res, res];
 
             for (int z = 0; z < res; z++)
             for (int x = 0; x < res; x++)
@@ -166,6 +179,9 @@ namespace WildLens.EditorTools
                 if (slope > 34f) continue;
                 float d = trail.Sample(p);
                 if (d < half + 0.35f) continue; // bare tread
+                if (InKeepOut(p)) continue;     // inside the blind, on its path, under structures
+                float creekD = CreekDistance(p);
+                if (creekD < 2.2f) continue;    // water
                 float edge = Mathf.InverseLerp(half + 0.35f, half + 2.8f, d); // sparse, trampled edges
                 float n = Mathf.PerlinNoise(_noiseOffset + p.x * 0.15f, p.z * 0.15f);
                 float forest = Mathf.Max(Forest(p), (1f - Mathf.InverseLerp(1.5f, 5f, trees.Nearest(p, 6f))) * 0.8f);
@@ -178,9 +194,12 @@ namespace WildLens.EditorTools
                 float flowers = meadow * 0.7f + open * 0.04f;
                 layers[2][z, x] = Count(flowers * edge * (n > 0.55f ? 1.2f : 0.2f), cellArea);
                 layers[3][z, x] = Count(flowers * edge * (n < 0.4f ? 1f : 0.15f), cellArea);
-                layers[4][z, x] = trunk < 0.9f ? 0 : Count(3f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 0.75f, forest)) * (0.4f + n), cellArea);
+                float wet = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3f, 14f, creekD)); // ferns crowd the creek
+                layers[4][z, x] = trunk < 0.9f ? 0 : Count((3f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 0.75f, forest)) + 4f * wet) * (0.4f + n), cellArea);
+                // Purple asters in the meadows (0.8): colour that says "wildflower meadow" at a glance.
+                layers[5][z, x] = Count(meadow * edge * (n > 0.4f && n < 0.58f ? 1.1f : 0.1f), cellArea);
             }
-            for (int i = 0; i < 5; i++) data.SetDetailLayer(0, 0, i, layers[i]);
+            for (int i = 0; i < 6; i++) data.SetDetailLayer(0, 0, i, layers[i]);
 
             data.wavingGrassStrength = 0.4f;
             data.wavingGrassSpeed = 0.45f;
@@ -212,6 +231,22 @@ namespace WildLens.EditorTools
                 minHeight = minH, maxHeight = maxH,
                 noiseSpread = 0.35f,
             };
+        }
+
+        /// <summary>
+        /// Unity 2022.2+ / Unity 6 detail options, by reflection so older editors compile: grass leans with the slope
+        /// (alignToGround) and scatters less grid-like (positionJitter). Visible on hillsides and creek banks.
+        /// </summary>
+        private static DetailPrototype Modern(DetailPrototype d)
+        {
+            void Set(string name, object value)
+            {
+                var prop = typeof(DetailPrototype).GetProperty(name);
+                if (prop != null && prop.CanWrite) prop.SetValue(d, value);
+            }
+            Set("alignToGround", 0.7f);
+            Set("positionJitter", 0.8f);
+            return d;
         }
 
         /// <summary>

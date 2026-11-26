@@ -7,33 +7,35 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "0.7.1";
-        public const string ReleaseName = "The Reserve";
+        public const string Package = "0.8.0";
+        public const string ReleaseName = "Living Landscape";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
-        /// 8: wider blind doorway, smaller headlight (0.7.1).</summary>
-        public const int Environment = 8;
+        /// 8: wider blind doorway, smaller headlight (0.7.1).
+        /// 9: Willow Creek, ecosystem density zones, habitat identity, storytelling, pull-offs, rebuilt blind (0.8.0).</summary>
+        public const int Environment = 9;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
         {
             "Wildlife photography",
-            "Zoom lens 1\u00d7 to 16\u00d7",
-            "Autofocus & keeper prints",
+            "Zoom 1\u00d7\u201316\u00d7 & autofocus",
             "Animal awareness",
-            "Identify by observation",
-            "Habitat hotspots",
             "Field journal",
+            "Habitat hotspots",
             "Reserve destinations",
-            "Trail bike",
+            "Willow Creek & bridges",
+            "Trail bike & pull-offs",
             "Observation blind",
+            "Trail signs & nature sounds",
         };
 
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
-            "0.7  The reserve opens: four destinations, reserve tracks, a trail bike (0.7.1: you can get into the blind)",
+            "0.8  Living landscape: Willow Creek, richer habitats, a proper blind, pull-offs",
+            "0.7  The reserve opens: four destinations, reserve tracks, a trail bike",
             "0.6  Leaf-card trees, greener meadows, a better deer",
             "0.5  Zoom you can see; scanned skies, ground and rocks",
             "0.4  Painted terrain, lighting, depth of field",

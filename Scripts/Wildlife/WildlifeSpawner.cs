@@ -82,24 +82,32 @@ namespace WildLens.Wildlife
         /// </summary>
         private int SpawnResidents(SpeciesDatabase db, System.Random rng, Vector3? avoid, int index)
         {
+            var places = new List<(string[] ids, Vector3 centre, float radius, Vector3 water, float waterRadius)>();
             foreach (var dest in WildLens.Environment.ReserveDestination.All)
+                if (dest != null && dest.residentSpecies != null)
+                    places.Add((dest.residentSpecies, dest.WildlifeCentre, dest.wildlifeRadius, dest.transform.position, dest.waterRadius));
+            // 0.8: residences that aren't destinations (deer at the creek, a deer crossing, cottontails on a meadow edge).
+            foreach (var res in WildLens.Environment.WildlifeResidence.All)
+                if (res != null && res.species != null)
+                    places.Add((res.species, res.transform.position, res.radius, Vector3.zero, 0f));
+
+            foreach (var place in places)
             {
-                if (dest == null || dest.residentSpecies == null) continue;
-                foreach (string id in dest.residentSpecies)
+                foreach (string id in place.ids)
                 {
                     var species = db.Get(id);
                     if (species == null) continue;
-                    Vector3 centre = dest.WildlifeCentre;
+                    Vector3 centre = place.centre;
                     Vector3 home = TerrainUtil.Ground(centre);
                     if (species.habitat != HabitatPreference.Sky)
                     {
                         for (int attempt = 0; attempt < 25; attempt++)
                         {
                             float a = (float)rng.NextDouble() * Mathf.PI * 2f;
-                            float r = Mathf.Sqrt((float)rng.NextDouble()) * dest.wildlifeRadius;
+                            float r = Mathf.Sqrt((float)rng.NextDouble()) * place.radius;
                             Vector3 c = TerrainUtil.Ground(centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
                             if (TerrainUtil.SlopeDegrees(c) > species.maxSlope * 0.8f) continue;
-                            if (dest.waterRadius > 0f && TerrainUtil.FlatDistance(c, dest.transform.position) < dest.waterRadius + 1.5f) continue;
+                            if (place.waterRadius > 0f && TerrainUtil.FlatDistance(c, place.water) < place.waterRadius + 1.5f) continue;
                             if (avoid.HasValue && TerrainUtil.FlatDistance(c, avoid.Value) < playerStartClearance) continue;
                             home = c;
                             break;

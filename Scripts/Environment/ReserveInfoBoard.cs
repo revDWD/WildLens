@@ -84,7 +84,7 @@ namespace WildLens.Environment
             BuildMap(map, mapSize);
             var legend = UIFactory.CreateText("Legend", _root,
                 "<color=#8a5a2b><b>——</b></color> Meadow Loop   <color=#a0784a><b>– –</b></color> Reserve tracks   " +
-                "<color=#c0392b><b>●</b></color> You are here   (map faces the way you do)", 19, Ink);
+                "<color=#5b8fb3><b>——</b></color> Creek   <color=#c0392b><b>●</b></color> You are here   (map faces the way you do)", 19, Ink);
             Top(legend.rectTransform, 30f, 128f + mapSize, mapSize, 30f);
 
             // Right column
@@ -175,7 +175,10 @@ namespace WildLens.Environment
             if (ReserveTrack.All.Count > 0) sb.Append($"   ·   <b>{ReserveTrack.All.Count}</b> reserve tracks, {tracks / 1000f:0.0} km");
             sb.Append('\n');
             int views = SceneQuery.FindAll<ScenicViewpoint>().Length;
-            sb.Append($"Scenic viewpoints: <b>{views}</b>   ·   Destinations: <b>{ReserveDestination.All.Count}</b>\n");
+            sb.Append($"Scenic viewpoints: <b>{views}</b>   ·   Destinations: <b>{ReserveDestination.All.Count}</b>");
+            foreach (var c in ReserveCreek.All) sb.Append($"   ·   <b>{c.title}</b> {c.Length / 1000f:0.0} km");
+            if (ReserveParking.All.Count > 0) sb.Append($"   ·   <b>{ReserveParking.All.Count}</b> bike pull-offs");
+            sb.Append('\n');
 
             var dests = new List<ReserveDestination>(ReserveDestination.All);
             dests.Sort((a, b) => a.number.CompareTo(b.number));
@@ -202,6 +205,7 @@ namespace WildLens.Environment
             var pts = new List<Vector3>();
             if (trail != null) pts.AddRange(trail.Points);
             foreach (var t in ReserveTrack.All) pts.AddRange(t.Points);
+            foreach (var c in ReserveCreek.All) pts.AddRange(c.Points);
             foreach (var d in ReserveDestination.All) pts.Add(d.transform.position);
             pts.Add(transform.position);
             // Heads-up map, like a real park board: up on the map is the direction the reader faces.
@@ -262,6 +266,7 @@ namespace WildLens.Environment
             Vector2 ToPx(Vector3 p) => (M(p) - origin) / cell;
             foreach (var d in ReserveDestination.All)
                 if (d.waterRadius > 0f) Disc(px, res, ToPx(d.transform.position), d.waterRadius / cell, water);
+            foreach (var c in ReserveCreek.All) Polyline(px, res, c.Points, ToPx, 1.4f, new Color(0.36f, 0.56f, 0.7f), dashed: false);
             foreach (var t in ReserveTrack.All) Polyline(px, res, t.Points, ToPx, 1.2f, new Color(0.63f, 0.47f, 0.29f), dashed: true);
             if (trail != null)
             {

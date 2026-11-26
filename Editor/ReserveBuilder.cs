@@ -34,6 +34,7 @@ namespace WildLens.EditorTools
             public float waterLevel;
             public Vector3 arrival;    // where the track ends
             public Vector3 facing;     // for structures: view or approach direction
+            public Vector3 structure;  // where the main structure stands (blind)
             public ReserveTrack track;
             public int number;
         }
@@ -51,7 +52,7 @@ namespace WildLens.EditorTools
         {
             float d = _trail.DistanceToTrail(p);
             foreach (var t in _tracks) d = Mathf.Min(d, t.DistanceTo(p));
-            return d;
+            return Mathf.Min(d, PadDistance(p)); // pull-offs paint and clear like path
         }
 
         /// <summary>Nothing is scattered inside these circles (kiosk, bike parking, destination structures).</summary>
@@ -79,6 +80,9 @@ namespace WildLens.EditorTools
                     case DestinationKind.RidgeOverlook: bias -= near * 0.6f; break;
                 }
             }
+            // Riparian woodland: denser trees along the creek (the channel itself is kept clear by IsFree).
+            float creek = CreekDistance(p);
+            if (creek < 32f) bias += 0.3f * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(10f, 32f, creek)));
             return bias;
         }
 
@@ -95,11 +99,14 @@ namespace WildLens.EditorTools
             }
             if (shapeTerrain) ShapeTerrain();
             foreach (var s in _sites) PlaceArrival(s);
+            PlanCreek(parent, shapeTerrain);   // 0.8: the reserve's backbone, before tracks so they cross it cleanly
+            if (shapeTerrain) FlattenBlindPad();
             RouteTracks(parent, trackMeshes);
 
             // Number destinations nearest-first along their tracks.
             _sites.Sort((a, b) => a.track.Length.CompareTo(b.track.Length));
             for (int i = 0; i < _sites.Count; i++) _sites[i].number = i + 1;
+            PlanParking(shapeTerrain);
 
             // Meadows at the blind and around the pond get meadow grass, flowers and the meadow ground tint.
             foreach (var s in _sites)
@@ -234,7 +241,7 @@ namespace WildLens.EditorTools
                 case DestinationKind.RidgeOverlook:
                     site.title = "Ridge Overlook";
                     site.note = "The highest ground in the reserve. Red-tailed hawks hunt the slopes below.";
-                    site.residents = new[] { "red_tailed_hawk" };
+                    site.residents = new[] { "red_tailed_hawk", "red_tailed_hawk" };
                     break;
                 case DestinationKind.Wetland:
                     site.title = "Cattail Pond";
@@ -280,17 +287,20 @@ namespace WildLens.EditorTools
                 if (s.kind == DestinationKind.Wetland)
                 {
                     float R = s.water;
-                    s.waterLevel = RingMin(s.centre, R + 16f) - 0.35f;
+                    s.waterLevel = RingMin(s.centre, R * 1.35f + 16f) - 0.35f;
                     // A terrain at its lowest representable height can't be dug: raise the water and build the banks up instead.
                     float floor = _terrain.transform.position.y + 0.05f;
                     if (s.waterLevel - 1.6f < floor) s.waterLevel = floor + 1.6f;
                     float level = s.waterLevel;
-                    Shape(s.centre, R + 9f, (d, h) =>
+                    var site = s;
+                    // 0.8: an irregular shoreline (coves and a point) instead of a perfect circle.
+                    ShapeAt(s.centre, R * 1.35f + 9f, (p, d, h) =>
                     {
-                        if (d < R) return Mathf.Min(h, level - 0.15f - 1.3f * (1f - (d / R) * (d / R)));
+                        float r = PondRadius(site, p);
+                        if (d < r) return Mathf.Min(h, level - 0.15f - 1.3f * (1f - (d / r) * (d / r)));
                         // Banks: a gentle shore rising from just above the water, blended into the land.
-                        float bank = level + 0.12f + (d - R) * 0.09f;
-                        float w = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(R + 3f, R + 9f, d));
+                        float bank = level + 0.12f + (d - r) * 0.09f;
+                        float w = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(r + 3f, r + 9f, d));
                         return Mathf.Lerp(bank, h, w);
                     });
                 }
@@ -314,7 +324,18 @@ namespace WildLens.EditorTools
             return _terrain.name.Contains("WildLens") || (!string.IsNullOrEmpty(path) && path.StartsWith(GeneratedAssets.Folder));
         }
 
-        private void Shape(Vector3 centre, float radius, System.Func<float, float, float> f)
+        /// <summary>Pond radius in the direction of <paramref name="p"/>: coves and points from angular noise.</summary>
+        private float PondRadius(Site s, Vector3 p)
+        {
+            float a = Mathf.Atan2(p.z - s.centre.z, p.x - s.centre.x);
+            float c = Mathf.Cos(a), sn = Mathf.Sin(a), o = _noiseOffset * 0.37f;
+            float k = (Mathf.PerlinNoise(o + c * 1.1f, o + sn * 1.1f) - 0.5f) * 0.6f + (Mathf.PerlinNoise(o + 9f + c * 2.6f, o + sn * 2.6f) - 0.5f) * 0.22f;
+            return s.water * (1f + k);
+        }
+
+        private void Shape(Vector3 centre, float radius, System.Func<float, float, float> f) => ShapeAt(centre, radius, (p, d, h) => f(d, h));
+
+        private void ShapeAt(Vector3 centre, float radius, System.Func<Vector3, float, float, float> f)
         {
             var data = _terrain.terrainData;
             Vector3 tPos = _terrain.transform.position, size = data.size;
@@ -334,7 +355,7 @@ namespace WildLens.EditorTools
                 float d = TerrainUtil.FlatDistance(p, centre);
                 if (d > radius) continue;
                 float h = tPos.y + heights[z, x] * size.y;
-                heights[z, x] = Mathf.Clamp01((f(d, h) - tPos.y) / size.y);
+                heights[z, x] = Mathf.Clamp01((f(p, d, h) - tPos.y) / size.y);
             }
             data.SetHeights(x0, z0, heights);
         }
@@ -359,10 +380,27 @@ namespace WildLens.EditorTools
                     s.arrival = s.centre;
                     break;
                 case DestinationKind.ObservationBlind:
-                    // The hide sits on the meadow edge nearest the loop, facing in; the track arrives from behind it.
+                    // The hide sits inside the meadow's edge nearest the loop, facing in, close enough that animals in
+                    // the meadow are near (0.8); the track arrives from behind it, out of the animals' sight.
                     s.facing = -toLoop;
-                    s.arrival = TerrainUtil.Ground(s.centre + toLoop * (s.radius * 0.75f + 9f));
+                    s.structure = TerrainUtil.Ground(s.centre - s.facing * (s.radius * 0.5f));
+                    s.arrival = TerrainUtil.Ground(s.structure - s.facing * 10f);
                     break;
+            }
+        }
+
+        /// <summary>A level pad for the blind so its floor sits flat and its door at ground level.</summary>
+        private void FlattenBlindPad()
+        {
+            foreach (var s in _sites)
+            {
+                if (s.kind != DestinationKind.ObservationBlind) continue;
+                float hc = TerrainUtil.SampleHeight(s.structure);
+                Shape(s.structure, 6.5f, (d, h) => Mathf.Lerp(hc, h, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3.4f, 6.5f, d))));
+                s.structure = TerrainUtil.Ground(s.structure);
+                // Keep trees, rocks and terrain grass out of the hide and off its duckboard path.
+                AddKeepOut(s.structure, 3.4f);
+                for (float d = 0f; d <= 1f; d += 0.1f) AddKeepOut(Vector3.Lerp(s.arrival, s.structure, d), 1.1f);
             }
         }
 
@@ -442,6 +480,7 @@ namespace WildLens.EditorTools
                     if (s.kind == DestinationKind.ObservationBlind && TerrainUtil.FlatDistance(p, s.centre) < s.radius * 0.8f) v += 6f; // keep out of the meadow
                 }
                 if (LoopRadius(p) < 0.92f) v += 3f; // don't cut across the loop's inner meadow
+                if (CreekDistance(p) < 6f) v += 12f; // cross the creek once, squarely (a footbridge goes there)
                 slopeCache[n] = v;
                 return v;
             }
@@ -628,30 +667,95 @@ namespace WildLens.EditorTools
             Snag(group, snag, deadwood);
             AddHotspot(group, "Perch Hotspot", HotspotType.Perch, snag, 6f);
             AddKeepOut(pos, 5f);
+
+            // 0.8 identity: an exposed, rocky crest with the wind in your ears.
+            for (int i = 0; i < 6; i++)
+            {
+                Vector3 p = TerrainUtil.Ground(pos + Quaternion.Euler(0f, 110f + i * 28f + R(-10f, 10f), 0f) * f * R(7f, 15f));
+                if (InKeepOut(p) || PathDistance(p) < 3f) continue;
+                if (_art && i < 2 && _artBoulders.Count > 0) PlaceArt(_artBoulders, group, p, R(0.8f, 1.2f), 0.15f, 8f);
+                else if (_art && _artRocks.Count > 0) PlaceArt(_artRocks, group, p, R(0.8f, 1.6f), 0.15f, 12f);
+            }
+            var wind = new GameObject("Ridge Wind");
+            wind.transform.SetParent(group, false);
+            wind.transform.position = pos + Vector3.up * 3f;
+            wind.AddComponent<AudioSource>();
+            var amb = wind.AddComponent<AmbientSound>();
+            amb.kind = AmbientKind.Wind;
+            amb.volume = 0.5f;
+            amb.audibleRadius = 70f;
+            InterpretivePanel(group, TerrainUtil.Ground(pos - f * 4.4f - Vector3.Cross(Vector3.up, f) * 2.6f), -f, "RIDING THE WIND",
+                "Wind striking the ridge rises, and red-tailed\nhawks ride it without a wingbeat, watching the\n" +
+                "slopes for voles and rabbits. Look for the dead\nsnag: their favourite lookout.", wood, post);
         }
 
         // ------------------------------------------------------------------ Cattail Pond
 
         private void BuildPond(Transform group, Site s, Material wood, Material post, ReserveDestination dest)
         {
-            Clear(s.centre, s.water + 6f);
+            float maxR = s.water * 1.35f;
+            Clear(s.centre, maxR + 5f);
             float level = s.waterLevel != 0f ? s.waterLevel : TerrainUtil.SampleHeight(s.centre) + 0.1f;
             var waterMat = GeneratedAssets.Material("PondWater", new Color(0.1f, 0.17f, 0.17f), 0.96f);
             var disc = GeneratedAssets.LoadOrCreate("Mesh_PondDisc", () => ProceduralMeshes.Disc(48));
             var water = new GameObject("Water");
             water.transform.SetParent(group, false);
             water.transform.position = new Vector3(s.centre.x, level, s.centre.z);
-            water.transform.localScale = new Vector3(s.water + 3f, 1f, s.water + 3f);
+            // The disc reaches under every bank; the irregular shoreline is the terrain rising above it.
+            water.transform.localScale = new Vector3(maxR + 3f, 1f, maxR + 3f);
             water.AddComponent<MeshFilter>().sharedMesh = disc;
             var mr = water.AddComponent<MeshRenderer>();
             mr.sharedMaterial = waterMat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-            BuildReeds(group, s.centre, s.water, level);
+            // Reflections of the banks and trees, not just the sky: a realtime probe rendered once on load.
+            var probeGo = new GameObject("Pond Reflections");
+            probeGo.transform.SetParent(group, false);
+            probeGo.transform.position = new Vector3(s.centre.x, level + 2f, s.centre.z);
+            var probe = probeGo.AddComponent<ReflectionProbe>();
+            probe.mode = UnityEngine.Rendering.ReflectionProbeMode.Realtime;
+            probe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.OnAwake;
+            probe.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
+            probe.size = new Vector3(maxR * 2f + 30f, 24f, maxR * 2f + 30f);
+            probe.boxProjection = true;
+            probe.resolution = 256;
+            probe.importance = 2;
+
+            Vector3 f = s.facing;
+            Vector3 side = Vector3.Cross(Vector3.up, f);
+            // Reeds: thick in the shallow coves, thin along the steep side; lily pads on the calm water.
+            var clumps = new List<Vector3>();
+            for (int i = 0; i < 190; i++)
+            {
+                float a = R(0f, Mathf.PI * 2f);
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                Vector3 probeAt = s.centre + dir * s.water;
+                float r = PondRadius(s, probeAt);
+                Vector3 c = s.centre + dir * (r + R(-1.6f, 1.0f));
+                if (Vector3.Dot(dir, -f) > 0.93f) continue;            // keep the jetty's water open
+                float ground = TerrainUtil.SampleHeight(c);
+                if (ground > level + 0.5f) continue;                   // reeds only at the waterline
+                if (r < s.water && R() < 0.5f) continue;                // fewer on the narrow (steep) side
+                clumps.Add(c);
+            }
+            PlantPondReeds(group, clumps, level);
+            var pad = GeneratedAssets.Material("LilyPad", new Color(0.24f, 0.4f, 0.16f), 0.5f);
+            var flower = GeneratedAssets.Material("LilyFlower", new Color(0.97f, 0.94f, 0.88f), 0.3f);
+            var discMesh = disc;
+            for (int i = 0; i < 38; i++)
+            {
+                float a = R(0f, Mathf.PI * 2f);
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                float r = PondRadius(s, s.centre + dir * s.water) * R(0.45f, 0.85f);
+                Vector3 c = s.centre + dir * r;
+                if (Vector3.Dot(dir, -f) > 0.9f) continue;
+                float size = R(0.18f, 0.32f);
+                MeshPart("Lily Pad", group, discMesh, pad, new Vector3(c.x, level + 0.012f, c.z), new Vector3(size, 1f, size), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                if (R() < 0.15f) MeshPart("Lily Flower", group, PrimitiveMeshes.Get(PrimitiveType.Sphere), flower, new Vector3(c.x, level + 0.05f, c.z), new Vector3(0.09f, 0.05f, 0.09f), Quaternion.identity);
+            }
 
             // Jetty from the loop-side shore out over the water.
-            Vector3 f = s.facing;
-            Vector3 shore = s.centre - f * (s.water + 1.5f);
+            Vector3 shore = s.centre - f * (PondRadius(s, s.centre - f * s.water) + 1.5f);
             var jetty = PropBuilder.Group("Jetty", group, new Vector3(shore.x, level, shore.z), Quaternion.LookRotation(f));
             float deckY = 0.42f, len = 7f;
             PropBuilder.Box("Deck", jetty, new Vector3(0f, deckY, len * 0.5f - 1f), new Vector3(1.5f, 0.1f, len), wood);
@@ -666,76 +770,109 @@ namespace WildLens.EditorTools
             PropBuilder.AddCollider(jetty, new Vector3(0.75f, deckY + 0.6f, len * 0.5f), new Vector3(0.08f, 1.2f, len - 2f));
             PropBuilder.AddCollider(jetty, new Vector3(0f, deckY + 0.6f, len - 1.5f), new Vector3(1.5f, 1.2f, 0.08f));
 
-            Vector3 side = Vector3.Cross(Vector3.up, f);
             Plank(group, "CATTAIL POND\nDeer drink here at dusk", TerrainUtil.Ground(shore - f * 3.5f + side * 2.2f), Quaternion.LookRotation(-f), wood, post);
+            InterpretivePanel(group, TerrainUtil.Ground(shore - f * 3.2f - side * 2.4f), -f, "LIFE AT THE WATER'S EDGE",
+                "Cattails and reeds shelter frogs and nesting birds.\nDeer come down to drink in the cool of evening.\n" +
+                "Stand still on the jetty: the far shore is\nwhere they step out of the trees.", wood, post);
             AddViewpoint(group, "Cattail Pond", new Vector3(shore.x, level + deckY + 1.65f, shore.z) + f * (len - 2f), s.centre + f * s.water + Vector3.up);
-            AddHotspot(group, "Pond Edge Hotspot", HotspotType.Meadow, s.centre + f * (s.water + 6f), 10f);
-            dest.wildlifeCentre = TerrainUtil.Ground(s.centre + f * (s.water + 6f)); // the far shore, across the water from the jetty
+            Vector3 farShore = TerrainUtil.Ground(s.centre + f * (PondRadius(s, s.centre + f * s.water) + 6f));
+            AddHotspot(group, "Pond Edge Hotspot", HotspotType.Meadow, farShore, 10f);
+            AddHotspot(group, "Pond Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(s.centre + side * (s.water * 1.2f + 5f)), 7f);
+            dest.wildlifeCentre = farShore; // across the water from the jetty
             AddKeepOut(shore, 4f);
         }
 
-        private void BuildReeds(Transform group, Vector3 centre, float radius, float level)
+        private void PlantPondReeds(Transform group, List<Vector3> clumps, float level)
         {
             var stems = new List<CombineInstance>();
             var heads = new List<CombineInstance>();
-            Mesh cyl = _cylinder, capsule = PrimitiveMeshes.Get(PrimitiveType.Capsule);
-            for (int clump = 0; clump < 70; clump++)
+            Mesh capsule = PrimitiveMeshes.Get(PrimitiveType.Capsule);
+            foreach (var c in clumps)
             {
-                float a = R(0f, Mathf.PI * 2f);
-                float d = radius + R(-1.8f, 1.2f);
-                Vector3 c = centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * d;
                 float ground = Mathf.Max(level - 0.3f, TerrainUtil.SampleHeight(c));
-                if (ground > level + 0.6f) continue; // reeds only at the waterline
-                int n = _rng.Next(5, 10);
+                int n = _rng.Next(6, 12);
                 for (int i = 0; i < n; i++)
                 {
-                    Vector3 p = new Vector3(c.x + R(-0.5f, 0.5f), ground, c.z + R(-0.5f, 0.5f));
+                    Vector3 p = new Vector3(c.x + R(-0.55f, 0.55f), ground, c.z + R(-0.55f, 0.55f));
                     float h = R(1.1f, 1.9f);
                     var rot = Quaternion.Euler(R(-8f, 8f), R(0f, 360f), R(-8f, 8f));
-                    stems.Add(new CombineInstance { mesh = cyl, transform = Matrix4x4.TRS(p + rot * Vector3.up * (h * 0.5f), rot, new Vector3(0.022f, h * 0.5f, 0.022f)) });
+                    stems.Add(new CombineInstance { mesh = _cylinder, transform = Matrix4x4.TRS(p + rot * Vector3.up * (h * 0.5f), rot, new Vector3(0.022f, h * 0.5f, 0.022f)) });
                     if (R() < 0.35f)
                         heads.Add(new CombineInstance { mesh = capsule, transform = Matrix4x4.TRS(p + rot * Vector3.up * (h * 0.82f), rot, new Vector3(0.05f, 0.11f, 0.05f)) });
                 }
             }
-            void Combined(string name, List<CombineInstance> parts, Color colour)
-            {
-                if (parts.Count == 0) return;
-                var mesh = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-                mesh.CombineMeshes(parts.ToArray(), true, true);
-                mesh = GeneratedAssets.Save(mesh, "Mesh_" + name);
-                var go = new GameObject(name);
-                go.transform.SetParent(group, false);
-                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-                go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                go.AddComponent<MeshRenderer>().sharedMaterial = GeneratedAssets.Material(name, colour);
-                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
-            }
-            Combined("Reeds", stems, new Color(0.38f, 0.44f, 0.2f));
-            Combined("Cattails", heads, new Color(0.3f, 0.19f, 0.1f));
+            CombinedStatic(group, "Pond Reeds", stems, new Color(0.38f, 0.44f, 0.2f));
+            CombinedStatic(group, "Pond Cattails", heads, new Color(0.3f, 0.19f, 0.1f));
         }
 
         // ------------------------------------------------------------------ Old-Growth Grove
 
         private void BuildGrove(Transform group, Site s, Material wood, Material post)
         {
-            Clear(s.centre, 9f);
+            Clear(s.centre, 8f);
             Vector3 f = s.facing;
             // Three giants around the clearing.
             for (int i = 0; i < 3; i++)
             {
-                Vector3 p = TerrainUtil.Ground(s.centre + Quaternion.Euler(0f, i * 120f + R(-20f, 20f), 0f) * f * R(11f, 14f));
+                Vector3 p = TerrainUtil.Ground(s.centre + Quaternion.Euler(0f, i * 120f + R(-20f, 20f), 0f) * f * R(10f, 13f));
                 Clear(p, 4f);
                 var giant = Deciduous(group, p);
                 giant.name = "Old-Growth Giant";
-                float k = R(1.6f, 1.9f);
+                float k = R(1.7f, 2f);
                 giant.transform.localScale *= k;
                 var feature = giant.GetComponent<EnvironmentFeature>();
                 if (feature != null) { feature.radius *= k; feature.height *= k; }
                 MakeStaticExceptSway(giant);
                 _treeObjects.Add(giant);
+                Occupy(p);
                 AddHotspot(group, "Mature Tree Hotspot", HotspotType.MatureTree, p, 12f);
             }
-            // A bench in the clearing, facing the biggest trunk, and a fallen log.
+            // 0.8: a closed canopy around the clearing. Shade, big trunks, dense stand, mostly broadleaf.
+            int planted = 0;
+            for (int attempt = 0; attempt < 600 && planted < 34; attempt++)
+            {
+                float a = R(0f, Mathf.PI * 2f), r = Mathf.Lerp(12f, 46f, Mathf.Sqrt(R()));
+                Vector3 p = TerrainUtil.Ground(s.centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
+                if (PathDistance(p) < 3.5f || TerrainUtil.SlopeDegrees(p) > 30f || !IsFree(p, 3.2f)) continue;
+                var tree = R() < 0.75f ? Deciduous(group, p) : Conifer(group, p);
+                float k = R(1.15f, 1.5f);
+                tree.transform.localScale *= k;
+                var feature = tree.GetComponent<EnvironmentFeature>();
+                if (feature != null) { feature.radius *= k; feature.height *= k; }
+                MakeStaticExceptSway(tree);
+                AddDistanceCull(tree, 0.012f);
+                _treeObjects.Add(tree);
+                Occupy(p);
+                planted++;
+            }
+            // Moss-covered rocks, fallen timber, stumps and a carpet of ferns: an old forest floor.
+            for (int i = 0; i < 26; i++)
+            {
+                float a = R(0f, Mathf.PI * 2f), r = R(5f, 34f);
+                Vector3 p = TerrainUtil.Ground(s.centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r);
+                if (PathDistance(p) < 2.5f || InKeepOut(p)) continue;
+                if (i < 7 && _art && _artRocks.Count > 0) PlaceArt(_artRocks, group, p, R(0.7f, 1.4f), 0.15f, 10f);
+                else if (i < 10 && _art && _artLogs.Count > 0 && IsFree(p, 3f)) PlaceArt(_artLogs, group, p, R(0.9f, 1.2f), 0.15f, 3f);
+                else if (i < 12 && _art && _artStumps.Count > 0) PlaceArt(_artStumps, group, p, R(0.9f, 1.3f), 0.05f, 4f);
+                else if (_art && _artFerns.Count > 0)
+                    for (int k = 0; k < 4; k++)
+                        PlaceArt(_artFerns, group, TerrainUtil.Ground(p + new Vector3(R(-1.5f, 1.5f), 0f, R(-1.5f, 1.5f))), R(0.8f, 1.3f), 0.02f, 6f);
+            }
+            // Bird boxes on two big trunks: someone looks after this place.
+            var box = GeneratedAssets.Material("NestBox", new Color(0.46f, 0.36f, 0.25f));
+            int boxes = 0;
+            foreach (Transform t in group)
+            {
+                if (boxes >= 2 || !t.name.StartsWith("Old-Growth Giant")) continue;
+                Vector3 toward = TerrainUtil.Flat(s.centre - t.position).normalized;
+                var nb = PropBuilder.Group("Nest Box", group, t.position + Vector3.up * 3.2f + toward * 0.45f, Quaternion.LookRotation(toward));
+                PropBuilder.Box("Box", nb, Vector3.zero, new Vector3(0.22f, 0.32f, 0.2f), box);
+                PropBuilder.Box("Roof", nb, new Vector3(0f, 0.18f, 0.02f), new Vector3(0.28f, 0.03f, 0.26f), post);
+                PrimitiveMeshes.CreatePart("Hole", PrimitiveType.Cylinder, nb, new Vector3(0f, 0.05f, 0.101f), new Vector3(0.05f, 0.005f, 0.05f),
+                    GeneratedAssets.Material("NestHole", new Color(0.05f, 0.04f, 0.03f)), new Vector3(90f, 0f, 0f));
+                boxes++;
+            }
+            // A bench in the clearing, facing the biggest trunk.
             var bench = PropBuilder.Group("Bench", group, TerrainUtil.Ground(s.centre - f * 2f), Quaternion.LookRotation(f));
             PropBuilder.Box("Seat", bench, new Vector3(0f, 0.45f, 0f), new Vector3(1.8f, 0.08f, 0.45f), wood);
             PropBuilder.Box("Back", bench, new Vector3(0f, 0.8f, -0.22f), new Vector3(1.8f, 0.34f, 0.06f), wood);
@@ -744,45 +881,90 @@ namespace WildLens.EditorTools
             PropBuilder.AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.8f, 0.9f, 0.5f));
             Plank(group, "OLD-GROWTH GROVE\nQuiet please: squirrels at work", TerrainUtil.Ground(s.centre - f * 5f + Vector3.Cross(Vector3.up, f) * 3f),
                 Quaternion.LookRotation(-f), wood, post);
+            InterpretivePanel(group, TerrainUtil.Ground(s.centre - f * 5f - Vector3.Cross(Vector3.up, f) * 3f), -f, "OLD GROWTH",
+                "Some of these trees are older than the reserve.\nFallen trunks feed the soil; mosses and ferns\n" +
+                "keep it damp. Grey squirrels nest high up:\nlisten for them before you see them.", wood, post);
             AddViewpoint(group, "Old-Growth Grove", TerrainUtil.Ground(s.centre - f * 2f) + Vector3.up * 1.2f, TerrainUtil.Ground(s.centre + f * 12f) + Vector3.up * 6f);
             AddKeepOut(s.centre, 6f);
         }
 
         // ------------------------------------------------------------------ Meadow Blind
 
+        /// <summary>
+        /// 0.8 rebuild. A roomy hide (4 × 3 m inside) on a levelled pad with a plank floor, a 1.2 m doorway in the back
+        /// wall reached by a duckboard path from the track, and a long viewing window that works standing (eye 1.65 m)
+        /// and crouched (eye 0.95 m). Brush screens its sides. The meadow hotspot sits 14 m in front, so animals are
+        /// close. Inside, the HUD says you're hidden and a ranger's log hangs on the wall.
+        /// </summary>
         private void BuildBlind(Transform group, Site s, Material wood, Material post, ReserveDestination dest)
         {
             Vector3 f = s.facing; // into the meadow
-            Vector3 pos = TerrainUtil.Ground(s.centre - f * (s.radius * 0.75f));
+            Vector3 side = Vector3.Cross(Vector3.up, f);
+            Vector3 pos = s.structure != Vector3.zero ? s.structure : TerrainUtil.Ground(s.centre - f * (s.radius * 0.5f));
             group.position = pos; // arrival is at the hide, not in the middle of the meadow
-            Clear(pos, 5f);
+            Clear(pos, 6f);
             var hide = PropBuilder.Group("Observation Blind", group, pos, Quaternion.LookRotation(f));
-            const float W = 3.4f, D = 2.4f, H = 2.25f, t = 0.09f;
-            const float slotLow = 1.32f, slotHigh = 1.78f;
-            // Front wall with a long viewing slot at standing eye height.
-            Wall(hide, "Front Low", new Vector3(0f, slotLow * 0.5f, D * 0.5f), new Vector3(W, slotLow, t), wood);
-            Wall(hide, "Front High", new Vector3(0f, (slotHigh + H) * 0.5f, D * 0.5f), new Vector3(W, H - slotHigh, t), wood);
-            Wall(hide, "Shelf", new Vector3(0f, slotLow - 0.02f, D * 0.5f - 0.18f), new Vector3(W - 0.3f, 0.05f, 0.3f), post);
+            const float W = 4.2f, D = 3.2f, H = 2.35f, t = 0.1f;
+            const float sill = 0.85f, head = 1.8f, door = 1.2f;
+            // Front: a long window from crouched to standing eye height, framed by posts.
+            Wall(hide, "Front Low", new Vector3(0f, sill * 0.5f, D * 0.5f), new Vector3(W, sill, t), wood);
+            Wall(hide, "Front High", new Vector3(0f, (head + H) * 0.5f, D * 0.5f), new Vector3(W, H - head, t), wood);
+            foreach (float x in new[] { -W * 0.5f + 0.3f, 0f, W * 0.5f - 0.3f })
+                PropBuilder.Box("Window Post", hide, new Vector3(x, (sill + head) * 0.5f, D * 0.5f), new Vector3(0.08f, head - sill, 0.08f), post);
+            PropBuilder.Box("Shelf", hide, new Vector3(0f, sill + 0.02f, D * 0.5f - 0.17f), new Vector3(W - 0.3f, 0.04f, 0.3f), post);
             Wall(hide, "Side L", new Vector3(-W * 0.5f, H * 0.5f, 0f), new Vector3(t, H, D), wood);
             Wall(hide, "Side R", new Vector3(W * 0.5f, H * 0.5f, 0f), new Vector3(t, H, D), wood);
-            // Back wall with a 1.1 m doorway on the track side (0.7.1: it was 0.7 m, narrower than the player's capsule
-            // plus skin, so nobody could get in). Door spans x = -0.45 … 0.65.
-            Wall(hide, "Back L", new Vector3(-1.075f, H * 0.5f, -D * 0.5f), new Vector3(1.25f, H, t), wood);
-            Wall(hide, "Back R", new Vector3(1.175f, H * 0.5f, -D * 0.5f), new Vector3(1.05f, H, t), wood);
-            Wall(hide, "Lintel", new Vector3(0.1f, H - 0.12f, -D * 0.5f), new Vector3(1.1f, 0.24f, t), wood);
-            Wall(hide, "Roof", new Vector3(0f, H + 0.06f, 0f), new Vector3(W + 0.4f, 0.1f, D + 0.5f), post);
-            PropBuilder.Box("Bench", hide, new Vector3(0f, 0.45f, D * 0.5f - 0.55f), new Vector3(W - 0.6f, 0.07f, 0.35f), wood);
+            // Back wall with a centred 1.2 m doorway (≥ the capsule's 0.8 m with room to spare; see AGENTS.md checklist).
+            float seg = (W - door) * 0.5f;
+            Wall(hide, "Back L", new Vector3(-(door + seg) * 0.5f, H * 0.5f, -D * 0.5f), new Vector3(seg, H, t), wood);
+            Wall(hide, "Back R", new Vector3((door + seg) * 0.5f, H * 0.5f, -D * 0.5f), new Vector3(seg, H, t), wood);
+            Wall(hide, "Lintel", new Vector3(0f, H - 0.12f, -D * 0.5f), new Vector3(door, 0.24f, t), wood);
+            Wall(hide, "Roof", new Vector3(0f, H + 0.06f, 0.1f), new Vector3(W + 0.5f, 0.1f, D + 0.7f), post);
+            // Plank floor: grass doesn't poke through, footing is level.
+            PropBuilder.Box("Floor", hide, new Vector3(0f, 0.03f, 0f), new Vector3(W - 0.1f, 0.06f, D - 0.1f), post);
+            PropBuilder.AddCollider(hide, new Vector3(0f, 0.03f, 0f), new Vector3(W - 0.1f, 0.06f, D - 0.1f));
+            PropBuilder.Box("Bench", hide, new Vector3(0f, 0.45f, D * 0.5f - 0.75f), new Vector3(W - 0.8f, 0.07f, 0.35f), wood);
+            // Ranger's log on the inside of the left wall, readable from the bench.
+            var log = PropBuilder.Group("Ranger Log", hide, hide.TransformPoint(new Vector3(-W * 0.5f + 0.07f, 1.45f, -0.2f)), hide.rotation * Quaternion.Euler(0f, 90f, 0f));
+            PropBuilder.Box("Board", log, Vector3.zero, new Vector3(0.75f, 0.55f, 0.02f), GeneratedAssets.Material("PanelFace", new Color(0.82f, 0.78f, 0.64f), 0.2f));
+            PropBuilder.Label(log, new Vector3(0f, 0.18f, 0.012f), "RANGER'S LOG: MEADOW BLIND", 0.0055f);
+            PropBuilder.Label(log, new Vector3(0f, -0.05f, 0.012f),
+                "Mon  doe and fawn, west edge, dawn\nTue  cottontails along the brush line\nThu  fox crossing at dusk\n" +
+                "Sat  three deer grazing 15 m out\nSit still. They come to you.", 0.0045f);
             var blind = hide.gameObject.AddComponent<ObservationBlind>();
             blind.interiorCentre = new Vector3(0f, 1f, 0f);
             blind.interiorSize = new Vector3(W - 0.2f, 2f, D - 0.2f);
 
-            Plank(group, "MEADOW BLIND\nEnter quietly. Inside, wildlife can't see you", TerrainUtil.Ground(pos - f * (D + 2.5f) + Vector3.Cross(Vector3.up, f) * 2f),
-                Quaternion.LookRotation(-f), wood, post, 1.6f);
-            AddViewpoint(group, "Meadow Blind", pos + Vector3.up * 1.6f + f * (D * 0.5f - 0.1f), s.centre + Vector3.up * 0.8f);
-            ClearCone(pos, f, 40f, s.radius * 1.8f);
-            AddHotspot(group, "Meadow Hotspot", HotspotType.Meadow, s.centre, s.radius * 0.7f);
-            AddHotspot(group, "Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(s.centre + Vector3.Cross(Vector3.up, f) * s.radius * 0.6f), 8f);
-            dest.wildlifeCentre = s.centre;
+            // Duckboards from the track's end to the door.
+            Vector3 doorWorld = hide.TransformPoint(new Vector3(0f, 0f, -D * 0.5f - 0.3f));
+            Vector3 start = s.arrival;
+            float pathLen = TerrainUtil.FlatDistance(start, doorWorld);
+            Vector3 along = TerrainUtil.Flat(doorWorld - start).normalized;
+            for (float d = 0.6f; d < pathLen; d += 1.25f)
+            {
+                Vector3 p = TerrainUtil.Ground(start + along * d);
+                var board = PropBuilder.Group("Duckboard", group, p + Vector3.up * 0.03f, Quaternion.LookRotation(along));
+                PropBuilder.Box("Slats", board, Vector3.zero, new Vector3(0.9f, 0.05f, 1.15f), wood);
+            }
+            // Brush screens the hide's sides so it reads as part of the meadow edge.
+            for (int i = 0; i < 6; i++)
+            {
+                float sgn = i % 2 == 0 ? -1f : 1f;
+                Vector3 p = TerrainUtil.Ground(pos + side * sgn * R(W * 0.5f + 1.2f, W * 0.5f + 3.5f) + f * R(-1.5f, 1.2f));
+                if (_art && _artShrubs.Count > 0) PlaceArt(_artShrubs, group, p, R(0.9f, 1.3f), 0.02f, 3f);
+            }
+
+            Plank(group, "MEADOW BLIND\nEnter quietly. Inside, wildlife can't see you", TerrainUtil.Ground(s.arrival + side * 2.2f), Quaternion.LookRotation(-along), wood, post, 1.6f);
+            InterpretivePanel(group, TerrainUtil.Ground(s.arrival - side * 2.4f), -along, "A MEADOW FOR EVERYONE",
+                "Wildflowers feed the insects that feed the birds.\nDeer graze here at dawn; cottontails keep to the\n" +
+                "brushy edges. Inside the blind your outline\nand footsteps are hidden: watch, and wait.", wood, post);
+            AddViewpoint(group, "Meadow Blind", pos + Vector3.up * 1.65f + f * (D * 0.5f - 0.15f), s.centre + Vector3.up * 0.8f);
+            ClearCone(pos, f, 45f, s.radius * 1.8f);
+            Vector3 meadow = TerrainUtil.Ground(pos + f * 14f);
+            AddHotspot(group, "Meadow Hotspot", HotspotType.Meadow, meadow, 12f);
+            AddHotspot(group, "Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(meadow + side * 13f), 7f);
+            dest.wildlifeCentre = meadow;
+            dest.wildlifeRadius = 12f;
             AddKeepOut(pos, 4f);
         }
 

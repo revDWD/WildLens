@@ -192,6 +192,30 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Ecosystem pass (0.8.0)
+* **Willow Creek** (`Editor/EcosystemBuilder.cs` → `PlanCreek`): source on the ridge's flank, mouth in the pond
+  (falls back to highest/lowest ground if either is missing). A* on 5 m cells that penalises climbing (water runs
+  downhill), steep ground, structures and the blind's meadow; smoothed, given S-bends (`Meander`), resampled at
+  2.5 m. Bed height per sample = lower of the banks 7 m either side − 1.1 m, never rising downstream, meeting the
+  pond's water level. Carving lowers terrain toward a bed-plus-bank profile within 4.6 m (min(), so rebuilding is
+  idempotent). Water is a ribbon mesh 0.32 m above the bed. `CreekDistance` (cached 4 m grid) feeds forest bias
+  (riparian woodland), tree exclusion, splat (stony bed, cut banks, moist margin) and details (no grass in water,
+  ferns along the banks). Runtime marker: `ReserveCreek`. Requires *Shape terrain at destinations*.
+* **Crossings**: wherever the loop or a track intersects the creek, a 9.5 m footbridge; its deck collider carries
+  `RideableSurface`, which `TrailBike.GroundHeight` rides on. Tracks are routed after the creek with a crossing
+  penalty, so they cross once and squarely.
+* **Density zones** (`VegetationBuilder.TreeChance/TreeSpacing`): dense woodland > 0.62 forest (spacing 2.2 m),
+  woodland 0.45–0.62 (clumped), quiet groves 0.3–0.45, open grassland with lone trees < 0.3. Same budget, uneven
+  distribution.
+* **Pull-offs** (`PlanParking`): `ReserveParking` pads (levelled, painted like path, kept clear), 22–45 m short of
+  each destination; scenic pull-off with bench midway on tracks > 160 m. HUD prompt while riding.
+* **Residences** (`WildlifeResidence`): species groups at places that aren't destinations; spawned by
+  `WildlifeSpawner.SpawnResidents` alongside destination residents.
+* **Storytelling**: `InterpretivePanel`, `BuildTrackMarkers`, deer-crossing sign, nest boxes, ranger's log.
+* **Ambience** (`AmbientSound`): procedural ridge wind and brook loops, 3D.
+* **Blind**: see the 0.8 notes in `ReserveBuilder.BuildBlind`; `PlayerPresence.IsConcealed` drives the HUD's
+  HIDDEN line and first-entry notice.
+
 ## Reserve (0.7.0)
 * **Planning** (`Editor/ReserveBuilder.cs`, partial of `VegetationBuilder`): chooses four destination sites from the
   terrain, shapes the pond basin and overlook hill if needed, routes reserve tracks (A*), biases forest density
