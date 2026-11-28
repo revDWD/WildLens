@@ -1,5 +1,168 @@
 # Changelog
 
+## [1.9.0] After the Rain
+The 1.8 playtest was the first full run of the pack pipeline in Unity, and it was a success: the reserve "immediately feels
+more alive". Two notes came back: the fox reads a little like a dog (it is a tinted dog model) and the turkey a little like a
+chicken (a tinted chicken). 1.9 makes the place answer the weather, fills the macro lens with small life that needs no packs,
+quiets the screen, and gives the reserve some real geography. **None of 1.9 has run in Unity yet.** Everything compiles in
+five configurations; everything you will see is unproven until your screenshots.
+### Wildlife events (natural, never scripted)
+Where an animal is and what it does now depends on the **hour**, the **weather now**, the **weather lately** and the
+**four-day forecast**. Nothing is triggered by you, counted, marked or rewarded; the same day always goes the same way, so
+you can learn it. Each species' field notes hint at its habit, in a sentence, never an instruction.
+- **Deer and turkeys** wait out rain under the trees, then come out to feed on the meadow in the first sun afterwards.
+- **Songbirds** (cardinal, blackbird, goldfinch, song sparrow) sit tight in the brush while it rains and come down to bathe at the
+  water's edge for the next two and a half game hours.
+- **Robins** work the open grass for worms in the first hour after rain, then bathe at the water.
+- **The hawk** soars over the ridge only in fair weather (morning to golden hour); in rain, under grey skies or just after
+  rain it waits on a snag.
+- **The barred owl** sits on a snag at the meadow's edge at a dry dusk; in rain it stays in the grove.
+- **The crows** gather at the trailhead to roost at dusk.
+- **The black bear** keeps to deep cover in rain and comes down to the creek at dusk only when the evening is fair.
+- **The heron** is livelier after rain; **the cottontail** is out on the meadow edge for hours after a wet night; **the raccoon
+  and the opossum** come out early on a grey afternoon.
+- **Staggered**: a flock does not move on one frame. A change of weather is answered after a stable delay (up to 14 s for a
+  group, a few seconds more for each animal). A change of day period still moves everyone at once, as before. The delay
+  counts faster while you hold T.
+- **Seeded rain memory**: the weather now remembers when it last rained, and at the start of a game it works that out from
+  its own forecast, so the morning after the dusk rain of forecast day 4 is damp even if you were not there to see it fall.
+- **Existing species assets** are upgraded gently (data version 4): they receive the habits and the field-note hints, plus
+  the new rhythms for the owl and the crow and the new colours for the fox and turkey, only where you have not changed
+  those. Awareness, behaviours, groups and anything you tuned stay.
+### Three new birds
+- **Eastern bluebird**: on the fence posts of the Old Cabin Ruins; out on the meadow posts in the first sun after rain.
+- **Tufted titmouse**: the woods round the Rock Shelter; nearly as tame as the chickadee.
+- **Louisiana waterthrush**: Hemlock Run, below the cascade; wary, and busiest by the water just after rain.
+- All three are tinted stand-ins from your Living Birds pack until a truer model turns up. **Twenty-seven species** in all.
+  The new ones are residents of their places only.
+### Better models replace stand-ins by themselves
+- **The upgrade rule.** A model WildLens chose for a species is replaced automatically when a strictly better one is
+  imported: the real animal over any stand-in, a stand-in that is nobody else's real animal over one that is, a closer name
+  over a farther one. Import a model named Fox or Turkey and it takes over on the next rebuild. A model you chose by hand in
+  a setup window is never touched, and a species you sent back to a placeholder stays one. One Console line lists each
+  change.
+- **Factory version 3** re-tints the animals WildLens built itself: the fox is now a brighter orange-red with a clean white
+  tail tip and dark socks, the turkey a darker bronze-brown with a red head and legs. The colours are baked into each model's
+  materials when it is built, so the first rebuild after updating refreshes them.
+- Real sizes for the three new birds (bluebird 18 cm, titmouse 16 cm, waterthrush 15 cm).
+- "Bluebird" is no longer a stand-in word for the blue jay.
+### Small life without packs
+- **26 generated models**, made in code and saved in your project (`Assets/WildLens/Generated/SmallLife/Models`; nothing is
+  downloaded or committed): monarch, tiger swallowtail, cabbage white, luna moth, common whitetail, ebony jewelwing, bumble
+  bee, honey bee, firefly, lady beetle, Carolina mantis, leopard frog, green frog, gray treefrog, red eft, red-backed
+  salamander, whitelip snail, honey mushroom, yellow fly agaric, turkey tail, oxeye daisy, black-eyed Susan, common
+  milkweed, common blue violet, haircap moss and common cattail. They are stylised and **have never been seen in the
+  engine**. A model from your packs always wins; the builder setting **Generated Small Life** (on by default) turns them off.
+- **29 subjects in all**: the 2 bundled plants, the 12 of 1.7 and 15 new ones: eastern tiger swallowtail (*Papilio glaucus*),
+  cabbage white (*Pieris rapae*), ebony jewelwing (*Calopteryx maculata*), western honey bee (*Apis mellifera*), green frog
+  (*Lithobates clamitans*), gray treefrog (*Dryophytes versicolor*), eastern red-backed salamander (*Plethodon cinereus*),
+  yellow fly agaric (*Amanita muscaria* var. *guessowii*), turkey tail (*Trametes versicolor*), woodland fern (*Dryopteris*
+  sp., the bundled fern scan), common milkweed (*Asclepias syriaca*), black-eyed Susan (*Rudbeckia hirta*), common blue
+  violet (*Viola sororia*), haircap moss (*Polytrichum commune*) and common cattail (*Typha latifolia*).
+- **They come out for the conditions, not the clock alone**: butterflies and bees in sunshine, with a second wave in the
+  first sun after a shower; dragonflies and the jewelwing on warm, dry days; fireflies on fair evenings (after a dry
+  afternoon, from about 18:45, each a little later, over about twenty game minutes); gray treefrogs on wet evenings and
+  nights; frogs in greater numbers after rain and at dusk; newts and salamanders and snails after rain; more mushrooms
+  the day after rain. All of it reads the weather and the clock only, so it follows the forecast.
+- **Movement**: wings (butterflies rest with them closed and now and then open them flat; a jewelwing opens and shuts its black
+  wings; a bee's buzz and a dragonfly's shimmer), a dragonfly keeps its own perch, fireflies **rise from the grass** at dusk
+  and flash.
+- **New habitats**: tree trunks (luna moths, treefrogs), boulders and old logs (moss), pond edge only (cattails), the creek
+  only (the jewelwing). **One insect per flower**, and monarchs choose milkweed first.
+- **Fireflies in clusters**: three on the meadow verge and one at the pond.
+- **Every subject can be graded.** Last time a plant half a metre tall was Excellent from anywhere, and a ground subject
+  could need you closer than the camera can get (it is 1.65 m up standing, 0.95 m crouched). Frame-fill thresholds are
+  reworked from that arithmetic, and the tall ones (the fern, the cattail) are graded on one part: a frond's crown, a seed
+  head.
+- Existing subject assets keep your tuning and gain only the new fields (subject data version 2).
+- **First rebuild**: making the models takes a few seconds and shows a progress bar; one Console line reports it.
+### A quieter screen
+- **Empty by default.** With the camera lowered the screen shows a faint centre dot and nothing else. The bottom-left hint
+  block is gone, and so is the top-right status line (with its `Species 3/24` counter).
+- **Context prompts**: a key and one to three words on a faint pill, bottom-centre, at most two. Each appears only when it
+  is possible and useful (park at a pull-off, the camera when an animal is ahead, macro near a small subject, zoom and
+  shutter with the camera up, the journal after your first photograph), fades after a few ignored seconds, and **retires for
+  the session** once you have done the thing three times. Nothing is saved.
+- **H opens "Field Guide: Controls"**: one paper card with every key in four groups. It pauses the world like the journal.
+- **One notice style**: a small title and one line on a faint pill, under the top edge, never more than two at once. A hidden
+  place still gets its name, large and calm, once.
+- **The viewfinder is tidier**: one thin line weight, quiet grade colours, and a data row along the bottom (focus dot and
+  MACRO, the zoom steps, focal length and f-number).
+- **The journal gains a Field notebook page** (A / D to switch pages). It lists only what you have found, grouped by kind,
+  with your best photograph: never a total, never an unfound row. The Wildlife page is as before.
+### The reserve
+- The world is still 900 by 900 m. It gains **geography, not distance**.
+- **Hemlock Ravine** with its tributary **Hemlock Run** and a stepped cascade at its head, joining Willow Creek. It is carved
+  where the land falls far enough toward the creek: that includes the default seed 7. On a seed or terrain without the
+  relief it is skipped and one Console line says why. One footpath leads in, with one sign and a log seat that looks up at
+  the cascade. A Louisiana waterthrush lives by the run and an eastern phoebe on the cascade's ledge.
+- **Four more hidden places** (seven in all; found and named once, never counted, on no sign or map):
+  **Cascade Overlook** (a ledge above the cascade, with a seat), **Hidden Pond** (still water in a wooded hollow, far from
+  any path; herons, blackbirds, raccoons), **Rock Shelter** (an overhanging crag with a dry floor, a cold fire ring and
+  a view) and **Old Cabin Ruins** (a stone foundation, a chimney stub and the last fence posts, where the bluebird sits).
+  Each is skipped cleanly where the land has no site.
+- **Carved late, so nothing else moves.** The ravine and the new places are cut after every other scenery pass and use their
+  own random stream, so for a given seed the existing trees, rocks, paths and destinations stay exactly where they were
+  (measured on eight seeds in a prototype before it was written: 0.00 m of height change under every existing path and
+  destination). What stood where the ground moved is settled onto the new surface or lifted out.
+- Builder settings **Hemlock Ravine** and **More Hidden Places** (both on).
+- One Console line, `[WildLens] Reserve: …`, says what was built (and why anything was skipped).
+### Under the hood
+- Environment version 21 (**rebuild the slice**). Species data version 4, subject data version 2, factory version 3, small
+  life model version 2 (wings, petals, leaves and blades are two-sided in the mesh itself).
+- The rain memory lives in one place (`WeatherCycle`) and both the animals and small life read it. Their "sun after rain"
+  windows differ on purpose (animals two game hours, small life three).
+- The Console line for the small life reads `[WildLens] Small life: N macro subjects placed (… generated, … from your packs;
+  … in second tiers…)` with one line per subject.
+- **Old pack scripts can block every update.** The Living Birds pack's `scripts` and `demo` folders do not compile on
+  Unity 6. Compile errors in your project stop **all** package updates, and WildLens does not need those folders (only the
+  models and clips). Delete them. If a pasted Asset Audit shows an older WildLens version than the one released, a
+  compile error in your project is the likeliest reason: look for red lines in the Console first.
+### What to do
+1. Update the package in Package Manager and wait for Unity to finish compiling. **Nothing to import.** If the update does
+   not appear, or the Console shows red errors, see "Old pack scripts" above.
+2. **Rebuild** (WildLens ▸ Vertical Slice Builder ▸ Rebuild Slice In Open Scene). The first rebuild makes the small-life
+   models and re-tints the fox and the turkey.
+3. Press Play and **watch forecast day 3 through the afternoon shower and into dusk** (hold T to let time pass). Then the
+   dusk rain of day 4. Take the screenshots below.
+### What to look at and screenshot next
+1. **The Console lines**: `[WildLens] Reserve: …` and `[WildLens] Small life: …` (and any `Wildlife models` line). Paste them.
+2. **The empty screen**, camera lowered: only a faint dot.
+3. **The prompts**: the park prompt at a pull-off, "Raise camera" with an animal ahead, then macro near a flower.
+4. **The controls card** (H) and **the field notebook page** (J, then D) after a few macro photographs.
+5. **A monarch on milkweed** at midday, wings open if you can wait for it, in sun.
+6. **Fireflies** on the meadow verge at a fair dusk (forecast day 1 or 2), and none on day 3 or 4.
+7. **Frogs at the pond** after the afternoon shower, and the gray treefrogs on trunks that evening.
+8. **Songbirds bathing** at the water's edge in the hours after the shower, and a robin on the open grass in the first hour.
+9. **The owl on a snag** at a dry dusk, and the crows at the trailhead at dusk.
+10. **Hemlock Ravine** from the log seat at the end of its footpath, and from the rim.
+11. **Each new hidden place**: Cascade Overlook, Hidden Pond, Rock Shelter, Old Cabin Ruins. The Rock Shelter's crag and
+    the cascade's ledges are the least proven shapes: look for gaps, floating rock or flat-looking faces.
+12. **The fox and the turkey** after re-tinting, at 4×.
+### Not done, honestly
+- **Nothing from 1.9 has run in Unity.** The generated small-life models are stylised and unseen in the engine; sizes,
+  colours and wing motion may need work. The Rock Shelter's crag and the cascade's ledges are the least proven shapes.
+- **No real models for the fox, the turkey or the eight placeholder species** (cottontail, squirrel, heron, raccoon, owl,
+  groundhog, opossum, sandpiper). A search for free models failed from the build machine: every CC0 model site it tried
+  (quaternius.com, poly.pizza, opengameart.org, itch.io, kenney.nl) is blocked there, so nothing could be checked or shipped.
+  This is a job for you, and the rules are below.
+- **Rain still falls through the Rock Shelter's roof** (and every roof).
+- **The journal's Wildlife page still lists unseen species as "???" rows with "Species X of N".** That is old behaviour, and it
+  sits uneasily with "no checklists". It is a decision for you (see the roadmap).
+- Scale on low-end hardware is untested: about 200 small-life instances (generated) on top of 27 species.
+### A shopping list for models (your job; check each page for "CC0" before use)
+The build machine could not open these pages, so each entry comes from search results only. **Open each page and check that
+the licence is CC0 (or another one that allows free use without credit) before you use it.**
+- **A fox with idle, walk and run** on OpenGameArt: `https://opengameart.org/node/90146`.
+- **Quaternius** packs: `https://quaternius.com` and `https://quaternius.itch.io`. Their farm-animal pack has a cow, horse,
+  llama, pig and pug, and no fox. Look for animal packs with a fox, rabbit, owl, raccoon, squirrel or heron.
+- **Not usable**: the glTF sample "Fox" (its rig and animations are CC-BY), and Sketchfab "personal use" foxes.
+- **Steps**: download, unzip, drag the `.fbx` into your project's `Assets` folder with a **plain name** (`Fox.fbx`, `Turkey.fbx`,
+  `Rabbit.fbx`, `Owl.fbx`, `Raccoon.fbx`, `Squirrel.fbx`, `Heron.fbx`…). WildLens swaps it in on the next **Rebuild**. Start
+  with the fox and the turkey, then the eight.
+- Do not commit any of them to the repository.
+
+
 ## [1.8.0] New Neighbours
 Made from your 1.7 Asset Audit, the first report from inside Unity. It proved the automatic setup works (the deer from
 ithappy, the chicken as the turkey, the shipped wolf as the coyote, the shipped eagle as the hawk) and showed what was

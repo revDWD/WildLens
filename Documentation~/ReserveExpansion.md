@@ -42,6 +42,8 @@ The builder reads the terrain and chooses sites for what the land offers (`Edito
 * The **trailhead kiosk** board reads the live game: version, features, recent changes, species and journal
   progress, trails, viewpoints, destinations with distances, and a heads-up topographic map.
 * The **trail bike** is parked at the trailhead.
+* **Residents added in 1.9**: eastern bluebird (Old Cabin Ruins' fence), tufted titmouse (the Rock Shelter's woods), Louisiana
+  waterthrush (Hemlock Run), phoebe (the cascade's ledge); the Hidden Pond and the cabin clearing take species that already exist.
 * **Residents added in 1.8 (not a destination, but a place):** crows and robins at the trailhead, a crow group at one road
   pull-off, song sparrows in the Cattail Pond's brush and the Creek Alcove, chickadees in the Fern Glade, and one black bear
   in the deep woods (the woodland farthest from the trailhead). The full list per place is in
@@ -68,17 +70,47 @@ to water at dusk, cottontails on the meadow edges early, hawks over the ridge in
 what's happening now and when each place is best. The **Reserve Road** gives the bike a proper route between
 destinations; footpaths stay for walking.
 
+## 1.9.0 Geography, not distance (written, not yet run in Unity)
+
+The world stays 900 × 900 m. Measured: relief about 26 to 30 m, mean slope about 4°. 1.9 spends its effort on **what the
+ground does**, not on size.
+
+* **Hemlock Ravine.** A steep, shaded side valley cut by **Hemlock Run**, a small tributary of Willow Creek, with a stepped
+  cascade (two or three drops over ledges into a pool) at its head. It exists where the land falls far enough toward the creek
+  and away from paths (the default seed 7 does); elsewhere it is skipped and one Console line says why. One footpath leads in
+  from the existing tracks, with one sign (HEMLOCK RAVINE, "to the cascade") and a log seat that looks up at the cascade.
+  *Why a photographer comes:* the cascade in shade, the hemlocks, a waterthrush bobbing on the wet stones, a phoebe on the ledge.
+* **Four more hidden places** (seven in all; unmarked, found and named once, never counted, on no sign or map):
+
+  | Place | Chosen where | Why a photographer comes | Residents |
+  |---|---|---|---|
+  | **Cascade Overlook** | a ledge on the ravine's rim, 8 to 24 m from the cascade, with a line of sight to it | the cascade from above, the run stepping down through the hemlocks | (the ravine's) |
+  | **Hidden Pond** | a wooded hollow on gentle ground, at least 45 m from every path | still water far from anyone: herons, blackbirds, a raccoon at dusk, frogs after rain | great blue heron, red-winged blackbird, raccoon |
+  | **Rock Shelter** | an upland hillside under the ridge, an overhanging crag with a dry floor | shelter, a cold fire ring and a long view; titmice in the woods in front | tufted titmouse, gray squirrel |
+  | **Old Cabin Ruins** | level ground at a woods' edge, 45 to 100 m off a path | fieldstone and a chimney taken back by ferns; a bluebird on the fence | eastern bluebird, cottontail, groundhog |
+
+  The earlier three (Hidden Overlook, Fern Glade, Creek Alcove, 1.5) are unchanged.
+* **Carved late.** The ravine and the places are made after every other scenery pass, with their own random stream, so for a
+  given seed everything built before them stays exactly where it was; whatever stood where the ground moved is settled onto the
+  new surface or lifted out. It was prototyped and measured in Python on eight seeds first: the existing paths and destinations
+  changed by 0.00 m of height. This is now the pattern for any new terrain shaping (see Systems.md, "The reserve's geography").
+* The Rock Shelter's crag and the cascade's ledges are the **least proven shapes**; rain still falls through the shelter's roof.
+
 ## Next steps (proposed, in order)
 
-1. ~~**Time of day.**~~ Done in 0.9. ~~**Weather**~~ done in 1.4 (a four-day forecast). Seasons later.
+1. ~~**Time of day.**~~ Done in 0.9. ~~**Weather**~~ done in 1.4 (a four-day forecast), and wildlife now answers it (1.9).
+   Seasons later.
 2. **Creek, part two.** ~~Stepping stones at a ford~~ (the Creek Ford, 1.4). ~~A waterfall~~ (Willow Falls, 1.5).
-   Remaining: a tributary; a second, smaller cascade if the creek offers one.
+   ~~A tributary and a second, smaller cascade~~ (Hemlock Run and its cascade, 1.9).
 3. **Wetland edge.** Widen the pond into a marsh: a boardwalk loop, sedges, a second blind. Natural home for a
    future heron or wood duck (new species are data plus a model).
-   ~~Hidden places~~ (1.5): a hidden overlook, a fern glade, a creek alcove, unmarked.
+   ~~Hidden places~~ (1.5): a hidden overlook, a fern glade, a creek alcove, unmarked. (1.9): four more, seven in all.
 4. **Forest interior footpath.** A narrow path (no bikes, marked by a gate) through the grove to a hidden glade:
-   intimacy and shade as a contrast to the open ridge.
+   intimacy and shade as a contrast to the open ridge. (The ravine footpath is the first of these.)
 5. **Ranger cabin.** Near the loop: the journal on a desk, maps on the wall, a porch for golden hour. No NPCs.
+   (The Old Cabin Ruins are the ruined cousin of this.)
+   **Other places still left** (each must answer "why would a photographer come here?"): a **fern valley**, an
+   **observation ledge**, a **creek-side hollow**.
 6. **Hand-authored reserve terrain.** A 1–2 km heightmap (ridge, valley, creek line) shipped as CC0 data, so the
    reserve doesn't depend on the user's terrain. 1.4's generated landforms (lowland to upland, ridges, valleys,
    shelves) are the interim step and set the bar: about 30 m of interior relief, slopes mostly under 8°.

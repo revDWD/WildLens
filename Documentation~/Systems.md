@@ -192,6 +192,312 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## After the Rain (1.9.0)
+
+Four workstreams: natural wildlife events, small life without packs, the screen, and the reserve's geography. **None has
+run in Unity.** It supersedes the 1.8.0 and earlier notes where they differ (corrections are listed at the end).
+
+### Natural wildlife events
+
+* **The idea.** An event is a **condition**, never a script: the hour, the weather now, the weather lately, the four-day
+  forecast. Nothing keys off the player, a counter or a marker, and the same day always repeats. The data is
+  `SpeciesDefinition.weatherHabits` (`WeatherHabits`); the rules are `Scripts/Wildlife/WeatherHabitRules.cs`
+  (pure functions, no state, no randomness, no Unity objects); `WildlifeSchedule` applies the result.
+* **Data model** (`WeatherHabits`, off by default, so old assets behave exactly as before):
+
+  | Field | Meaning |
+  |---|---|
+  | `rainShelter`, `rainPlace` | where it sits **while it rains**; off: the general rule (open ground goes to the woods, the ridge to a perch) |
+  | `afterRain` (list of `AfterRainStage`: place, `untilHours`, `needsSun`) | where it goes after rain stops, first stage whose window still holds; a `needsSun` stage is skipped in grey weather |
+  | `activeAfterRain` | a livelier window after rain (see Bias); lasts `AfterRainWindow()`: the longest stage, at least 2 game hours |
+  | `fairOnlyPeriods` (bit mask, `PeriodMask(...)`), `foulPlace` | in those day periods the rhythm's place is used **only in fair weather**; otherwise `foulPlace` |
+  | `overcastEarly` | on a grey day it keeps the next period's hours (late midday keeps golden hour's place from 14:00; golden hour keeps dusk's) |
+  | `roostLabel` | for `RhythmPlace.Roost`: the residence it gathers at |
+
+  `RhythmPlace` gained `Roost` (appended). Day periods are indices: 0 night, 1 dawn, 2 morning, 3 midday, 4 golden hour, 5 dusk.
+* **The decision** (`WeatherHabitRules.Decide`), in order: the species' rhythm (or the built-in one for the five originals,
+  `LegacyPlace`) for the period, after `overcastEarly`; then fair-only; then the after-rain stages (never at night, never
+  while raining); then rain (`rainShelter`, else the general rule). The result is a place, the period being kept, and flags
+  (raining, active after rain, sun). `Key` packs them so an unchanged decision changes nothing.
+* **Bias** (`WeatherHabitRules.Bias`) multiplies behaviour weights: the old time-of-day rules (resting 4× at midday and
+  night, feeding 1.6× at dawn, golden hour and dusk...), rain (resting and sitting 2×, feeding 0.6×) and, for
+  `activeAfterRain`, resting 0.4×, sitting 0.7×, feeding 1.5× (2× in the sun), flying 1.2× (1.5× in the sun).
+* **The table** (what each species does; place names are `RhythmPlace`):
+
+  | Species | In rain | After rain | Fair only | Other |
+  |---|---|---|---|---|
+  | White-tailed deer, wild turkey | woodland | meadow, up to 3 h, **needs sun** (so in practice about 2 h); livelier | | |
+  | Cardinal, blackbird, goldfinch, song sparrow | brush | water's edge, 2.5 h; livelier | | |
+  | American robin | brush | meadow 1 h (worms on the open grass), then water 2.5 h; livelier | | |
+  | Louisiana waterthrush | home (the run) | water, 2.5 h; livelier | | |
+  | Eastern bluebird | woodland | meadow, 2.5 h, needs sun; livelier | | |
+  | Great blue heron | general rule | water, 2.5 h; livelier | | |
+  | Eastern cottontail | general rule | meadow edge, up to 8 h (a wet night) | | |
+  | Red-tailed hawk | perch | | morning, midday, golden hour (else perch) | |
+  | Black bear | home (deep cover) | | dusk (else home) | |
+  | Barred owl | woodland | | | rhythm: dusk on a snag (Perch), night at the meadow edge |
+  | American crow | general rule | | | rhythm: roosts at the trailhead residence at dusk and night |
+  | Raccoon, opossum | general rule | | | `overcastEarly` |
+  | Red fox, squirrel, groundhog, kingfisher, phoebe... | general rule | | | no habits (the fox and turkey gained colours only) |
+  | Tufted titmouse | general rule | | | none |
+
+  The after-rain "sun" is `WeatherCycle.SunAfterRain`: rain ended within **2 game hours**, the sky is not overcast, cover
+  below 0.6. Each habit has one hint sentence at the end of the species' field notes.
+* **Stagger** (`WildlifeSchedule`, `weatherStagger` 14 s). The first placement and a change of day period are immediate (as
+  before). A change of weather alone is answered after a stable delay: `weatherStagger × group + 3 s × animal`, where each
+  share comes from `WeatherHabitRules.Hash01` (FNV-style hash of the species id and position or index: no `System.Random`,
+  identical on every run). The group is a 12 m cell of the animal's origin, so a flock shares a delay; each animal adds a
+  few seconds. A pending move keeps the earlier due time if the wanted state changes while it waits (never endlessly
+  re-armed). The delay counts down in game time (faster while T is held or at night). Polling is four times a second.
+* **Jitter and home.** Each animal's stable jitter (±3 m) comes from the same hash with its list index as salt (so a group
+  with one territory does not stack on one point). A move to the same place and spot is skipped, so circling birds are not
+  yanked into transit. `RhythmPlace.Roost` looks for one of the species' own `WildlifeResidence`s (by `roostLabel`, else the
+  first) and ignores `maxShift`.
+* **`FlyingAnimal`**: a bird that is perched or landing when its home changes now remembers it (`_homeDirty`) and heads for
+  the new home at its next flight. Before, it hopped between perches near the old place for minutes.
+* **`WeatherCycle` helpers** (the one memory of the rain, read by the animals and by small life): `IsRaining` (Rain > 0.25),
+  `HoursSinceRain` (0 while raining, huge if never), `RecentlyRained(h)`, `RainEndedWithin(h)`, `SunAfterRain`,
+  `IsFair` (not raining, not overcast, more than an hour since rain), `IsFairEvening` (golden hour or dusk, and fair),
+  `LastRainTime`, `HasRainMemory`, `AnimalSunAfterRainHours` (2).
+* **Seeded rain memory.** At the start (and whenever the clock is set back) the memory is seeded from the cycle's own
+  forecast (`SeedRainMemory`): the hour each forecast day's rain stops is found by scanning the day's keys in hundredths of an
+  hour (day 3: about 16:06; day 4: 23.99, the dusk rain runs on to midnight), so the morning after is damp even when nobody
+  watched the rain fall. The always-fair pattern and a hand-set weather have no memory.
+* **Forecast** (hour, cloud cover, rain): day 1 fair; day 2 grey morning clearing by 15:00; day 3 fair, then cloud and a
+  shower from about 13:30 to 16:06; day 4 overcast, rain building from about 17:30, heavy at dusk, running to midnight. A good
+  watch: day 3 from 13:00 to dusk.
+* **Migration** (data version 4, `SpeciesAssetMigrator`, `SpeciesDefaults.ApplyHabits`). An asset already at version 3 gets
+  only the natural-events data: the habits, the field-note hint (an unedited note takes the new default; a hand-edited note
+  keeps its text and gains the hint sentence if missing), the owl's and crow's new rhythm **only if it still equals the old
+  default**, and the fox's and turkey's three colours. Older assets get `ApplyTuning`, which now includes the habits. Never
+  touched: awareness, behaviours, groups, prefab, hand-tuned values.
+* **The three new birds** (`SpeciesDefaults`; residents only, `groupCount` 0, placed by residences): eastern bluebird (18 cm;
+  aware 18 m, alert 10 m, flee 5 m; perches long on a post), tufted titmouse (16 cm; aware 11 m, alert 6 m, flee 3 m, patience 7 s,
+  nearly as accepting as the chickadee), Louisiana waterthrush (15 cm; aware 20 m, alert 12 m, flee 6.5 m: wary). Body `length`
+  is about 0.45 of the real total, as for the others. Each is in `WildlifeSpawner`'s own-stream set, `WildlifePackSetup`'s name
+  table (bluebird: stand-ins sparrow, finch, songbird, bird; titmouse: chickadee, sparrow...; waterthrush: thrush, sparrow,
+  wren...) and `AnimalPrefabFactory.RealSize`. "Bluebird" is no longer a stand-in word for the blue jay.
+* **Colours** (baked into the model's materials when it is built; `FactoryVersion` 3). Fox: primary (0.93, 0.42, 0.12), white
+  (0.97, 0.95, 0.92), near-black socks (0.10, 0.08, 0.07); the model's own colour multiplies it, so it needs headroom. Turkey:
+  bronze-brown (0.25, 0.18, 0.11), lighter bronze (0.36, 0.26, 0.15), bare red (0.66, 0.20, 0.16).
+* **The upgrade rule** (`WildlifePackSetup.UpgradeBuilds`, `IsStrictUpgrade`). In `AutoSetUp`, for each species whose prefab
+  was **built by the automatic route** (`record.manual` false, a source model that still exists and still matches), the best
+  candidate replaces it only if strictly better, compared on (kind, not "owned" by another species, keyword rank): the
+  real animal over any stand-in; among stand-ins one that is nobody else's real animal; the closer keyword ("shiba" before
+  "dog"). Equal candidates never swap, two real animals never swap, and a current model that no longer matches by name is
+  left alone. The new build uses the default size, yaw 0 and the usual tint; the record then names the new model so the
+  next run changes nothing. A **kept placeholder** or a **manual** build is never touched. One Console line:
+  "Wildlife models upgraded (a better match was imported)".
+
+### Small life without packs
+
+* **Where models come from, in order**: a model from the user's packs (`prefab`), else the **generated** model named by
+  `generatedModel` (when the builder setting `generatedSmallLife` is on), else nothing. `FernScan` is the bundled CC0 fern
+  scan, not generated.
+* **Generated models** (`Editor/SmallLifeShapes.cs` recipes, plain C# with no `UnityEngine` so they can be run and looked at
+  outside Unity; `SmallLifeGeometry.cs` the geometry and palette-strip textures; `SmallLifeModels.cs` the Unity side: meshes,
+  materials and a prefab per model under `Assets/WildLens/Generated/SmallLife/Models/{Key}_v{ModelVersion}/`, made once and
+  reused). **`SmallLifeModels.ModelVersion` is 2**: wings, petals, leaves and blades are two-sided in the mesh itself (a
+  reversed copy with negated normals) and keep back-face culling on; version 1 relied on a cull property the Built-in
+  Standard shader lacks. Bump it when a recipe changes (the old folder is then replaced). Each model is authored in metres,
+  normalised to its stated size, pivot at the feet or attachment point; wings are children named `Wing L`/`Wing R`
+  (butterflies, bees: also `FL`, `FR`, `HL`, `HR`), a dragonfly sits on a `Perch` stem with the animal under a `Rider` group,
+  a firefly has a `Lantern` and a `Halo`. The first build shows a progress bar and logs one line (count and seconds).
+  The 26 keys: Monarch, Swallowtail, CabbageWhite, LunaMoth, Whitetail, Jewelwing, BumbleBee, HoneyBee, Firefly, LadyBeetle,
+  Mantis, LeopardFrog, GreenFrog, GrayTreefrog, RedEft, RedBackedSalamander, Snail, HoneyMushroom, YellowFlyAgaric,
+  TurkeyTail, OxeyeDaisy, Milkweed, BlackEyedSusan, Violet, HaircapMoss, Cattail.
+* **The 29 subjects** (`SubjectDefaults.CreateAll`; ids and order never change, new ones are appended). Size in metres; Fill
+  is the frame fill for Good / Excellent; Hours: N night, D dawn, M morning, Md midday, G golden hour, Du dusk.
+
+  | Subject (scientific name) | Size | Fill | Where | Hours | Condition | Second tier | Count |
+  |---|---|---|---|---|---|---|---|
+  | Common dandelion (*Taraxacum officinale*), bundled scan | 0.05 | 0.18 / 0.35 | meadow verge | M Md G | closes in rain | | bundled |
+  | Lesser periwinkle (*Vinca minor*), bundled scan | 0.035 | 0.18 / 0.35 | woodland floor | D M Md G Du | | | bundled |
+  | Monarch (*Danaus plexippus*) | 0.09 | 0.18 / 0.35 | flowers (milkweed first) | M Md G | sunshine | sun after rain, 40% | 8 |
+  | Luna moth (*Actias luna*) | 0.10 | 0.18 / 0.35 | trunks | N D Du | | | 4 |
+  | Common whitetail (*Plathemis lydia*) | 0.06 | 0.18 / 0.35 | water's edge, own perch | M Md G | warm | | 5 |
+  | Bumble bee (*Bombus impatiens*) | 0.02 | 0.08 / 0.15 | flowers | M Md G | sunshine | sun after rain, 33% | 8 |
+  | Lady beetle (*Coleomegilla maculata*) | 0.012 | 0.08 / 0.15 | flowers | M Md G | | | 6 |
+  | Carolina mantis (*Stagmomantis carolina*) | 0.06 | 0.12 / 0.25 | meadow verge | M Md G Du | | | 4 |
+  | Northern leopard frog (*Lithobates pipiens*) | 0.08 | 0.10 / 0.20 | water's edge | all | | after rain or dusk, 40% | 8 |
+  | Eastern newt, red eft (*Notophthalmus viridescens*) | 0.07 | 0.14 / 0.28 | woodland floor | M Md G | after rain | | 4 |
+  | Whitelip snail (*Neohelix albolabris*) | 0.03 | 0.12 / 0.25 | logs and stumps | N D M Du | after rain | | 4 |
+  | Firefly (*Photinus pyralis*), 0.8 m up | 0.012 | 0.08 / 0.16 | meadow verge, 3 clusters + the pond | N Du | fair evening | | 16 |
+  | Honey mushroom (*Armillaria mellea*) | 0.07 | 0.15 / 0.30 | stumps and logs | all | | rained today or yesterday, 40% | 14 |
+  | Oxeye daisy (*Leucanthemum vulgare*) | 0.05 | 0.18 / 0.35 | meadow verge | M Md G | | | 6 |
+  | Eastern tiger swallowtail (*Papilio glaucus*) | 0.10 | 0.18 / 0.35 | flowers (milkweed, black-eyed Susan) | M Md G | sunshine | sun after rain, 40% | 5 |
+  | Cabbage white (*Pieris rapae*) | 0.045 | 0.14 / 0.28 | flowers (daisy, dandelion) | M Md G | sunshine | sun after rain, 40% | 6 |
+  | Ebony jewelwing (*Calopteryx maculata*) | 0.055 | 0.18 / 0.35 | creek only | M Md G | warm | | 5 |
+  | Western honey bee (*Apis mellifera*) | 0.013 | 0.07 / 0.13 | flowers (daisy, black-eyed Susan) | M Md G | sunshine | sun after rain, 33% | 6 |
+  | Green frog (*Lithobates clamitans*) | 0.085 | 0.10 / 0.20 | water's edge | all | | after rain or dusk, 40% | 8 |
+  | Gray treefrog (*Dryophytes versicolor*) | 0.05 | 0.12 / 0.24 | trunks | N D Du | wet night | | 6 |
+  | Red-backed salamander (*Plethodon cinereus*) | 0.09 | 0.18 / 0.35 | woodland floor | D M Md G Du | after rain | | 4 |
+  | Yellow fly agaric (*Amanita muscaria* var. *guessowii*) | 0.10 | 0.18 / 0.35 | woodland floor | all | | rained today or yesterday, 40% | 8 |
+  | Turkey tail (*Trametes versicolor*) | 0.08 | 0.18 / 0.35 | logs and stumps | all | | | 8 |
+  | Woodland fern (*Dryopteris* sp.), bundled scan, graded on a 0.12 m patch | 0.5 | 0.20 / 0.35 | woodland floor | D M Md G Du | | | 6 |
+  | Common milkweed (*Asclepias syriaca*) | 0.09 | 0.18 / 0.35 | meadow verge | M Md G | | | 12 |
+  | Black-eyed Susan (*Rudbeckia hirta*) | 0.07 | 0.18 / 0.35 | meadow verge | M Md G | | | 12 |
+  | Common blue violet (*Viola sororia*) | 0.025 | 0.07 / 0.12 | woodland floor | M Md G | | | 6 |
+  | Haircap moss (*Polytrichum commune*) | 0.08 | 0.18 / 0.35 | boulders (and old logs) | D M Md G Du | | | 8 |
+  | Common cattail (*Typha latifolia*), graded on its 0.10 m head | 0.14 | 0.20 / 0.32 | ponds only | D M Md G Du | | | 5 |
+
+  The first two rows are the 1.5 scans. The default counts of the generated subjects add up to
+  192 instances (before the bundled plants). "Second tier" is a share of `count` placed as a **second set of instances** that is out only in
+  those conditions; the rest are unaffected. A pack model, if one is found, replaces the generated one for that subject
+  (matching in `MacroPackSetup` is stricter for the new subjects: a generic "butterfly" stays with the monarch, "damselfly"
+  with the jewelwing, "Tree_Frog" with the treefrog and nobody else; a moss model must be 3-D and more than 2 cm tall).
+* **Conditions and tiers** (`Scripts/Photography/NaturalConditions.cs`; reads only the clock and the weather; cached, four
+  times a second; no allocation):
+
+  | Rule | True when |
+  |---|---|
+  | Sunshine (`Sunny`) | not raining, cloud cover below 0.55, 06:30 to 18:30 |
+  | Warm | not raining, cover below 0.8, 09:30 to 18:30 |
+  | Fair evening | not raining, cover below 0.5, **more than 8 game hours since rain**, from 18:45 plus a stagger of 0 to 0.34 h, until 22:00 plus up to 0.6 h (each firefly its own) |
+  | Wet night | 18:30 to 06:30, within **14 game hours** of rain |
+  | Sun after rain (small life) | sunshine, within **3 game hours** of rain |
+  | After rain (tier) | within 6 game hours of rain; after rain or dusk: that, or 18:30 to 07:00 |
+  | Rained lately (tier) | it rained today or yesterday (the rest of that day and the next) |
+
+  `SubjectCondition` (None, Sunshine, Warm, FairEvening, WetNight) and `SubjectExtra` (None, SunAfterRain, AfterRain,
+  AfterRainOrDusk, RainedLately) are enums (append only). `MacroSubject.tier` and `stagger` carry them to an instance; a
+  hidden instance has its renderers off and does nothing (so the second tier costs nothing out of season); a plant only keeps
+  the shared rain memory up to date. Animals' "sun after rain" is 2 game hours, small life's is 3: different on purpose.
+* **Motion** (`MacroMotion`, cosmetic; nothing chases you or leaves its patch; a subject farther than 25 m from the
+  camera does only a once-a-second distance check). Wings: children `Wing L`... roll about their own Z axis; a
+  butterfly rests with them closed (68°) and now and then slowly opens them flat (to 2°) for a few seconds, beats them in flight;
+  a jewelwing opens and shuts black wings the same way; a bee's wings buzz and tremble on the flower; a dragonfly's shimmer;
+  a firefly's whirr. A dragonfly moves only its `Rider`. **Fireflies rise** from the grass over 8 to 20 s when they come out
+  (they start on the ground below their hover point, 0.8 m up), drift, and flash the lantern and halo (a pack model glows all
+  over). Frogs: still until the camera is within 0.9 m **along the ground**, then one hop (0.4 m, 0.1 m high, 0.35 s) on a 1.2 m
+  leash, as in 1.7.
+* **Habitats** (`SubjectHabitat`, appended: `Trunk`, `Rock`). Trunk: the lower trunk of a tree with a collider within 30 m of a
+  path (0.4 to 1.6 m up, the side facing the nearest path, found by a ray; at most two of a species per tree); falls back to dead
+  wood. Rock: boulders and rocks 0.4 to 4 m across (moss); falls back to the woodland floor. Water edge also covers any water
+  hotspot not on the creek (a ring on the bank, never in the bed); jewelwings use the creek only, cattails ponds only. **One
+  insect per flower** (flowers are tracked with their kind and an offset to the head: a milkweed's umbel 3.2 cm up, a daisy's
+  disc 0.5 cm): monarchs choose milkweed first, swallowtails milkweed then black-eyed Susan, bumble bees black-eyed Susan,
+  daisy then milkweed, honey bees daisy then black-eyed Susan, cabbage whites daisy then dandelion, lady beetles black-eyed
+  Susan then daisy. Flowers are placed first so insects have somewhere to sit. Fireflies gather in **clusters**: three on the
+  meadow verge (four with no pond) and one at the pond shore.
+* **Grading arithmetic** (corrected in 1.9). The camera is **1.65 m up standing and 0.95 m crouched**, so a subject on the
+  ground is never nearer than about a metre. At the macro lens's 1.7× step the frame is 0.25 d tall at distance d, and the
+  focus box is 1.4 × the subject's size, so seen head-on **fill = 5.6 × size / d**; Excellent needs d ≤ 5.6 × size / fill.y, and
+  macro works to 2.5 m. The thresholds above were set so that Excellent is reachable crouched at about a metre (fill.y at most
+  5.6 × size for ground subjects; a little less for the hoppers, which are not approached closer than 0.9 m along the ground,
+  so 1.3 m crouched or 1.8 m standing). A tall plant would be Excellent from anywhere (a 0.5 m fern's 0.7 m box fills the
+  frame), so a subject can name the part that is graded (`focusPartSize`): the fern's 12 cm crown patch (fill = 0.48 / d: Good
+  within 2.4 m, Excellent within 1.4 m) and the cattail's 10 cm head (0.4 / d: Good within 2.0 m, Excellent within 1.25 m).
+* **Upgrade of old subject assets** (`UpgradeToV2`, subject data version 2): the new fields (generated model, condition,
+  second tier) come from the defaults; a count still at the version-1 value moves to the new default; a fill still at one of
+  the two version-1 values moves to the new default; the generated dragonfly's hover, the luna moth's habitat and the lady
+  beetle's habitat move only when never changed and no pack model is in use. Anything tuned is left alone.
+* **Console**: `[WildLens] Small life: N macro subjects placed (G generated, P from your packs; E of them in second tiers…)`
+  and one line per subject (`Monarch Butterfly: 8 (3 in the second tier), generated`).
+
+### The screen
+
+* **Empty by default.** With the camera lowered: a faint centre dot. Nothing else is always on. While riding, speed; while
+  waiting (T) or crouched or hidden, small quiet lines at the bottom-left. The old hint block and the top-right status line
+  (with the species counter) are gone. The whole canvas is hidden for the capture frame, as before.
+* **`UiStyle`** (`Scripts/UI/UiStyle.cs`): one look. Colours: text warm off-white (0.97, 0.95, 0.89) at 100%, 72% (soft) and
+  45% (faint); grades quiet (Good 0.67/0.89/0.60, Excellent 0.97/0.81/0.45; Poor stays white); alert amber; pill fill a faint
+  dark (0.05, 0.07, 0.05) at 40% (62% for an alert). Sizes in reference pixels: margin 56, small 18, body 22, title 26, pill height
+  48. Fade 0.25 s (unscaled). Canvas reference 1920 × 1080, match 0.5 (nothing important beyond the 56 px margin from 4:3 to
+  21:9). `SoftShadow`, `CreatePill`, `PillSprite` (a 9-sliced rounded rectangle made once).
+* **Prompts** (`PromptView`; at most two, bottom-centre, a bold key and one to three words on a pill; lifted clear of the
+  viewfinder's data row while the camera is up; hidden when a menu is open or the keeper print is up). In priority order:
+
+  | Prompt | Shown when | Text |
+  |---|---|---|
+  | Park | riding, and stopped or inside a pull-off | R Park here (+ the pull-off's name) |
+  | Mount | on foot, the bike in reach, camera lowered | R Ride the bike |
+  | Macro | camera up, not in macro, a small subject within 3 m | M Macro lens |
+  | Shutter | camera up, a subject in frame (or in macro, one near) | LMB Shutter |
+  | Zoom | camera up, not in macro | Scroll Zoom |
+  | Raise | on foot, camera lowered, an animal (or small life) ahead, after 14 s | Hold RMB Raise camera |
+  | Journal | once, 6 to 600 s after the first photograph | J Journal |
+  | Intro | once, between 2.5 s and 9.5 s, camera lowered, on foot | H Controls |
+
+  A prompt gives up after 8 s (7 s for Macro and Raise) if ignored, and is **retired for the session** after three uses (one for
+  Journal and Intro), or after six ignored showings. Opening the controls card retires Intro. Nothing is saved.
+* **Notices** (`NoticeView`): a small title and one line on a pill under the top edge, at most **two**; a third replaces the
+  older one (a priority notice, such as the stale-scene warning, only yields to another priority notice). Text shrinks to
+  fit (22/18, 20/16, 18/14 px) and is never wrapped. A **hidden place's name** is the one large thing: 58 px italic, centre-top
+  beneath the notice stack, in 1.0 s, held 4.2 s, out in 1.6 s, with a one-line note. Never counted.
+* **Viewfinder** (`ViewfinderView`): one thin line weight and one warm white; the grade is a word beside the name in a quiet
+  colour; a **data row** along the bottom like an EVF: [focus dot and MACRO] ... [1× 2× 4× 8× 16×] ... [focal length and
+  f-number], whose side items start 136 px in from each edge, clear of the corner arms (checked at 16:9, 16:10, 21:9 and
+  4:3). The keeper print rests above the row and scales down on short canvases.
+* **Controls card** (`ControlsCardView`, **H**; Esc closes it): "Field Guide: Controls", one paper card (1480 × 800) in four
+  groups (On foot, Camera, Trail bike, Journal). The key names come from `GameInput.Labels`, so a rebinding shows up. It pauses
+  the world like the journal.
+* **Journal** (`JournalUI`): two pages, **A / D** (or the arrow keys) to switch, W / S or the wheel to select, J / Tab / Esc to
+  close. **Wildlife** is as before (including unseen species as "???" and "Species X of N", an existing behaviour that sits
+  uneasily with "no checklists"). **Field notebook** lists only the subjects found, grouped by kind then name, with kind, photographs,
+  first found, best photograph and where; an empty notebook says one gentle line. Never a total, a "?" row or a completion
+  figure. Long names shrink to fit a row (down to 16 px). Subject text comes from the scene's subjects, else the shipped defaults.
+* **Keys**: `GameInput` gained `ControlsTogglePressed` (H, the old hints key), `NavigateLeftPressed` (A, left arrow),
+  `NavigateRightPressed` (D, right arrow) and `GameInput.Labels` (on-screen key names).
+
+### The reserve's geography
+
+* **A late step.** `VegetationBuilder.BuildGeography` (`Editor/GeographyBuilder.cs`, `Editor/HiddenPlacesBuilder.cs`) runs
+  **after every pass that draws from the shared random sequence** (trees, rocks, logs, bushes, hotspots, viewpoints,
+  destinations, ecosystem, discoveries, undergrowth) and **before** small life, terrain paint and grass. Why: for a given seed the
+  reserve that already exists must not move. Every earlier pass decides from the terrain; carving first would change those
+  decisions and, through the shared sequence, every tree after the first one affected. So the step has a **private random stream**
+  (seed × 7919 + 1901), carves, then **settles** what stood on ground that moved (posts, rocks and anchors follow the ground;
+  vegetation in the new channel, footpath, pond water or crag is lifted out), then builds. The water-distance field is rebuilt
+  with the new run so paint, grass and small life see it. The step needs "Shape terrain at destinations"; a failure is a
+  Console error and a rebuild retries.
+* **Hemlock Ravine.** A steep, shaded side valley cut by **Hemlock Run**, a small tributary of Willow Creek, with a stepped
+  cascade at its head. Selection, in maintainer terms: a reverse Dijkstra from Willow Creek, costed the way water runs, gives
+  every cell its way down; heads on ground well above the creek and away from paths are routed and scored; the run below the
+  cascade keeps a gentle, even gradient from the mouth (it cuts deeper the further upstream it goes); the cascade is the drop
+  from the upper channel to that, in two or three steps over ledges into a pool. The best of up to ten routes is kept if it is
+  dramatic enough (cascade plus depth); otherwise there is **no ravine and one Console line says why**. The carve
+  only cuts (so a rebuild gives the same ravine) and never touches a path, road, destination, keep-out or hidden place. It
+  exists on seeds where the land falls enough toward the creek, **including the default seed 7**. Scenery: hemlocks on the
+  walls and rim (through kit roles), ferns, mossy stones in the run, one fallen trunk across it. One **footpath** (`Track:
+  Hemlock Ravine`, a footpath like the others) with one sign (HEMLOCK RAVINE, "to the cascade") and a **log seat** at its
+  end that looks up at the cascade. Residents: a Louisiana waterthrush by the run, an eastern phoebe on the cascade's ledge.
+* **The four hidden places** (like the Hidden Overlook, Fern Glade and Creek Alcove: unmarked, on no sign or map, found and
+  named once, never counted; **seven in all**). Each is chosen from the land and skipped cleanly (a Console note) where there
+  is no site:
+  * **Cascade Overlook**: a ledge on the ravine's rim above the cascade, 8 to 24 m from its middle, on gentle ground, with a
+    clear line of sight to it; a log seat and a boulder. Needs the ravine.
+  * **Hidden Pond**: a small still pond (radius about 8.5 m) in a wooded hollow, gentle ground, at least 45 m from every path and
+    from the run, away from the Cattail Pond and other places; the basin is shaped and the water sits below the land all round.
+    Reeds, a half-sunk log; a water hotspot and anchor; residents: great blue heron, red-winged blackbird, raccoon.
+  * **Rock Shelter**: an overhanging crag (`ProceduralMeshes.Crag`: a block of rock with an undercut alcove) set into an upland
+    hillside (slopes of about 7° to 24°, preferring higher ground, a view and the ground under the ridge), its alcove dry
+    underfoot (at least 2.2 m of clearance), a long-cold fire ring and a view out; the floor is bare (no terrain grass, a
+    dry tread). Residents: tufted titmouse and gray squirrel in the woods in front. **Rain still falls through its roof.**
+  * **Old Cabin Ruins**: a stone foundation and chimney stub in a small clearing at a woods' edge on level ground, taken back by
+    ferns and young trees, rotted sills, and the last posts of a split-rail fence. Residents: eastern bluebird (the fence),
+    eastern cottontail and groundhog (the clearing).
+* **Measured first.** All of it was prototyped and measured in Python on eight seeds before it was written: the existing
+  paths and destinations changed by 0.00 m of height; all four places were found on every seed, 42 to 130 m from the nearest
+  path, reachable on foot by a slope no steeper than 15° on the gentlest approach.
+* **Settings** (`SliceBuildSettings`, "Reserve geography (1.9)"): `hemlockRavine`, `moreHiddenPlaces`, both on; and
+  `generatedSmallLife` (on). **Environment version 21.**
+* **Console**: `[WildLens] Reserve: Hemlock Ravine N m (cascade H m in k drops, up to D m deep, footpath L m), hidden places X of 7;
+  settled N objects onto the new ground, removed M. Notes: ...` (or `no ravine`, with the reasons in the notes).
+* **World size and relief** (measured): the world is 900 × 900 m; relief about 26 to 30 m; mean slope about 4°. More relief,
+  not more distance, is the next lever.
+
+### Corrections to earlier sections
+
+* **Plants and fungi never vanish** (1.7 note): since 1.9 that covers ferns and moss too (`NaturalistSubject.IsPlantOrFungus`).
+* **"Recently rained"** is no longer tracked by `MacroSubject`: it reads `NaturalConditions`, which reads `WeatherCycle`'s one
+  memory (still 3 game hours for small life).
+* **Species**: twenty-seven, not twenty-four; subjects: 29, not fourteen; hidden places: seven, not three.
+* **The HUD** no longer has a hint block, a status line or a species counter; H opens the controls card (it used to toggle hints).
+* **Animals' rain rule** (1.4: open ground empties, hawks perch) is now the **general rule** inside `WeatherHabitRules`; species with
+  habits replace it with their own.
+* **Journal**: two pages. Its Wildlife header no longer shows the notebook count.
+
 ## New neighbours, real sizes and pack models (1.8.0)
 
 From the user's 1.7 Asset Audit. Nothing here has run in Unity beyond what that audit showed (the automatic setup ran;
@@ -526,7 +832,7 @@ deer, turkey, coyote and hawk models were in use). It supersedes the 1.7.0 and 1
   rained** (`MacroSubject.RecentlyRained`) is true while `WeatherCycle.Rain` > 0.25 and for **3 game hours** after (the
   day counter handles midnight; setting the clock back forgets it). Animals from packs hide their renderers when not
   showing (checked once a second, each with its own phase). **Plants and fungi never vanish** (`hideWhenNotShowing` is off
-  for Wildflower and Fungus groups), including the daisy and mushroom; they stay where they grow. `MacroAnalyzer` still
+  for Wildflower and Fungus groups), including the daisy and mushroom (and, since 1.9, ferns and moss); they stay where they grow. `MacroAnalyzer` still
   skips any subject that is not showing, so a dandelion closed in rain stays in the grass but cannot be focused on. The
   macro lens, the analyser and the journal needed no other changes.
 
@@ -798,6 +1104,9 @@ Plan, asset list and instructions: `EnvironmentMigration.md`.
 
 ## Data migrations
 
-* Species assets: `dataVersion` 3. `SpeciesAssetMigrator` applies current gameplay tuning to the built-in species
-  after script reload (**WildLens ▸ Upgrade Species Assets** to run manually).
+* Species assets: `dataVersion` 4 (1.9: weather habits). `SpeciesAssetMigrator` applies current gameplay tuning to the
+  built-in species after script reload (**WildLens ▸ Upgrade Species Assets** to run manually); an asset already at 3 gets only
+  the natural-events data (`SpeciesDefaults.ApplyHabits`).
+* Small-subject assets: `dataVersion` 2 (1.9: generated model, condition, second tier; `NaturalistSubject.UpgradeToV2`).
+* Generated small-life models: `SmallLifeModels.ModelVersion` 2. Animal prefabs: `AnimalPrefabFactory.FactoryVersion` 3.
 * Journal save: version 3 (adds `identifiedBy`, `observedBehaviors`); version-1 scores were converted in 0.2.0.

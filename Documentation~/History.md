@@ -165,7 +165,7 @@ harmful as too tight: "Foxglove" is not a fox, "Threat" is not "eat", and a wood
 placement its own seeded random source so adding one subject moves nothing else, and never use `string.GetHashCode` for a
 seed (it differs between machines). None of this has run in Unity yet.
 
-**1.8.0 New Neighbours** (current). The director imported animal, bird, bear, mushroom, tree and motorcycle packs, ran the
+**1.8.0 New Neighbours**. The director imported animal, bird, bear, mushroom, tree and motorcycle packs, ran the
 1.7 Asset Audit and pasted it: the first report from inside Unity. It proved the automatic setup worked (the deer from
 ithappy, the chicken as the turkey, the shipped wolf and eagle), and showed what else the packs held (seven Living Birds,
 a stylised bear, eleven mushrooms, eighteen motorcycle models) and what was wrong. Built-in-shader models would be pink in
@@ -183,3 +183,31 @@ songbirds; the author had checked that things compiled, not that the numbers wer
 from a real measurement. Add new species on their own random streams, so a build moves nothing else. A factory that
 improves must be able to refresh what it made before, without touching what a person tuned. None of 1.8 has run in Unity
 yet; its first test is the user's screenshots.
+
+**1.9.0 After the Rain** (current). The 1.8 playtest was the first full run of the pack pipeline in Unity, and the director
+called it a major success: "the reserve immediately feels more alive". Two notes: the fox reads like a dog (it is a tinted
+dog model) and the turkey like a chicken. It also cost a round: the Living Birds pack's `scripts` and `demo` folders do not
+compile on Unity 6, and compile errors **block every package update** until the folders are deleted (WildLens needs only the
+models and clips). 1.9 answers the success by making the place answer the weather. **Natural events** came first: the big animals
+now go where the hour and the weather would send them (deer under the trees in rain and out in the first sun, songbirds bathing
+after the shower, the hawk soaring only in fair weather, the owl on a snag at a dry dusk, crows roosting at the trailhead),
+as data on each species and decided by pure rules from the four-day forecast; nothing is triggered by the player. A stagger
+stops a flock moving on one frame. Three birds for the new places followed (bluebird, titmouse, waterthrush). An **upgrade
+rule** lets a truer model replace an automatically chosen stand-in when it is imported. **Small life** stopped needing packs:
+26 generated stylised models and 29 subjects that come out for sun, sun after rain, warm hours, fair evenings, wet nights.
+The **screen** was emptied (a faint dot; prompts that retire; a controls card on H; one notice style; a journal notebook
+page). The **reserve** gained geography instead of size: Hemlock Ravine with its tributary and cascade, and four more hidden
+places (seven in all), carved late so nothing built earlier moved. *Lessons:* **an independent review before release paid
+off again** (it found a viewfinder row under the brackets, wings that were one-sided, two memories of the rain, and
+subjects that could not be graded from where the camera can stand), as it did in 1.8. **Carve late and settle**: terrain shaped before the scenery changes
+every earlier decision and, through the shared random sequence, every tree after it; measured in a prototype on eight seeds, the
+existing paths and destinations changed by 0.00 m. **Events are conditions, never scripts**: the same hour and forecast always
+give the same result, and nothing is aimed at the player. **Grade from the arithmetic**: the camera is 1.65 m up (0.95 m
+crouched), so ground subjects are never nearer than about a metre, and a tall plant is graded on one part. **Baked colours**
+need a factory-version bump to reach models already built. **The build machine cannot reach CC0 model hosts**
+(quaternius.com, poly.pizza, opengameart.org, itch.io and kenney.nl are all blocked from it), so it could not find or check models
+for the fox, the turkey or the eight placeholder species: sourcing is the director's job, from a shopping list, and the upgrade
+rule swaps the files in. If a pasted audit shows an older WildLens version than the one released, ask for the Console's red
+lines first. Left honest: nothing of 1.9 has run in Unity, the generated models and the Rock Shelter's crag and the cascade's
+ledges are the least proven shapes, rain still falls through roofs, and the journal's Wildlife page still shows "???" rows beside
+"no checklists" (a decision for the director).

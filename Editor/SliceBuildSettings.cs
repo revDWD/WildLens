@@ -125,7 +125,7 @@ namespace WildLens.EditorTools
         [Range(0, 3)] public int firstWeatherDay = 0;
 
         [Header("Wildlife expansion (1.0)")]
-        [Tooltip("No longer needed: since 1.1 all species are always built (twenty-four in 1.8). Kept so older settings assets load. " +
+        [Tooltip("No longer needed: since 1.1 all species are always built (twenty-four in 1.8, twenty-seven in 1.9). Kept so older settings assets load. " +
                  "See Documentation~/WildlifeExpansion.md before adding your own species.")]
         public bool previewExpansionSpecies = false;
 

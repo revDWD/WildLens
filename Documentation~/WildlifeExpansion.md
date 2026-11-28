@@ -5,7 +5,7 @@ asset (behaviour, senses, habitat, daily rhythm, generic placeholder body), opti
 This document is the plan for growing the reserve's ecosystem without growing its mechanics. The candidate list
 still waiting for a model (chipmunk, goose, duck, turtle, woodpecker, vulture, skunk, dove, bat), each with its place and
 hours, is in [WildlifeCampaign.md](WildlifeCampaign.md) §2. Crow, robin, chickadee, goldfinch, song sparrow and black
-bear were added in 1.8 (below).
+bear were added in 1.8, and eastern bluebird, tufted titmouse and Louisiana waterthrush in 1.9 (below): twenty-seven species.
 
 ## Principles
 1. **Every species earns its place in the reserve's story.** It should live somewhere specific and be active at a
@@ -25,7 +25,8 @@ bear were added in 1.8 (below).
 | `PlaceholderBody.Generic` + `BodyPlan` | `Scripts/Data/SpeciesDefinition.cs`, `PlaceholderAnimalBuilder.BuildGeneric` | A recognisable body from proportions: **Quadruped**, **WadingBird**, **GroundBird**, **PerchingBird** (flight-capable, scaled), with options (face mask, ringed tail, tail length/thickness, beak/snout, ears) |
 | `DailyRhythm` | `SpeciesDefinition.rhythm`, read by `WildlifeSchedule` | Where it spends dawn / morning / midday / golden hour / dusk / night: Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch |
 | `HotspotType.Water` | pond shallows (builder) | Water-edge homes (herons, raccoons); combine with Meadow/BrushPile/MatureTree/Perch |
-| Behaviour weights | `SpeciesDefinition.behaviors` + `WildlifeSchedule.Bias` | Grazing, foraging, resting, sitting, perching, climbing... weighted by time of day |
+| Weather habits (1.9) | `SpeciesDefinition.weatherHabits`, decided by `WeatherHabitRules`, applied by `WildlifeSchedule` | Where it goes in rain, after rain and in fair weather only; a livelier window after rain. See "Events as data" below |
+| Behaviour weights | `SpeciesDefinition.behaviors` + `WeatherHabitRules.Bias` (via `WildlifeSchedule.Bias`) | Grazing, foraging, resting, sitting, perching, climbing... weighted by time of day |
 | Residences | `WildlifeResidence` (builder) | Pin a species group to a specific place (a log pile, a snag) |
 | Real models | **WildLens ▸ Wildlife Pack Setup** (many species, 1.6) / **Animal Model Setup** (one) | Animator Controller + correctly scaled prefab from any animated model; stand-ins and tints |
 
@@ -99,6 +100,32 @@ Use both deliberately.
 existing site data (no random draws) moved nothing else in a rebuild. **What didn't:** the first placeholder bodies for
 the songbirds were sized from proportions and came out far too big, and a pack model scaled from the same numbers was
 0.67 m long. Give every species its real size.
+
+**1.9 added three more for the new places** (residents only, `groupCount` 0, each a tinted Living Birds stand-in until a truer
+model arrives):
+
+| Species | Where | Why it earns its place |
+|---|---|---|
+| **Eastern bluebird** | the fence posts of the Old Cabin Ruins | a post to perch on and a meadow to drop to; out in the first sun after rain |
+| **Tufted titmouse** | the woods in front of the Rock Shelter | nearly as tame as the chickadee; a bird for the woods round a hidden place |
+| **Louisiana waterthrush** | Hemlock Run, below the cascade | the ravine's own bird: bobbing on wet stones, wary, busiest just after rain |
+
+### Events as data (1.9)
+
+A **natural event** is a species that moves because of the hour, the weather now, the weather lately or the forecast. It is
+**data**: `SpeciesDefinition.weatherHabits` (`WeatherHabits`), read by `WeatherHabitRules`. **Never** a trigger, a spawn, a
+counter or anything aimed at the player. To give a species a habit:
+1. In `SpeciesDefaults`, set `s.weatherHabits = Habits(rainPlace, activeAfterRain, After(place, hours, needsSun)...)` (or
+   `Bathes(s, hint)` for a songbird that sits in brush in rain and bathes after it). `rainPlace` null means the general rule
+   (open ground goes to the woods, the ridge to a perch; animals in brush, at water or at home stay put). A species that
+   should only be out in fair weather in certain periods sets `fairOnlyPeriods` (`WeatherHabits.PeriodMask(2, 3, 4)`) and a
+   `foulPlace`. `overcastEarly` brings the next period's hours on a grey day. `RhythmPlace.Roost` with `roostLabel` gathers it at one of its own residences.
+2. Add **one short natural sentence** to its field notes with `Hint(s, "...")`: a hint, never an instruction. The same
+   sentence lets the migration add it to an existing asset without overwriting hand-edited notes.
+3. Existing assets receive it by `SpeciesDefaults.ApplyHabits` (data version 4). A species whose **rhythm or colours** changed
+   must be listed in `RhythmRevisedIn19` / `ColoursRevisedIn19` (or a new set) so they reach assets that still have the old values.
+4. Check the day: forecast day 3's shower (about 13:30 to 16:06 and the hours after) and day 4's dusk rain are the test days.
+   Animals must never all move on one frame (the stagger handles it) and **standing still must still let an animal settle**.
 
 **Next candidates, only with a place:** wood duck and painted turtle need a marsh with loafing logs (the wetland
 boardwalk); a green frog chorus needs evening audio, not a body; a pileated woodpecker needs big dead trees in the

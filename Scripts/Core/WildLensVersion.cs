@@ -7,8 +7,8 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.8.0";
-        public const string ReleaseName = "New Neighbours";
+        public const string Package = "1.9.0";
+        public const string ReleaseName = "After the Rain";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
@@ -31,8 +31,11 @@ namespace WildLens.Core
         /// 19: small life from the user's packs: butterflies, bees, dragonflies, frogs, newts, snails, fireflies, mushrooms
         /// and daisies placed in their habitats when a model is found (1.7).
         /// 20: six new species with residents at the trailhead, a road pull-off, the Fern Glade, the grove, the blind meadow, the pond
-        /// brush, the Creek Alcove and the deep woods (crow, robin, chickadee, goldfinch, song sparrow, black bear) (1.8).</summary>
-        public const int Environment = 20;
+        /// brush, the Creek Alcove and the deep woods (crow, robin, chickadee, goldfinch, song sparrow, black bear) (1.8).
+        /// 21: Hemlock Ravine with Hemlock Run and its cascade, four more hidden places (Cascade Overlook, Hidden Pond, Rock Shelter,
+        /// Old Cabin Ruins), residents for them (bluebird, titmouse, waterthrush), generated small life with its emergence rules,
+        /// trunk and rock habitats, one insect per flower (1.9).</summary>
+        public const int Environment = 21;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
@@ -53,6 +56,7 @@ namespace WildLens.Core
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.9  After the rain: wildlife that reads the weather, a ravine and its cascade, small life without packs",
             "1.8  New neighbours: six new species, true animal sizes, pack models that render right",
             "1.7  Small life from your packs for the macro lens; an audit of what you imported",
             "1.6  Trailhead: one Reserve Board, a bike bay, bigger sign text, real animal models",

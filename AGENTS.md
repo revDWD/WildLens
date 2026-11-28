@@ -8,12 +8,14 @@ documents. If you read nothing else, read §1, §5, §14 and §15.
 
 ## 1. Project Overview
 
-**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.8.0). You walk or
+**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.9.0). You walk or
 ride a small trail bike around a generated reserve (meadow loop, ridge overlook, Cattail Pond, old-growth grove,
 meadow blind, Willow Creek with its ford and falls, Reserve Road, footpaths, hidden places), notice animals,
-approach without spooking them, and photograph them with a telephoto or, since 1.5, a macro lens (small life from your packs since 1.7). The day turns, the
-weather follows a four-day forecast, and the wildlife keeps hours. **The place is the product; photography is the
-reason to be there.**
+approach without spooking them, and photograph them with a telephoto or, since 1.5, a macro lens (small life from your packs since 1.7, generated small life since 1.9). The day turns, the
+weather follows a four-day forecast, and the wildlife keeps hours and **answers the weather** (since 1.9: deer shelter
+from rain and come out in the first sun, songbirds bathe after it, the hawk soars only in fair weather; fireflies, frogs
+and butterflies come out for their own conditions). These are natural events: conditions, never scripts. **The place is
+the product; photography is the reason to be there.**
 
 **How it's built:** a Unity UPM package (`com.revdwd.wildlens`, Unity 2021.3+, Unity 6 tested, URP or Built-in).
 An editor builder (**WildLens ▸ Vertical Slice Builder ▸ (Re)build Slice In Open Scene**) generates the whole reserve
@@ -29,6 +31,14 @@ into a scene; runtime scripts run the game. Nothing in the scene is hand-edited.
   at and screenshot next.
 - Release bookkeeping, the checklist for changes and the build → playtest loop: [CONTRIBUTING.md](CONTRIBUTING.md)
   and §7 below.
+- **How the team works (since 1.7).** The lead agent acts as director: it plans, makes the art and design judgments,
+  reviews and integrates. It hands implementation to compartmentalised subagents that own **disjoint files** (wildlife,
+  small life, UI, reserve, assets, docs). Every workstream is compile-checked in a **copy** while the others keep
+  editing. An **independent, read-only reviewer who did not write the code** then reads each workstream for what only
+  real Unity would show, and its findings are fixed **before** release (this has caught 0.67 m songbirds, clips that did
+  not loop, frogs that could not hop, colours that never reached the models, a viewfinder row under the brackets...).
+  Terrain is prototyped and **measured outside Unity** before it ships. Then versions and docs, a final compile check, and a
+  push to `main`. Do not skip the reviewer: it has paid for itself every time.
 
 ## 2. Vision
 
@@ -59,8 +69,12 @@ Anything that adds friction to it is a bug.
 **Working rules that have paid off** (each was learnt the hard way; see History):
 - **Approachable realism.** Behaviour is grounded in real animals but tuned so patience always works: standing still
   always lets an animal settle.
-- **Encounters from placement, rhythms from the clock.** Hotspots, residences and schedule anchors put animals where
-  they'd be; time of day and weather move them. Nothing spawns on cue. Patterns are consistent and learnable.
+- **Encounters from placement, rhythms from the clock and the weather.** Hotspots, residences and schedule anchors put
+  animals where they'd be; time of day and weather move them, and since 1.9 the weather also brings natural events (a
+  bath after rain, a hawk that waits out the grey). Nothing spawns on cue. Patterns are consistent and learnable.
+- **Events are conditions, never scripts.** Something may happen because of the **hour**, the **weather now**, the
+  **weather lately** or the **forecast**. It never happens because of the **player**, a counter, a marker or a reward, and
+  the same hour and forecast always give the same result. A hint belongs in a species' field notes, not on the screen.
 - **Destinations, not distance; ecology over geography; elevation first.** Never grow the world without a reason to
   visit; vary it by habitat; ask what the ground does before building anything.
 - **"Why would a photographer come here?"** Every landmark answers it with a subject, light or a view.
@@ -99,48 +113,63 @@ Left out on purpose. Don't add them unless the director asks:
   is about attention, not accumulation. The journal (species seen, best photo each, the field notebook) is the only
   record.
 - **Combat, hunting, survival, failure states.** A fleeing animal is the only "fail", and it comes back.
-- **Collectibles**, scripted wildlife events, quest markers, compass HUDs.
+- **Collectibles**, **scripted or triggered wildlife events** (anything aimed at the player, counted or rewarded), quest
+  markers, compass HUDs, and **an always-on HUD** (the screen is empty by default since 1.9: a faint centre dot, quiet
+  prompts that retire, the viewfinder when the camera is up). Natural, condition-driven events (§3) are wanted.
 - **A faster or more capable bike.** Fix routes, not the vehicle.
 - **New systems during presentation milestones.** When the loop works and the look doesn't, fix the look.
 - **A bigger map without a reason** to go to the new part.
 
 → The complete list, with what to build instead: [Documentation~/Roadmap.md](Documentation~/Roadmap.md).
 
-## 6. Current Project State (1.8.0, "New Neighbours")
+## 6. Current Project State (1.9.0, "After the Rain")
 
-**Working well:** the approach-and-photograph loop; camera feel; legible grading; named places with distinct
-identities and signature details; real elevation; a day cycle and a learnable four-day weather forecast; Willow Creek
-with its ford and falls; hidden places; macro groundwork with a field notebook; twenty-four species from data (six new in 1.8: crow, robin, chickadee, goldfinch, song sparrow, black bear); the Reserve
-Road and footpaths; a Trail 125-style bike with suspension; one sign standard with a lettering probe; a three-sided
-Reserve Board at the trailhead with the bike bay beside it; two CC0 animated animals shipped (wolf as coyote, eagle as
-hawk); the Environment Kit and Wildlife Pack Setup, which now fill themselves from free packs imported locally; an **Asset Audit Report** that lists what the user's imported packs contain (1.7), wider and deterministic species
-matching, twelve small-life macro subjects that appear when the packs supply models, and a compile check that runs
-without Unity. **The user's 1.7 audit is the first evidence from inside Unity:** the automatic setup ran and the pack
-models for the deer, the turkey (chicken stand-in), the coyote (shipped wolf) and the hawk (shipped eagle) are in use.
-1.8 (real sizes, looping clips, URP material copies, stripped pack scripts, the six new species, mushrooms from a pack,
-a scrolling journal list) is written from that audit and **has not run in Unity yet**.
+**Proven in Unity** (the 1.7 audit and the 1.8 playtest, "a major success; the reserve immediately feels more alive"): the
+automatic pack pipeline and the pack animals (deer, turkey as a tinted chicken, coyote as the shipped wolf, hawk as the
+shipped eagle, the songbirds and the black bear), the approach-and-photograph loop, camera feel, legible grading, named
+places with real elevation, the day cycle and four-day forecast, Willow Creek with its ford and falls, hidden places, the
+Reserve Road and footpaths, the Trail 125-style bike, one sign standard and the three-sided Reserve Board. From the 1.8
+playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turkey like a chicken (a tinted chicken).
+
+**Written in 1.9 and not yet run in Unity** (everything compiles in five configurations; nothing has been seen):
+- **Natural wildlife events**: weather habits as data on each species, decided by `WeatherHabitRules`, staggered, from the
+  forecast; hints in the field notes; twenty-seven species (three new birds: eastern bluebird, tufted titmouse, Louisiana
+  waterthrush, all tinted Living Birds stand-ins); the **upgrade rule** (a truer model replaces an auto-chosen stand-in
+  when imported) and re-tinted fox and turkey.
+- **Small life without packs**: 26 generated stylised models, 29 subjects, emergence by sun, rain and evening, wing motion,
+  trunk and rock habitats, one insect per flower; pack models still win.
+- **A quieter screen**: empty by default, context prompts that retire, the controls card (H), one notice style, a tidier
+  viewfinder, a Field notebook page in the journal.
+- **Geography**: Hemlock Ravine with Hemlock Run and a stepped cascade (where the land allows), a footpath, and four more
+  hidden places (seven in all), carved late so the rest of the reserve stays where it was.
 
 **Weakest, in order** (honest):
-1. **Eight species are still placeholder bodies** because no imported pack has them: cottontail, squirrel, heron,
-   raccoon, owl, groundhog, opossum, sandpiper. The other sixteen use pack or shipped models (the fox is a tinted dog, the
-   blackbird, kingfisher and phoebe a tinted sparrow). 1.8's conversions (built-in shaders to URP copies, real sizes,
-   looped clips) are unproven: sizes and facing need a screenshot each. The user's packs are in their project, so
-   read the Asset Audit they paste. → [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md), [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md).
-2. **Trees** read as lollipops at distance: leaf cards lit like paper, no LODs or billboards. The Environment Kit can
-   swap in Unity's free SpeedTree trees, also **never run in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
-3. **Grass** is flat billboards unless the kit supplies mesh grass.
-4. **Props are boxes** (with scanned wood). Sign text is unlit TextMesh in the built-in font.
-5. **Sky and water:** three HDRIs re-tinted, no night sky, no moving clouds; rain has no wet surfaces and falls
-   through roofs; water has no refraction or foam.
-6. **Macro has two bundled subjects** (plants). Twelve more exist as data and move simply, but each appears only if the
-   user's packs supply a model. The user's packs gave **mushrooms** (SinuousShrooms); **no insects, frogs, newts or
-   snails** were found, and there is no CC0 fallback. Never run in Unity.
-7. **Untested at scale on low-end hardware.** Schedules move whole groups at once.
-8. **The authors of 0.7–1.8 never ran Unity.** Everything compiles in five configurations; everything visual was
-   verified only through screenshots. The user's 1.7 audit is the first evidence from inside Unity. Expect tuning.
+1. **Eight species are placeholder bodies** (cottontail, squirrel, heron, raccoon, owl, groundhog, opossum, sandpiper)
+   because no imported pack has them, and **the fox and the turkey are stand-ins** whose silhouettes read as a dog and a
+   chicken. The 1.9 build machine could not reach any CC0 model host (quaternius.com, poly.pizza, opengameart.org,
+   itch.io and kenney.nl are all blocked), so **finding models is the director's job**, from the shopping list in
+   [CHANGELOG.md](CHANGELOG.md) and [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md); the upgrade rule
+   swaps them in. → [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md).
+2. **Trees** read as lollipops at distance: leaf cards lit like paper, no LODs or billboards. The Environment Kit can swap
+   in Unity's free SpeedTree trees, **never run in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
+3. **The generated small life is unseen**: stylised models made in code; sizes, colours, wing motion and the grading
+   arithmetic are all unproven in the engine.
+4. **The new geography is unseen.** The Rock Shelter's crag and the cascade's ledges are the least proven shapes. The
+   ravine exists only where the land falls far enough toward the creek (it does on the default seed 7).
+5. **Grass** is flat billboards unless the kit supplies mesh grass.
+6. **Props are boxes** (with scanned wood). Sign text is unlit TextMesh in the built-in font.
+7. **Sky and water**: three HDRIs re-tinted, no night sky, no moving clouds; rain has no wet surfaces and **falls through
+   roofs** (the Rock Shelter's too); water has no refraction or foam.
+8. **The journal's Wildlife page still lists unseen species as "???" rows and "Species X of N".** That sits uneasily with
+   "no checklists" (§5); the Field notebook page does it right. A decision for the director.
+9. **Untested at scale on low-end hardware.** About 200 generated small-life instances plus twenty-seven species, and
+   schedules that move groups.
+10. **The authors of 0.7–1.9 never ran Unity.** Everything compiles in five configurations; everything visual was verified
+    only through screenshots. Expect tuning.
 
 → Per-system state and tuning: [Systems.md](Documentation~/Systems.md). Visual weaknesses and fixes:
-[VisualRoadmap.md](Documentation~/VisualRoadmap.md).
+[VisualRoadmap.md](Documentation~/VisualRoadmap.md). The recommended next milestone, **2.0 "True to Life"**:
+[Roadmap.md](Documentation~/Roadmap.md).
 
 ## 7. Architecture Overview
 
@@ -148,14 +177,21 @@ a scrolling journal list) is written from that audit and **has not run in Unity 
   the reserve. Folders ending `~` (`Art~`, `Documentation~`, `Tools~`) are ignored by Unity.
 - **The builder pipeline** (`Editor/WildLensSliceBuilder.cs`): trail loop → trailhead → reserve plan (sites chosen
   from the terrain, landforms, creek, falls, ford, tracks by A*, pull-offs) → scenery by density zone and kit role →
-  destinations → ecosystem (bridges, creek life, residences, anchors) → discoveries, macro subjects (plants, then small life from packs) → terrain paint
-  and grass → wind, light, sky → **grounding pass** → **sign check**.
-- **Runtime:** `WildLensGame` bootstraps; `DayCycle` and `WeatherCycle` drive light and rhythms; `WildlifeSpawner`
-  places residents; `AnimalAgent` → `GroundAnimal`/`FlyingAnimal` run behaviour with `WildlifeAwareness`;
+  destinations → ecosystem (bridges, creek life, residences, anchors) → discoveries → **late geography** (Hemlock Ravine
+  and four hidden places, `GeographyBuilder` / `HiddenPlacesBuilder`; late **on purpose**: it runs after every pass that uses
+  the shared random sequence, so ground carved here moves no tree, and it settles what stood where the ground moved) →
+  macro subjects (plants, small life from packs, then generated small life) → terrain paint and grass → wind, light, sky →
+  **grounding pass** → **sign check**.
+- **Runtime:** `WildLensGame` bootstraps; `DayCycle` and `WeatherCycle` drive light and rhythms (`WeatherCycle` also owns the
+  one memory of the rain); `WildlifeSpawner` places residents; `WildlifeSchedule` moves them by the pure rules in
+  `WeatherHabitRules` (a species' rhythm plus its `WeatherHabits`); small life comes out by `NaturalConditions`;
+  `AnimalAgent` → `GroundAnimal`/`FlyingAnimal` run behaviour with `WildlifeAwareness`;
   `CameraModeController` → `ZoomLens`/`FocusController` → `PhotoCamera` → `PhotoAnalyzer`/`MacroAnalyzer` →
-  `JournalService`; `TrailBike` rides.
+  `JournalService`; `TrailBike` rides. The screen is `HudController` composing `ViewfinderView`, `PromptView`, `NoticeView`,
+  `ControlsCardView` and the journal, all styled from `UiStyle`.
 - **Data, not code, for content:** species are `SpeciesDefinition` assets (`SpeciesDefaults`), small subjects are
-  `NaturalistSubject` (`SubjectDefaults`, fourteen since 1.7). Twenty-four species. Enums are serialized as integers: **append, never reorder.** Species
+  `NaturalistSubject` (`SubjectDefaults`, 29 since 1.9, 26 with generated models in `SmallLifeShapes`). Twenty-seven species,
+  each with optional `WeatherHabits` (natural events are data too). Enums are serialized as integers: **append, never reorder.** Species
   assets and journal saves are versioned and migrated. A new species must be added to `WildlifeSpawner`'s own-stream set
   and `WildlifePackSetup`'s name table (and given a real size in `AnimalPrefabFactory.RealSize`).
 - **Store assets are found, not shipped:** the Environment Kit (scenery by ecological role), Animal Model Setup and
@@ -166,7 +202,15 @@ a scrolling journal list) is written from that audit and **has not run in Unity 
 - The compile check passes. New file or folder → commit its `.meta`.
 - Builder output changed → bump `WildLensVersion.Environment` (old scenes are then flagged stale). `Art~` changed →
   bump `ArtLibrary.ImportVersion` and update `Art~/CREDITS.md`.
-- Factory output changed → bump `AnimalPrefabFactory.FactoryVersion` (auto-built models are then refreshed).
+- Factory output changed, or a species' colours changed → bump `AnimalPrefabFactory.FactoryVersion` (auto-built models are
+  then refreshed; colours are baked into the model's materials).
+- Changed a generated small-life model → bump `SmallLifeModels.ModelVersion`.
+- New terrain shaping → carve it in the **late geography step** and settle what stands there; **prototype and measure
+  first** (outside Unity), and use a private random stream.
+- New UI → style it from `UiStyle`; **nothing persistent on screen**; any uGUI, Input System or URP member you use must
+  exist in real Unity, not just in the compile-check stubs.
+- New species habit → data in `SpeciesDefaults` (`WeatherHabits`, one hint sentence in the field notes), then
+  `SpeciesDefaults.ApplyHabits` carries it to existing assets; never a trigger.
 - Release → bump `package.json` and `WildLensVersion.Package`; update `Features`, `RecentChanges`, `ReleaseName`,
   `ReleaseDate` (the Reserve Board shows them); `CHANGELOG.md`; `Systems.md`; and this file's §6.
 - New sign → `SignKit.Sign`/`SignKit.Panel`, positions in **reader space**; check the `SignCheck` Console line.
@@ -212,15 +256,20 @@ a scrolling journal list) is written from that audit and **has not run in Unity 
 
 ## 10. Wildlife Direction
 
-Twenty-four species are in, each with a place first (a niche) and a body defined as data. **From 1.6, animals do not
+Twenty-seven species are in, each with a place first (a niche) and a body defined as data. **Since 1.9 each can also have
+weather habits** (`WeatherHabits`: where it goes in rain, after rain, in fair weather only; a livelier window after rain; a
+hint sentence in its field notes). Habits are data, the rules are `WeatherHabitRules`, and the day is the same every time.
+**The upgrade rule (1.9):** a model WildLens chose itself is replaced when a strictly better one is imported (a real Fox
+over the tinted dog); a model chosen by hand in a setup window is never touched. **From 1.6, animals do not
 need to be photorealistic or share one style.** Recognisable silhouette → animation → variety → consistency within a
 species → realism, in that order. A stylised owl is a fine barred owl; one tinted songbird model can be five species.
 Mixed packs are fine; the environment stays photographic.
 
-**Next:** playtest the pack animals from 1.8 (each at 4× and 16×: colour, size, facing, movement) and paste a fresh
-**Asset Audit Report**. Then find models for the eight species still on placeholder bodies (cottontail, squirrel, heron,
-raccoon, owl, groundhog, opossum, sandpiper); the plan in [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) is
-filled in from the user's audit. New species still need a place they'd really live, never a count, an entry in
+**Next:** playtest 1.9 (each pack animal at 4× and 16×; the habits through the day-3 shower and the day-4 dusk rain) and
+fix what the pictures show. Then **real models for the fox and the turkey**, then the eight species still on placeholder
+bodies (cottontail, squirrel, heron, raccoon, owl, groundhog, opossum, sandpiper). The build machine cannot reach any CC0
+model host, so the director downloads them (the shopping list is in the 1.9.0 changelog entry) and the upgrade rule swaps
+them in. The plan in [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) is filled in from the user's audit. New species still need a place they'd really live, never a count, an entry in
 `WildlifePackSetup`'s name table, a real size and a place in the spawner's own-stream set.
 → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md), [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md).
 
@@ -230,25 +279,29 @@ filled in from the user's audit. New species still need a place they'd really li
 build), density that varies with habitat, water that connects places, light that changes through the day and the
 weather. Never flatten land to make placement easy; never mix stylised scenery into it. Ground every prop. The
 biggest open gain is **trees** (via the Environment Kit's SpeedTree route, unproven in Unity), then grass, props,
-night sky and wet weather.
+night sky and wet weather. **Since 1.9 geography is a lever too:** Hemlock Ravine was carved in a **late** step that moves
+nothing built before it (measured on eight seeds first). The world is 900 m with about 26 to 30 m of relief and a mean slope
+of about 4°, so more relief is the next lever, never more distance.
 → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md), [ReserveExpansion.md](Documentation~/ReserveExpansion.md).
 
 ## 12. Photography Direction
 
 Two lenses, one ritual. **Telephoto** (1–16×, FOV 50° → 3.34°) for wildlife at a distance, graded on frame fill,
 focus, behaviour and composition, with live brackets. **Macro** (M, since 1.5) for small life at your feet, graded on
-frame fill, focus within ~12% of distance, and centring, recorded in the journal's field notebook; since 1.7 small-life models from the user's packs (insects, frogs, fungi) are
-subjects too. Keep new modes
+frame fill, focus within ~12% of distance, and centring, recorded in the journal's field notebook (its own page, A / D, since
+1.9: only what you found). 29 subjects since 1.9, 26 with models WildLens generates (a pack's model always wins); they come
+out for conditions (sun, sun after rain, warm hours, fair evenings, wet nights). Keep new modes
 *beside* the telephoto pipeline, not inside it. Grades stay words (Poor/Good/Excellent). The journal is the only
 record: no scores, no completion.
 → [Systems.md](Documentation~/Systems.md) (Camera, Photography, Macro).
 
 ## 13. Future Opportunities
 
-In priority order (detail in [Roadmap.md](Documentation~/Roadmap.md)): **playtest 1.8 and paste a fresh Asset Audit** →
-fix sizes and facing from screenshots → **models for the eight placeholder species** → prove the Environment Kit's trees in Unity → the rest of macro round two
-(a fallback when no model exists, dragonfly perches, a frog chorus, more plants and fungi) → tuning → real prop shapes and lit sign text → bike bodywork → night sky and wet weather →
-new species with their places → a wetland boardwalk and second blind → a hand-authored CC0 terrain.
+**Recommended next milestone: 2.0 "True to Life"** (detail in [Roadmap.md](Documentation~/Roadmap.md)), in order: **playtest
+1.9 and fix what the pictures show** (a tuning release, no new features) → **real models** for the fox and turkey, then the
+eight placeholders → **sound** (calls and choruses driven by the same natural conditions) → **more relief** and the
+remaining hidden places → **trees** via the Environment Kit → **night** → the journal's "???" rows. After that: real prop
+shapes and lit sign text, bike bodywork, wet weather, new species with their places, a hand-authored CC0 terrain.
 
 ## 14. Common Mistakes
 
@@ -275,6 +328,18 @@ Each of these has cost at least one milestone. Details and stories in [History.m
 - **Building what's already there.** Players asked for species added a release earlier: check before building more.
 - **Applying a rule beyond its reason.** "Don't mix fidelities" was right for scenery and wrong for animals.
 - **Sizes from proportions instead of real measurements** (1.8: every songbird came out 0.67 m): give a species its real size.
+- **Old pack scripts that do not compile block every update** (1.8: the Living Birds pack's `scripts` and `demo` folders on
+  Unity 6; WildLens needs only its models and clips). If a pasted audit shows an older WildLens version than the one
+  released, **ask for the Console's red lines first**.
+- **Baked colours.** A species' colours are baked into its model's materials when the model is built: bump
+  `AnimalPrefabFactory.FactoryVersion` whenever colours or factory output change, or existing models never change.
+- **Carving terrain early.** It moves every tree after it through the shared random sequence and changes every earlier
+  decision made from slope and path: **carve late and settle** (1.9).
+- **Assuming a ground subject can be approached to 8 cm.** The camera is 1.65 m up standing and 0.95 m crouched, so a
+  subject on the ground is never nearer than about a metre. Set grading thresholds from that arithmetic (1.9), and grade a
+  tall plant on one part.
+- **Events that react to the player.** A natural event answers the hour, the weather and the forecast; if it needs the
+  player to be present, near or watching, it is a script (§3).
 - **Committing store assets** (free ones included), secrets or generated `Assets/` content.
 
 ## 15. Recommended Reading Order For New Agents
@@ -285,8 +350,11 @@ Each of these has cost at least one milestone. Details and stories in [History.m
 4. [Documentation~/Architecture.md](Documentation~/Architecture.md): find your way around the code.
 5. The topic you're working on:
    - animals → [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md), [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md), [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md)
+   - natural events (weather habits, the schedule) → [Systems.md](Documentation~/Systems.md) 1.9.0, then [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md) ("Events as data")
+   - small life and the macro lens → [Systems.md](Documentation~/Systems.md) 1.9.0 and Macro, [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) §4
+   - the screen, prompts and journal → [Systems.md](Documentation~/Systems.md) 1.9.0 (UI), then `Scripts/UI/UiStyle.cs`
    - scenery, trees, terrain → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md), [VisualRoadmap.md](Documentation~/VisualRoadmap.md)
-   - places → [ReserveExpansion.md](Documentation~/ReserveExpansion.md)
+   - places, the ravine, hidden places → [ReserveExpansion.md](Documentation~/ReserveExpansion.md), then [Systems.md](Documentation~/Systems.md) 1.9.0 (geography)
    - any system's behaviour or numbers → [Systems.md](Documentation~/Systems.md)
    - the bike → [TrailBike.md](Documentation~/TrailBike.md)
 6. [Documentation~/History.md](Documentation~/History.md) for the part you're changing, **before** you change it: most

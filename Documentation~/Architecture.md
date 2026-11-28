@@ -39,12 +39,14 @@ Scripts/
   Photography/   PhotoCamera (capture), PhotoAnalyzer (visibility, frame fill), PhotoQualityEvaluator
                  (Poor/Good/Excellent), FramingAssistant (live brackets), Photographable, PhotoStorage,
                  MacroSubject + MacroAnalyzer (macro: small subjects, close-range grading),
-                 MacroMotion (1.7: flit, perch, hop and glow for small life from packs)
+                 MacroMotion (1.7: flit, perch, hop and glow; 1.9: hinged wings, firefly rise), NaturalConditions (1.9: the
+                 weather and hour rules for small life, read from WeatherCycle)
   Observation/   ObservationTracker (hold in view → identified → journal)
   Wildlife/      AnimalAgent → GroundAnimal / FlyingAnimal (behaviour states), Awareness/WildlifeAwareness
                  (Calm/Aware/Alert/Fleeing), WildlifeSpawner, WildlifeWorld (trees, perches, hotspots),
                  PlaceholderAnimalBuilder + AnimalRig + ProceduralAnimalAnimator (placeholder bodies),
-                 AnimalAnimatorBridge (drives Mecanim on authored prefabs), WildlifeSchedule (daily rhythms)
+                 AnimalAnimatorBridge (drives Mecanim on authored prefabs), WildlifeSchedule (daily rhythms and, since 1.9,
+                 weather habits: applies the decisions), WeatherHabitRules (1.9: the pure rules behind them)
   Environment/   HabitatHotspot, ScenicViewpoint, EnvironmentFeature, TrailPath, FoliageSway, WildLensWind,
                  SliceInfo (build version marker), ReserveDestination (named place, residents, arrival note),
                  ReserveTrack (track polyline), ObservationBlind (concealment), ReserveInfoBoard (trailhead board + map),
@@ -55,9 +57,10 @@ Scripts/
                  Waterfall (spray, roar, spate after rain), ReserveDiscovery (hidden place), ReflectionRefresh
   Journal/       JournalService, JournalData (save + migration)
   UI/            HudController (owns views), ViewfinderView, PhotoPreviewView (prints, keeper), ShutterEffectView,
-                 NoticeView, JournalUI, UIFactory
+                 NoticeView (1.9: quiet notices, the hidden-place name), PromptView (1.9: context prompts), ControlsCardView (1.9:
+                 H, the controls card), UiStyle (1.9: the one look), JournalUI (two pages since 1.9), UIFactory
   Data/          SpeciesDefinition (all per-species tuning), SpeciesDefaults, SpeciesDatabase, AnimalActivity,
-                 NaturalistSubject + SubjectDefaults (macro subjects; fourteen since 1.7); twenty-four species since 1.8
+                 NaturalistSubject + SubjectDefaults (macro subjects; 29 since 1.9); twenty-seven species since 1.9
   Debugging/     CameraDiagnostics (F3 overlay, F4 zoom self-test)
 Editor/
   WildLensSliceBuilder (pipeline), WildLensBuilderWindow, SliceBuildSettings, TrailBuilder, PropBuilder,
@@ -72,7 +75,10 @@ Editor/
   FordBuilder (VegetationBuilder partial: the Creek Ford), SignKit (sign standard, pictograms, text measuring),
   SignCheck (probe: lettering measured against boards), FallsBuilder (Willow Falls), DiscoveryBuilder (hidden
   places), MacroBuilder (macro subjects; 1.7 small life from packs), GroundingPass (posts and legs to the ground),
-  AssetAudit (1.7: the report of what is in the user's packs), MacroPackSetup (1.7: small-life models to subjects)
+  AssetAudit (1.7: the report of what is in the user's packs), MacroPackSetup (1.7: small-life models to subjects),
+  GeographyBuilder and HiddenPlacesBuilder (1.9: VegetationBuilder partials: the late geography step, Hemlock Ravine and
+  four hidden places), SmallLifeShapes (1.9: the recipes of the generated small-life models, plain C#), SmallLifeGeometry
+  (their geometry, no UnityEngine), SmallLifeModels (1.9: turns them into meshes, materials and prefabs; ModelVersion)
 Art~/            CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
 Documentation~/  Systems.md (systems and tuning), VisualRoadmap.md (assets, licensing, weaknesses),
                  ReserveExpansion.md (reserve design and next steps), WildlifeExpansion.md (species framework & roadmap),
@@ -96,7 +102,8 @@ Key flows:
 - **Journals:** identification by observation or photo; best photo per species; versioned save.
 - **Visuals:** builder pipeline: trail loop → trail props (kiosk, bike) → **reserve plan** (sites, terrain shaping,
   tracks) → trees → outcrops → rocks/logs → bushes → hotspots → viewpoints/compositions → **destinations** → undergrowth →
-  terrain paint and grass → wind → lighting (HDRI sky with sun alignment) → render quality → URP post → player.
+  **late geography (1.9)** → macro subjects → terrain paint and grass → wind → lighting (HDRI sky with sun alignment) →
+  render quality → URP post → player.
 - **Reserve:** destinations chosen from the terrain (ridge = prominence, pond = basin, grove = forest density,
   blind = open flat ground), tracks by A*, residents spawned by `WildlifeSpawner.SpawnResidents`. Everything near a
   path uses "distance to any path" (loop or track) for clearance and painting.
@@ -158,3 +165,25 @@ Key flows:
 - **Journal:** `JournalUI` shows a 7-row window that follows the selection (W/S and the wheel).
 - **Asset Audit:** an Other static models section, child node names for vehicles, "by folder" marks, animation-only
   files and rigs summarised rather than listed.
+
+**1.9 additions:**
+- **Natural events.** `SpeciesDefinition.weatherHabits` (data) → `WildlifeSchedule` polls four times a second, builds a
+  `HabitWeather` snapshot from `WeatherCycle` (`IsRaining`, `IsFair`, `OvercastSky`, `SunAfterRain`, `HoursSinceRain`) and
+  `DayCycle`, asks `WeatherHabitRules.Decide` for a place and a behaviour bias, applies it **per animal with a stable stagger**
+  (`Hash01`), and calls `AnimalAgent.SetHome`. `WeatherCycle` owns the one memory of the rain and seeds it from its own
+  forecast at the start. `FlyingAnimal` remembers a home change made while perched.
+- **Upgrade rule.** `WildlifePackSetup.AutoSetUp` → `UpgradeBuilds` (uses `IsStrictUpgrade`, which sits inside the
+  `<pure-begin>` block) for species the automatic route built; `AnimalPrefabFactory.FactoryVersion` is 3 (colours are baked
+  into tinted copies). `SpeciesAssetMigrator` data version 4 → `SpeciesDefaults.ApplyHabits`.
+- **Small life without packs.** `SubjectDefaults` (29) → `MacroPackSetup.AutoSetUp` (pack models) → `MacroBuilder.BuildSmallLife`
+  places each instance from `prefab` else `SmallLifeModels.Prefab(key)` (built once from `SmallLifeShapes`/`SmallLifeGeometry`,
+  saved in `Assets/WildLens/Generated/SmallLife/Models`) via `PlaceGenerated`; second tiers get `MacroSubject.tier`; fireflies
+  get `stagger`; `MacroSubject.IsShowing` combines hours, rain flags and `NaturalConditions.Check`/`Tier`; `MacroMotion` moves
+  hinged wings (`hingedWings`) and fireflies.
+- **Late geography.** `WildLensSliceBuilder` calls `VegetationBuilder.BuildGeography(reserve)` after the last shared-random
+  scenery pass: private random stream → plan and carve the ravine → plan the hidden places → `SettleScenery` (what stood
+  where the ground moved) → rebuild the water-distance field with the run → build the ravine, its footpath, sign and seat,
+  the cascade, and the four places → one Console line. `TerrainPainter` and the grass pass honour the bare floor and the pond.
+- **Screen.** `HudController` gathers a `PromptContext` and feeds `PromptView`; `NoticeView` shows notices and place names;
+  `ControlsCardView` (H) pauses the world like the journal; `JournalUI` has a Wildlife page and a Field notebook page; all read
+  `UiStyle` and `GameInput.Labels`.

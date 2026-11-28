@@ -2,8 +2,9 @@
 
 A quiet, first-person wildlife photography game set in a nature reserve. Walk the Meadow Loop or ride the trail bike
 along the Reserve Road to a ridge overlook, a reedy pond, an old-growth grove and a meadow blind; learn where and
-*when* the deer, foxes, hawks, crows, chickadees, a shy black bear and the rest of its twenty-four species are; approach without spooking them; and take photographs
-worth keeping. The reserve changes from dawn mist to golden hour to dusk, and its wildlife keeps hours.
+*when* the deer, foxes, hawks, crows, chickadees, a shy black bear and the rest of its twenty-seven species are; approach without spooking them; and take photographs
+worth keeping. The reserve changes from dawn mist to golden hour to dusk, and its wildlife keeps hours and answers the
+weather: deer shelter from rain and step out in the first sun, songbirds bathe after it, fireflies rise on fair evenings.
 
 **New here?** Players: read *Install & run* and *Controls* below. Contributors (people or AI agents): start with
 [`AGENTS.md`](AGENTS.md), then [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -60,11 +61,13 @@ materials) are written to your project's `Assets/WildLens/` folder, because the 
 | **Hold RMB** | Camera mode: raise the camera (slower, steadier, viewfinder) |
 | Scroll, or E / Q | Zoom 1× / 2× / 4× / 8× / 16×. Zooming while lowered raises the camera; zoom out past 1× to lower it |
 | LMB or F (in camera mode) | Take photo |
-| J or Tab | Field journal (pauses the world) · W/S to browse |
+| J or Tab | Field journal (pauses the world) · W/S to browse · A / D for the Field notebook page |
 | **R** | Ride the trail bike (next to it) · park and step off (while riding) |
 | W / S · A / D (riding) | Throttle / brake (and slow reverse) · steer |
 | **Hold T** | Let time pass (standing still): wait for dawn, golden hour, dusk |
-| H | Toggle control hints |
+| **H** | Field Guide: Controls (every key on one card) |
+| **M** | Macro lens (camera raised, a small subject near) |
+| **A / D** (in the journal) | Switch pages: Wildlife and Field notebook |
 | F3 / F4 | Camera diagnostics overlay / zoom self-test |
 | Esc | Release mouse / close journal |
 
@@ -103,7 +106,7 @@ database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials,
 - Tune behaviour, senses, population, habitat and daily rhythm on the assets in `Assets/WildLens/Data/Species/`.
   Rebuilds don't overwrite them.
 - New species need **data, not code**: a Species Definition with a generic placeholder body (`Placeholder Body:
-  Generic` + `Body Plan`), a `Daily Rhythm`, and habitat hotspots. See
+  Generic` + `Body Plan`), a `Daily Rhythm`, optional `Weather Habits` (1.9: where it goes in rain and after it), and habitat hotspots. See
   [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md). Tick **Preview expansion species** in
   the builder settings to see the worked examples (Raccoon, Great Blue Heron).
 - Real art (1.6): import free animal packs (stylised and mixed styles are fine), then **WildLens ▸ Wildlife Pack Setup ▸
@@ -115,14 +118,25 @@ database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials,
   copies it to the clipboard. It changes nothing. (1.8) Pack models set themselves up with real sizes, looping clips and
   URP-ready material copies; the journal list scrolls.
 
-### Small life for the macro lens (1.7)
-Press **M** with the camera raised to photograph small subjects at your feet; the journal keeps a field notebook. Two
-plants (dandelion, lesser periwinkle) ship with WildLens. Twelve more subjects (monarch, luna moth, dragonfly, bumble
-bee, lady beetle, mantis, leopard frog, newt, snail, firefly, mushroom, oxeye daisy) appear **only if a model for them
-is found in your own packs**: **WildLens ▸ Macro Subjects From Packs** finds the models, and every rebuild does it too
-(builder setting *Auto Macro From Packs*). With no such packs the reserve is as before. They sit where they would
-live (verges, flowers, the water's edge, logs, the woodland floor), keep their hours and shelter from rain, and move only
-a little. Details: [`Documentation~/Systems.md`](Documentation~/Systems.md).
+### Small life for the macro lens (1.7, generated since 1.9)
+Press **M** with the camera raised to photograph small subjects at your feet; the journal keeps a **Field notebook** page
+(A / D) of what you found, never a total. **29 subjects** (butterflies, a moth, a dragonfly and damselfly, two bees, a firefly,
+a lady beetle, a mantis, three frogs, two salamanders, a snail, three fungi, wildflowers, a fern, a moss and a cattail). Since
+1.9 **26 of them have stylised models that WildLens generates**, so they appear with nothing imported (builder setting
+*Generated Small Life*); a model of your own from **WildLens ▸ Macro Subjects From Packs** always wins. They sit where they
+would live (flowers, trunks, boulders, the water's edge, logs, the woodland floor) and come out for the conditions: butterflies
+and bees in sunshine (more after a shower), dragonflies on warm days, fireflies on fair evenings, frogs after rain and at dusk,
+treefrogs on wet nights. Details: [`Documentation~/Systems.md`](Documentation~/Systems.md).
+
+### What's new in 1.9 ("After the Rain")
+- **The wildlife answers the weather** (never scripted): rain, the first sun after it, grey days and fair evenings change where
+  animals go. Watch forecast day 3's shower. Three new birds (bluebird, titmouse, waterthrush).
+- **A quiet screen**: empty by default, prompts that fade and retire, **H** for the controls card, one notice style.
+- **Hemlock Ravine** with a cascade and four more hidden places, found by exploring.
+- Nothing new to import. Update the package, then **Rebuild**. Better animal models you add later (a real fox, a real turkey)
+  replace the stand-ins by themselves on the next Rebuild.
+- If an update will not install, look for **red errors in the Console** first: a pack with old scripts (Living Birds on Unity 6)
+  can block every update. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ### Using your own scenery assets (Environment Kit, 1.2)
 Import free nature packs into your project (Unity's free **Terrain URP Demo Scene** and **Terrain Sample Asset Pack**

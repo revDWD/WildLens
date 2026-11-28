@@ -1,10 +1,17 @@
-# Wildlife enhancement campaign (1.7 plan, filled in from the audit in 1.8)
+# Wildlife enhancement campaign (1.7 plan, filled in from the audit in 1.8, status as of 1.9)
 
 The plan for filling Willow Creek with life from the animal packs imported into the Unity project. Since 1.8 it is
 filled in from the director's real Asset Audit. It covers the audit, which species to keep, replace and add, the order
 to do it in, small life for the macro lens, the bike, and where everything belongs in the reserve. Rules it rests on: [WildlifeAssetStrategy.md](WildlifeAssetStrategy.md)
 (style), [WildlifeExpansion.md](WildlifeExpansion.md) (a species needs a place), [Roadmap.md](Roadmap.md) (what never
 to build).
+
+**Status, 1.9.** The 1.8 playtest was a success ("the reserve immediately feels more alive"): the pack pipeline works in Unity.
+Twenty-seven species now; sixteen of the older twenty-four have pack or shipped models, three new birds stand in on tinted Living
+Birds models, and **eight are still placeholder bodies**. The fox (a tinted dog) and the turkey (a tinted chicken) read as
+what they are; 1.9 re-tints them (factory version 3), and the **upgrade rule** swaps in a truer model by itself when one is
+imported. The build machine cannot reach any CC0 model host, so **the director fetches models** from the shopping list in
+section 3. Natural events (weather habits) are in [Systems.md](Systems.md) 1.9.0; small life no longer needs packs (section 4).
 
 **Art direction (director, 1.7):** recognisable wildlife → biodiversity → animation quality → environmental
 storytelling → realism. A good stylised animal beats a placeholder. The environment stays photographic.
@@ -55,7 +62,7 @@ have not run in Unity.**
 
 No butterflies, frogs, newts, snails or insects were found in any pack.
 
-### The 24 species and the model each uses today
+### The 27 species and the model each uses today
 
 Exact = the real animal; stand-in = a look-alike; tinted = recoloured to the species. The pack-name column says what the
 automatic setup looks for (exact names; then stand-ins, closest first).
@@ -76,7 +83,7 @@ automatic setup looks for (exact names; then stand-ins, closest first).
 | Great blue heron | pond, ford | **placeholder: no model in the packs** | heron; else egret, bittern, ibis, spoonbill, pelican, crane, stork, flamingo |
 | Spotted sandpiper | ford gravel bar | **placeholder: no model in the packs** | sandpiper; else killdeer, plover, dunlin, snipe, shorebird, wader, tern, seagull, gull |
 | Northern cardinal | blind brush | **Living Birds cardinal** (exact) | cardinal, redbird; else songbird, finch, sparrow, robin, oriole, canary, chickadee, wren, tit, thrush, warbler, swallow, bird |
-| Blue jay | grove | **Living Birds blue jay** (exact) | blue jay, jay; else bluebird, songbird, finch, sparrow, robin, chickadee, tit, wren, thrush, warbler, swallow, bird |
+| Blue jay | grove | **Living Birds blue jay** (exact) | blue jay, jay; else songbird, finch, sparrow, robin, chickadee, tit, wren, thrush, warbler, swallow, bird |
 | Red-winged blackbird | pond reeds | **Living Birds sparrow**, tinted (stand-in) | blackbird; else grackle, starling, sparrow, songbird, crow, raven, thrush, bird |
 | Belted kingfisher | Creek Ford | **Living Birds sparrow**, tinted (stand-in) | kingfisher; else songbird, sparrow, bird |
 | Eastern phoebe | Willow Falls | **Living Birds sparrow**, tinted (stand-in) | phoebe, flycatcher; else sparrow, songbird, finch, wren, chickadee, bird |
@@ -86,8 +93,13 @@ automatic setup looks for (exact names; then stand-ins, closest first).
 | **American goldfinch** (1.8) | the blind's meadow | **Living Birds goldfinch** (exact) | goldfinch, finch, canary |
 | **Song sparrow** (1.8) | pond brush, Creek Alcove, loop brush piles | **Living Birds sparrow** (exact) | sparrow; else wren |
 | **American black bear** (1.8) | deep woods | **Blink stylised bear**, tinted black (exact, tinted anyway) | blackbear, bear (a model named black or dark first; never polar, panda, teddy or koala) |
+| **Eastern bluebird** (1.9) | Old Cabin Ruins' fence | **Living Birds sparrow**, tinted (stand-in) | bluebird; else sparrow, finch, songbird, bird |
+| **Tufted titmouse** (1.9) | the Rock Shelter's woods | **Living Birds chickadee**, tinted (stand-in) | titmouse; else chickadee, tit, sparrow, songbird, bird |
+| **Louisiana waterthrush** (1.9) | Hemlock Run | **Living Birds sparrow**, tinted (stand-in) | waterthrush, thrush; else sparrow, wren, songbird, bird |
 
-Sixteen species have a model; **eight are still placeholder bodies**. Words of four letters or fewer ("fox", "owl", "jay",
+Nineteen species have a model (sixteen pack or shipped, three tinted stand-ins from Living Birds added in 1.9); **eight are
+still placeholder bodies**. The fox and the turkey are the two most worth a truer model. **Weather habits** (1.9) are
+on every one that has them, whatever its model (table in [Systems.md](Systems.md) 1.9.0); the table's last column is unchanged. Words of four letters or fewer ("fox", "owl", "jay",
 "tit") must be a whole word in the model's name, so "Foxglove" is not a fox; longer ones may sit inside a word.
 **Reserved:** woodpecker, hummingbird, duck, mallard, goose and swan are held for future species, so a model with one of
 those words in its name is **never** used as a stand-in, not even through a folder called "Birds". The tables with the
@@ -95,7 +107,7 @@ ranking rules are in [Systems.md](Systems.md) (1.7.0 and 1.8.0).
 
 ## 2. Species list
 
-### Existing: all eighteen kept
+### Existing: all eighteen kept (and nine more since)
 Every one has a place and hours. None should be cut. Their bodies change; their ecology does not. With models today:
 deer, red fox (dog, tinted), coyote (wolf), turkey (chicken), hawk (eagle), cardinal, blue jay, blackbird, kingfisher and
 phoebe (the last three the tinted sparrow). Without: the eight below.
@@ -142,15 +154,23 @@ still serve as *stand-ins* when the outline fits (a dog tinted as a fox, a husky
 
 ## 3. Integration plan, in order
 
-1. **Playtest 1.8.** Update, rebuild (the first rebuild refreshes your existing pack animals), read the Console lines
-   (`Wildlife models`, including "refreshed for 1.8"), and photograph each pack animal at 4× and 16×: the deer, the
-   chicken-turkey, cardinal, blue jay, a crow at the trailhead, chickadees in the Fern Glade or grove, goldfinches at the
-   blind, a robin, the bear at dawn. Look for pink, frozen, wrong-size or backwards animals. **Send screenshots.**
+1. **Playtest 1.9** (1.8's fixes were proven in the 1.8 playtest: it worked). Update, rebuild (the first rebuild re-tints the
+   fox and turkey and sets up the three new birds), read the Console lines (`Wildlife models`), and photograph the fox and
+   turkey at 4× after re-tinting, and the new birds. Watch the habits on forecast day 3 through the shower and day 4's dusk.
+   **Send screenshots** (the full list is in the 1.9.0 changelog entry).
 2. **Fix sizes and facing from the screenshots.** Size and yaw are one field each in **Wildlife Pack Setup**; a wrong
    model choice is a pick in the same row. Check walk, graze, alert and fly all animate and loop.
 3. **Run the Asset Audit again and paste it.**
-4. **Find free models for the eight placeholders** (cottontail, squirrel, heron, raccoon, owl, groundhog, opossum,
-   sandpiper), most photographed first. Good places to look, **checking each listing for its licence and contents
+4. **Find free models, the fox and the turkey first, then the eight placeholders** (cottontail, squirrel, heron, raccoon, owl,
+   groundhog, opossum, sandpiper), most photographed first. **The build machine cannot open any of the sites below** (1.9:
+   quaternius.com, poly.pizza, opengameart.org, itch.io and kenney.nl are all blocked from it), so this is the director's
+   job. The upgrade rule means an imported `Fox.fbx` or `Turkey.fbx` takes over from the dog and the chicken on the next
+   Rebuild; a model chosen by hand in a setup window is never replaced.
+   **Shopping list** (from search snippets only; **check each page for "CC0" before use**): a fox with idle, walk and run on
+   OpenGameArt, `https://opengameart.org/node/90146`; Quaternius packs at `https://quaternius.com` and
+   `https://quaternius.itch.io` (their farm-animal pack has cow, horse, llama, pig and pug, **no fox**). **Not usable:** the
+   glTF sample "Fox" (its rig and animation are CC-BY) and Sketchfab personal-use foxes. Steps: download, unzip, drag the
+   `.fbx` into the project's `Assets` with a plain name (`Fox.fbx`, `Turkey.fbx`, `Rabbit.fbx`, `Owl.fbx`...). Good places to look, **checking each listing for its licence and contents
    before importing** (do not assume what a pack holds): the Quaternius CC0 animal packs (itch.io and quaternius.com), the
    Asset Store's free animal packs, and Poly Pizza filtered to CC0. Fox, rabbit and squirrel are the likeliest to turn up
    in a stylised forest-animals pack. Import, let the automatic setup run, and read the Console.
@@ -166,11 +186,14 @@ Screenshots are the test at every step. An animal that looks wrong at 16× is no
 ## 4. Macro wildlife opportunities
 
 1.7 turned the macro groundwork into a pipeline: a small-life model found in your packs is given to a field-notebook
-subject and placed in its habitat on the next rebuild (models over 3 m are ignored). Subjects with no model stay out of the reserve; nothing is
-faked. Behaviour is deliberately simple and patience always works.
+subject and placed in its habitat on the next rebuild (models over 3 m are ignored). Behaviour is deliberately simple and
+patience always works.
 
-**What the director's packs gave (1.8):** the mushrooms only. **No butterflies, frogs, insects, newts or snails were found,
-so every other subject below is "no model in the packs yet"** and stays out of the reserve.
+**Since 1.9 small life no longer needs packs.** Twenty-six stylised models are **generated in code** (and saved in the user's
+project), so all 29 subjects appear with nothing imported; a pack model, if one is found, always wins; the builder setting
+`generatedSmallLife` turns the generated ones off. They are unseen in the engine. Subjects, hours and conditions are in
+[Systems.md](Systems.md) 1.9.0. **What the director's packs gave (1.8):** the mushrooms only; no butterflies, frogs, insects, newts
+or snails. The "no model in the packs yet" notes below describe packs, not the reserve.
 
 ### Animals
 | Subject | Pack names | Where | When | Behaviour |
@@ -188,17 +211,24 @@ so every other subject below is "no model in the packs yet"** and stays out of t
 
 (Every animal row above: **no model in the packs yet**.)
 
+**Added in 1.9** (all generated): eastern tiger swallowtail and cabbage white (butterflies on flowers in sun), ebony jewelwing
+(damselfly, creek only), western honey bee, green frog, gray treefrog (trunks, wet evenings), eastern red-backed salamander
+(after rain), whose conditions are in Systems.md. Monarchs sit on milkweed first; one insect per flower.
+
 ### Plants
 | Subject | Source | Where |
 |---|---|---|
 | Common dandelion | shipped (CC0 scan) | loop verges |
 | Lesser periwinkle | shipped (CC0 scan) | Fern Glade, grove |
+| Woodland fern (1.9) | shipped fern scan, graded on its crown | shady woodland floor |
+| Common milkweed, black-eyed Susan, common blue violet, haircap moss (on boulders), common cattail (ponds only) (1.9) | generated | meadow verges, woods, boulders, pond edge |
 | Oxeye Daisy | pack: daisy, oxeye; else flower, wildflower (not a pot, vase, bouquet, tree, bush or bed). **No model in the packs yet** | loop verges |
-| *Next:* milkweed (the monarch's plant), cattail heads at the pond, trillium in the grove, goldenrod at the blind meadow | pack or CC0 scan | as named |
+| *Next:* trillium in the grove, goldenrod at the blind meadow | pack or CC0 scan | as named |
 
 ### Fungi
 | Subject | Source | Where |
 |---|---|---|
+| Yellow fly agaric, turkey tail (1.9) | generated | woodland floor under old trees; logs and stumps |
 | Honey Mushroom | **found: SinuousShrooms** (11 static mushrooms; up to six variants used, sizes varied, at most two on one log or stump; the rest on the woodland floor) | on logs and stumps in the woods |
 | *Next:* bracket fungus on the Grandmother Oak, a fairy ring in the Fern Glade after rain | pack or CC0 scan (Poly Haven) | as named |
 
@@ -231,7 +261,9 @@ fender, real wheels, a dusk headlight) remains the route.
 
 ## 6. Reserve ecology: where the life belongs
 
-"Has today" is as of 1.8. Species with no model yet are placeholder bodies, but they are there.
+"Has today" is as of 1.8 (the three 1.9 birds and the new hidden places are added in the last rows). **Since 1.9 the table's
+animals also answer the weather** (deer under the trees in rain; songbirds bathing after it; the owl on a snag at a dry dusk; crows
+roosting at the trailhead at dusk): Systems.md 1.9.0. Species with no model yet are placeholder bodies, but they are there.
 
 | Place | Has today | Add | The picture it makes |
 |---|---|---|---|
@@ -247,6 +279,11 @@ fender, real wheels, a dusk headlight) remains the route.
 | **Fern Glade (hidden)** | periwinkle, chickadees (1.8) | chipmunk; newts, snails, mushrooms | A hidden place with something living in it |
 | **Hidden Overlook** | a perch only | chipmunk on the rocks | A companion on the log seat |
 | **Creek Alcove (hidden)** | raccoon, song sparrow (1.8) | frogs | A quiet bend with a small voice |
+| **Hemlock Ravine** (1.9, where the land allows) | waterthrush at the run, phoebe on the cascade's ledge | frogs and salamanders after rain (generated small life near water and on the wet floor) | A cascade in shade |
+| **Cascade Overlook (hidden, 1.9)** | the ravine's life below | | The cascade from above |
+| **Hidden Pond (hidden, 1.9)** | heron, blackbird, raccoon | frogs, dragonflies | Still water far from anyone |
+| **Rock Shelter (hidden, 1.9)** | titmouse, gray squirrel (a placeholder body) | moss on boulders | A dry hollow with a long view |
+| **Old Cabin Ruins (hidden, 1.9)** | bluebird on the fence, cottontail, groundhog (placeholder bodies) | milkweed and black-eyed Susan in the clearing | A homestead taken back by the woods |
 | **Deep woods** (no sign, no path) | one black bear (1.8): woodland edge at dawn, the creek at dusk | nothing: it is meant to be rare | Something found by patience, never promised |
 
 Principles for all of it: residents make a place *about* its animal; commuters make the clock matter; small life

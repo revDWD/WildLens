@@ -1,4 +1,4 @@
-# Wildlife asset strategy (1.6, updated 1.8)
+# Wildlife asset strategy (1.6, updated 1.9)
 
 **Direction (from the director, 1.6):** wildlife does **not** need to be photorealistic, and the animals don't all need
 to share a style or come from one pack. A colourful stylised bird can be a blue jay; a stylised owl can be a barred
@@ -12,7 +12,7 @@ photographic environment.
    ears, a fox's brush tail, an owl's round head, a heron's neck. If the outline is right, the style barely matters.
 2. **Animation.** A model that walks, grazes, looks up and flies sells life; a beautiful statue doesn't. Idle, walk,
    run, eat and look for mammals; perch, take-off, fly and land for birds.
-3. **Variety.** Twenty-four species that each look like *something* is the goal; two perfect ones is not.
+3. **Variety.** Twenty-seven species that each look like *something* is the goal; two perfect ones is not.
 4. **Consistency within a species.** Every deer in the reserve uses the same model. Styles may differ *between*
    species, never *within* one.
 5. **Realism**, last.
@@ -55,6 +55,34 @@ What the packs taught (1.8): a pack's models are **not** ready to use as they co
   choice prefers plain names and the earlier keyword of a role.
 - **Old models are refreshed.** Animals the automatic setup built before 1.8 are rebuilt once from the same model. A
   species you set up by hand, or sent back to a placeholder, is left alone.
+
+## The upgrade rule (1.9)
+
+A model the **automatic setup** chose for a species is replaced by itself when a strictly better one is imported. "Better" is
+compared on three things and nothing finer: the real animal over any stand-in; among stand-ins, one that is nobody else's real
+animal over one that is; then the closer keyword (a "shiba" before a "dog"). Equal candidates never swap, two real animals never
+swap, and a current model that no longer matches by name is left alone. So importing a model named **Fox** or **Turkey** replaces
+the tinted dog and the tinted chicken on the next Rebuild, at the default real size, yaw 0 and the usual tint; one Console line
+(`Wildlife models upgraded`) lists each change. **Never touched:** a model you chose by hand in a setup window, and a species you
+sent back to a placeholder. (The 1.9 fox and turkey also got new colours: factory version 3 re-tints existing automatic builds,
+because a species' colours are baked into the model's materials when it is built.)
+
+## Where to find models, and a blocked-hosts note (1.9)
+
+The **build machine cannot reach any CC0 model host** (quaternius.com, poly.pizza, opengameart.org, itch.io and kenney.nl are all
+blocked from it), so it could not look at a page, check a licence or download anything. Sourcing models is **the director's job**,
+and every candidate must be opened and its licence read (CC0, or another that allows free use without credit) before use. From
+search snippets only:
+- **A fox with idle, walk and run** on OpenGameArt: `https://opengameart.org/node/90146`.
+- **Quaternius** packs: `https://quaternius.com` and `https://quaternius.itch.io`. Their farm-animal pack has a cow, horse, llama, pig
+  and pug: **no fox**.
+- **Not usable:** the glTF sample "Fox" (its rig and animation are CC-BY), and Sketchfab "personal use" foxes.
+- Steps: download, unzip, drag the `.fbx` into the project's `Assets` with a **plain name** (`Fox.fbx`, `Turkey.fbx`, `Rabbit.fbx`,
+  `Owl.fbx`, `Raccoon.fbx`...). The fox and turkey first, then the eight placeholders (cottontail, squirrel, heron, raccoon, owl,
+  groundhog, opossum, sandpiper). Never commit them.
+- **A pack with scripts can block every update.** The Living Birds pack's `scripts` and `demo` folders do not compile on
+  Unity 6 and stop **all** package updates until deleted; WildLens needs only the models and clips. If a pasted audit shows an
+  older WildLens version than the one released, ask for the Console's red lines first.
 
 ## Shipped with WildLens (1.6.1)
 
