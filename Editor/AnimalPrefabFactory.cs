@@ -284,6 +284,7 @@ namespace WildLens.EditorTools
             { "eastern_phoebe", 0.17f }, { "american_crow", 0.45f }, { "american_robin", 0.25f }, { "black_capped_chickadee", 0.13f },
             { "american_goldfinch", 0.12f }, { "song_sparrow", 0.15f }, { "barred_owl", 0.50f }, { "wild_turkey", 1.0f },
             { "great_blue_heron", 1.2f }, { "spotted_sandpiper", 0.19f },
+            { "eastern_bluebird", 0.18f }, { "tufted_titmouse", 0.16f }, { "louisiana_waterthrush", 0.15f }, // 1.9
             { "american_black_bear", 1.6f }, { "coyote", 1.25f }, { "raccoon", 0.80f }, { "virginia_opossum", 0.75f }, { "groundhog", 0.60f },
         };
 

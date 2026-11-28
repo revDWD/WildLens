@@ -42,6 +42,7 @@ namespace WildLens.Wildlife
         private float _bank;
         private float _flare;
         private bool _fledPerch;
+        private bool _homeDirty; // SetHome arrived while perched or landing: head for the new home at the next flight
 
         public bool IsFlapping { get; private set; }
         public bool IsPerched => _mode == Mode.Perched;
@@ -75,7 +76,10 @@ namespace WildLens.Wildlife
         public override void SetHome(Vector3 home)
         {
             base.SetHome(home);
-            if (_mode == Mode.Perched || _mode == Mode.Approach || _mode == Mode.TakingOff) return; // finish what it's doing
+            // Finish what it's doing; 1.9: but remember the move. (Before, a bird that was perched when its schedule changed went on
+            // hopping between perches near the old place and rarely headed for the new one, so a rhythm or weather habit took minutes.)
+            if (_mode == Mode.Perched || _mode == Mode.Approach || _mode == Mode.TakingOff) { _homeDirty = true; return; }
+            _homeDirty = false;
             _transitTarget = home;
             _mode = Mode.Transit;
             _timer = 60f;
@@ -150,6 +154,16 @@ namespace WildLens.Wildlife
 
         private void ChooseNextFlight()
         {
+            if (_homeDirty)
+            {
+                _homeDirty = false;
+                Vector2 near = Random.insideUnitCircle * Mathf.Min(Species.wanderRadius, 12f);
+                _transitTarget = HomePosition + new Vector3(near.x, 0f, near.y);
+                _mode = Mode.Transit;
+                _timer = 60f;
+                SetActivity(AnimalActivity.Flying);
+                return;
+            }
             var option = PickBehavior();
             if (option != null && option.activity == AnimalActivity.Perched && TryStartPerch()) return;
 

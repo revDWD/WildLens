@@ -23,6 +23,8 @@ namespace WildLens.Data
                 // 1.8: six species a place was waiting for (trailhead and road, glades, blind meadow, creek brush, deep woods).
                 // Appended, never reordered: ids and list order are permanent.
                 Crow(), Robin(), Chickadee(), Goldfinch(), SongSparrow(), BlackBear(),
+                // 1.9: three more neighbours for the new places (residents only: they live where a residence places them).
+                EasternBluebird(), TuftedTitmouse(), LouisianaWaterthrush(),
             };
         }
 
@@ -49,9 +51,10 @@ namespace WildLens.Data
                 headSize = 0.075f, snoutLength = 0.03f, tailLength = 0.32f, tailThickness = 0.04f,
                 headColor = new Color(0.55f, 0.62f, 0.78f),
             };
-            s.primaryColor = new Color(0.3f, 0.23f, 0.15f);
-            s.secondaryColor = new Color(0.22f, 0.17f, 0.12f);
-            s.accentColor = new Color(0.42f, 0.3f, 0.18f);
+            // 1.9: darker bronze-brown overall, a lighter bronze for the second material, and the bare red of head, wattle and legs as the accent.
+            s.primaryColor = new Color(0.25f, 0.18f, 0.11f);
+            s.secondaryColor = new Color(0.36f, 0.26f, 0.15f);
+            s.accentColor = new Color(0.66f, 0.2f, 0.16f);
             s.habitat = HabitatPreference.ForestEdge;
             s.groupCount = 1; s.groupSize = new Vector2Int(4, 7);
             s.spawnDistanceFromTrail = new Vector2(18f, 50f);
@@ -67,6 +70,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.7f, 3f, 6f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 8f, 16f));
             s.rhythm = new DailyRhythm(RhythmPlace.MeadowEdge, RhythmPlace.Meadow, RhythmPlace.Woodland, RhythmPlace.Meadow, RhythmPlace.MeadowEdge, RhythmPlace.Woodland);
+            s.weatherHabits = Habits(RhythmPlace.Woodland, true, After(RhythmPlace.Meadow, 3f, true));
+            Hint(s, "Flocks wait out the rain under the trees, then come out to scratch the meadow once the sun returns.");
             return s;
         }
 
@@ -93,7 +98,10 @@ namespace WildLens.Data
             s.photoSizeScale = 0.75f; s.clearPhotoDistance = 28f; s.observationTime = 1.3f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 6f, 45f, 90f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 1f, 8f, 15f));
-            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.MeadowEdge, RhythmPlace.MeadowEdge);
+            // 1.9: at dusk it moves to a snag at the meadow's edge (a perch to be photographed on), not out over open ground; rain keeps it in the grove.
+            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Perch, RhythmPlace.MeadowEdge);
+            s.weatherHabits = Habits(RhythmPlace.Woodland, false);
+            Hint(s, "On a dry evening look for it on a snag at the meadow's edge; in rain it stays in the grove.");
             return s;
         }
 
@@ -160,6 +168,7 @@ namespace WildLens.Data
                 HotspotType.BrushPile, 2, new Vector2Int(1, 2));
             s.bodyPlan.crest = true; s.bodyPlan.faceMask = true;
             s.rhythm = new DailyRhythm(RhythmPlace.Brush, RhythmPlace.Brush, RhythmPlace.Woodland, RhythmPlace.Brush, RhythmPlace.Brush, RhythmPlace.Woodland);
+            Bathes(s, "After rain it comes down to bathe at the water's edge.");
             return s;
         }
 
@@ -185,6 +194,7 @@ namespace WildLens.Data
                 HotspotType.Water, 2, new Vector2Int(2, 3));
             s.bodyPlan.wingPatches = true;
             s.rhythm = new DailyRhythm(RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water);
+            Bathes(s, "After rain it drops down to the water's edge to bathe and drink.");
             return s;
         }
 
@@ -219,6 +229,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1f, 2f, 4f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 2f, 12f, 25f));
             s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Woodland, RhythmPlace.Water, RhythmPlace.Water);
+            s.weatherHabits = new WeatherHabits { enabled = true, overcastEarly = true };
+            Hint(s, "A grey afternoon brings it out early.");
             return s;
         }
 
@@ -286,6 +298,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 6f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 1.5f, 10f, 20f));
             s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Home, RhythmPlace.Water, RhythmPlace.Water);
+            s.weatherHabits = new WeatherHabits { enabled = true, overcastEarly = true };
+            Hint(s, "On a grey day it comes down to the water long before dusk.");
             return s;
         }
 
@@ -318,6 +332,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 6f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 8f, 16f));
             s.rhythm = new DailyRhythm(RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water);
+            s.weatherHabits = Habits(null, true, After(RhythmPlace.Water, 2.5f));
+            Hint(s, "It hunts hardest at dawn and right after rain, when the shallows are stirred up.");
             return s;
         }
 
@@ -408,6 +424,10 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 5f, 8f, 25f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 3f, 5f, 10f));
             s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            // 1.9: it gathers at its residence at the trailhead as the light goes, and roosts there.
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Roost, RhythmPlace.Roost);
+            s.weatherHabits = new WeatherHabits { enabled = true, roostLabel = "Trailhead" };
+            Hint(s, "At dusk the crows gather at the trailhead to roost.");
             return s;
         }
 
@@ -427,6 +447,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 7f, 10f, 26f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2f, 4f, 8f));
             s.rhythm = new DailyRhythm(RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Woodland, RhythmPlace.Meadow, RhythmPlace.Brush, RhythmPlace.Home);
+            s.weatherHabits = Habits(RhythmPlace.Brush, true, After(RhythmPlace.Meadow, 1f), After(RhythmPlace.Water, 2.5f));
+            Hint(s, "In the first hour after rain it works the open grass for worms, then bathes at the water's edge.");
             return s;
         }
 
@@ -463,6 +485,7 @@ namespace WildLens.Data
             Awareness(s, aware: 15f, alert: 8.5f, flee: 4f, gain: 1.1f, decay: 0.25f, patience: 3f, startle: 1.2f);
             s.photoSizeScale = 0.35f; s.clearPhotoDistance = 10f;
             s.rhythm = new DailyRhythm(RhythmPlace.Brush, RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Brush, RhythmPlace.Home);
+            Bathes(s, "After rain it comes to the water's edge to bathe.");
             return s;
         }
 
@@ -477,6 +500,7 @@ namespace WildLens.Data
             Awareness(s, aware: 16f, alert: 9f, flee: 4.5f, gain: 1.1f, decay: 0.25f, patience: 3f, startle: 1.2f);
             s.photoSizeScale = 0.4f; s.clearPhotoDistance = 11f;
             s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            Bathes(s, "After rain it comes down to the water's edge to bathe.");
             return s;
         }
 
@@ -510,6 +534,82 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 2.5f, 10f, 22f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 3f, 6f));
             s.rhythm = new DailyRhythm(RhythmPlace.MeadowEdge, RhythmPlace.Woodland, RhythmPlace.Home, RhythmPlace.Woodland, RhythmPlace.Water, RhythmPlace.Home);
+            // 1.9: it keeps to deep cover while it rains, and comes down to the creek at dusk only on a dry, fair evening.
+            s.weatherHabits = Habits(RhythmPlace.Home, false);
+            s.weatherHabits.fairOnlyPeriods = WeatherHabits.PeriodMask(5);
+            s.weatherHabits.foulPlace = RhythmPlace.Home;
+            Hint(s, "It keeps to deep cover in the rain and comes down to the creek at dusk only when the evening is dry.");
+            return s;
+        }
+
+        // ------------------------------------------------------------------ 1.9 residents for the new places
+        // Residents only (groupCount 0): they exist where a WildlifeResidence names them. 'length' is the BODY, about 0.45 of the bird's
+        // total length (as for the chickadee 0.06 / 0.13, the sparrow 0.07 / 0.15, the robin 0.11 / 0.25); the real total is in
+        // AnimalPrefabFactory.RealSize.
+
+        public static SpeciesDefinition EasternBluebird()
+        {
+            var s = Songbird("eastern_bluebird", "Eastern Bluebird", "Sialia sialis",
+                "A small thrush of open meadows: bright blue above, rusty breast, white belly. It sits upright on a fence post or low " +
+                "branch, then drops to the grass for an insect and flies back to the same perch. Its song is a soft, warbling 'tu-a-wee'.",
+                0.08f, 0.021f, new Color(0.25f, 0.42f, 0.8f), new Color(0.93f, 0.91f, 0.87f), new Color(0.72f, 0.4f, 0.2f),
+                HotspotType.Meadow, 0, new Vector2Int(1, 2));
+            s.bodyPlan.tailLength = 0.08f;
+            s.walkSpeed = 4.5f; s.gaitFrequency = 8f;
+            s.wanderRadius = 20f;
+            s.flightAltitude = new Vector2(3.5f, 5.5f); s.circleRadius = new Vector2(3f, 7f);
+            Awareness(s, aware: 18f, alert: 10f, flee: 5f, gain: 1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.photoSizeScale = 0.4f; s.clearPhotoDistance = 12f; s.observationTime = 1f;
+            s.behaviors.Clear();
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 7f, 10f, 26f)); // long on its post, short flights
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2f, 3f, 7f));
+            s.rhythm = new DailyRhythm(RhythmPlace.MeadowEdge, RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.MeadowEdge, RhythmPlace.Home);
+            s.weatherHabits = Habits(RhythmPlace.Woodland, true, After(RhythmPlace.Meadow, 2.5f, true));
+            Hint(s, "It is out on the meadow posts in the first sun after rain.");
+            return s;
+        }
+
+        public static SpeciesDefinition TuftedTitmouse()
+        {
+            var s = Songbird("tufted_titmouse", "Tufted Titmouse", "Baeolophus bicolor",
+                "A small grey bird with a pointed crest, big dark eyes and rusty flanks, bold and nearly as tame as the chickadee. " +
+                "It works the trunks and branches of the woods all day, calling 'peter-peter-peter'.",
+                0.07f, 0.02f, new Color(0.5f, 0.52f, 0.56f), new Color(0.88f, 0.87f, 0.83f), new Color(0.72f, 0.48f, 0.32f),
+                HotspotType.MatureTree, 0, new Vector2Int(1, 2));
+            s.bodyPlan.crest = true; s.bodyPlan.tailLength = 0.07f;
+            s.walkSpeed = 4f; s.gaitFrequency = 10f;
+            s.wanderRadius = 16f;
+            s.flightAltitude = new Vector2(3.5f, 5.5f); s.circleRadius = new Vector2(3f, 6f);
+            // Nearly as accepting as the chickadee.
+            Awareness(s, aware: 11f, alert: 6f, flee: 3f, gain: 0.65f, decay: 0.33f, patience: 7f, startle: 0.65f);
+            s.photoSizeScale = 0.37f; s.clearPhotoDistance = 9.5f; s.observationTime = 0.9f;
+            s.behaviors.Clear();
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 6f, 6f, 16f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2f, 3f, 6f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Woodland, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition LouisianaWaterthrush()
+        {
+            var s = Songbird("louisiana_waterthrush", "Louisiana Waterthrush", "Parkesia motacilla",
+                "A brown, streaked warbler of shaded creeks and waterfalls that bobs its whole rear half as it walks the wet stones. " +
+                "Wary, and hard to see against the rocks; its ringing song carries over the sound of the water.",
+                0.065f, 0.019f, new Color(0.38f, 0.32f, 0.26f), new Color(0.9f, 0.88f, 0.82f), new Color(0.2f, 0.16f, 0.13f),
+                HotspotType.Water, 0, new Vector2Int(1, 1));
+            s.bodyPlan.tailLength = 0.07f;
+            s.walkSpeed = 4f; s.gaitFrequency = 9f;
+            s.wanderRadius = 12f;
+            s.flightAltitude = new Vector2(1.5f, 3.5f); s.circleRadius = new Vector2(3f, 6f);
+            // Wary: it notices you early and goes to cover.
+            Awareness(s, aware: 20f, alert: 12f, flee: 6.5f, gain: 1.2f, decay: 0.2f, patience: 2.5f, startle: 1.3f);
+            s.photoSizeScale = 0.4f; s.clearPhotoDistance = 11f; s.observationTime = 1.1f;
+            s.behaviors.Clear();
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 5f, 6f, 16f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2.5f, 3f, 6f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            s.weatherHabits = Habits(RhythmPlace.Home, true, After(RhythmPlace.Water, 2.5f));
+            Hint(s, "It is busiest along the creek just after rain.");
             return s;
         }
 
@@ -550,7 +650,60 @@ namespace WildLens.Data
             target.behaviors = new List<BehaviorOption>();
             foreach (var b in source.behaviors)
                 target.behaviors.Add(new BehaviorOption(b.activity, b.weight, b.duration.x, b.duration.y));
+            ApplyHabits(target, source);
             target.dataVersion = SpeciesDefinition.CurrentDataVersion;
+        }
+
+        /// <summary>
+        /// Species whose rhythm changed in 1.9 (the owl's dusk perch, the crow's roost); their DailyRhythm is copied to existing assets.
+        /// Every other rhythm is left as the asset has it.
+        /// </summary>
+        private static readonly HashSet<string> RhythmRevisedIn19 = new HashSet<string> { "barred_owl", "american_crow" };
+
+        /// <summary>Species whose colours changed in 1.9 (the fox and the turkey read as a dog and a chicken); their three colours are copied.</summary>
+        private static readonly HashSet<string> ColoursRevisedIn19 = new HashSet<string> { "red_fox", "wild_turkey" };
+
+        /// <summary>
+        /// Brings the natural-events data to an existing asset (1.9): weather habits, field notes (which carry the hints), and, for the few
+        /// species that changed, the rhythm and colours. Everything else (awareness, behaviours, groups, prefab, hand-tuned values) is left alone.
+        /// A species without habits in <paramref name="source"/> keeps whatever the asset has.
+        /// </summary>
+        public static void ApplyHabits(SpeciesDefinition target, SpeciesDefinition source)
+        {
+            if (target == null || source == null) return;
+            if (source.weatherHabits != null && source.weatherHabits.enabled) target.weatherHabits = source.weatherHabits.Clone();
+            if (!string.IsNullOrEmpty(source.fieldNotes)) target.fieldNotes = source.fieldNotes;
+            if (RhythmRevisedIn19.Contains(source.speciesId) && source.rhythm != null && source.rhythm.enabled)
+                target.rhythm = new DailyRhythm(source.rhythm.dawn, source.rhythm.morning, source.rhythm.midday, source.rhythm.goldenHour, source.rhythm.dusk, source.rhythm.night);
+            if (ColoursRevisedIn19.Contains(source.speciesId))
+            {
+                target.primaryColor = source.primaryColor;
+                target.secondaryColor = source.secondaryColor;
+                target.accentColor = source.accentColor;
+            }
+        }
+
+        // ------------------------------------------------------------------ 1.9 natural events (weather habits as data)
+
+        private static AfterRainStage After(RhythmPlace place, float untilHours, bool needsSun = false) => new AfterRainStage(place, untilHours, needsSun);
+
+        /// <summary>Weather habits: where it sits in the rain (null: the general rule), the steps after rain, and whether it is livelier then.</summary>
+        private static WeatherHabits Habits(RhythmPlace? rain, bool active, params AfterRainStage[] after)
+        {
+            var h = new WeatherHabits { enabled = true, activeAfterRain = active };
+            if (rain.HasValue) { h.rainShelter = true; h.rainPlace = rain.Value; }
+            if (after != null) h.afterRain.AddRange(after);
+            return h;
+        }
+
+        /// <summary>Adds one short natural sentence to the field notes that hints at a habit (a hint, never an instruction).</summary>
+        private static void Hint(SpeciesDefinition s, string sentence) => s.fieldNotes = s.fieldNotes.TrimEnd() + " " + sentence;
+
+        /// <summary>Songbirds sit tight in brush while it rains and come down to bathe at the water's edge after it.</summary>
+        private static void Bathes(SpeciesDefinition s, string hint)
+        {
+            s.weatherHabits = Habits(RhythmPlace.Brush, true, After(RhythmPlace.Water, 2.5f));
+            Hint(s, hint);
         }
 
         private static SpeciesDefinition New(string id, string display, string sci, string notes, PlaceholderBody body)
@@ -597,6 +750,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2.5f, 3f, 6f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.8f, 3f, 5f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 12f, 25f));
+            s.weatherHabits = Habits(RhythmPlace.Woodland, true, After(RhythmPlace.Meadow, 3f, true));
+            Hint(s, "It waits out rain under the trees and steps out to feed in the first sun afterwards.");
             return s;
         }
 
@@ -624,6 +779,8 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 2f, 4f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 1f, 1.5f, 3f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1f, 1.5f, 3f));
+            s.weatherHabits = Habits(null, false, After(RhythmPlace.MeadowEdge, 8f));
+            Hint(s, "After a wet night, look for it out on the meadow edge in the early light.");
             return s;
         }
 
@@ -633,9 +790,10 @@ namespace WildLens.Data
                 "Solitary, curious hunter of field margins. Trots with a light, purposeful gait and often pauses to " +
                 "listen for voles under the grass before pouncing. The white-tipped tail is a reliable field mark.",
                 PlaceholderBody.Fox);
-            s.primaryColor = new Color(0.78f, 0.36f, 0.12f);
-            s.secondaryColor = new Color(0.95f, 0.93f, 0.9f);
-            s.accentColor = new Color(0.14f, 0.1f, 0.08f);
+            // 1.9: a brighter orange-red (the model's own colour multiplies it, so it needs headroom), a clean white and near-black socks.
+            s.primaryColor = new Color(0.93f, 0.42f, 0.12f);
+            s.secondaryColor = new Color(0.97f, 0.95f, 0.92f);
+            s.accentColor = new Color(0.1f, 0.08f, 0.07f);
             s.habitat = HabitatPreference.ForestEdge;
             s.groupCount = 2; s.groupSize = new Vector2Int(1, 1);
             s.spawnDistanceFromTrail = new Vector2(10f, 35f);
@@ -676,6 +834,11 @@ namespace WildLens.Data
             s.photoSizeScale = 0.8f; s.clearPhotoDistance = 45f; s.observationTime = 1.5f;
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 3f, 20f, 40f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 3f, 15f, 30f));
+            // Soars over the ridge only in fair weather (morning to golden hour); in rain, under grey skies or just after rain it sits on a snag.
+            s.weatherHabits = Habits(RhythmPlace.Perch, false);
+            s.weatherHabits.fairOnlyPeriods = WeatherHabits.PeriodMask(2, 3, 4);
+            s.weatherHabits.foulPlace = RhythmPlace.Perch;
+            Hint(s, "It rides the warm air over the ridge on fair days; when it is grey or wet it waits on a snag.");
             return s;
         }
 

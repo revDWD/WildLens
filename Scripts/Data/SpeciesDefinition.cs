@@ -60,7 +60,12 @@ namespace WildLens.Data
     }
 
     /// <summary>Where a species spends each part of the day (see WildlifeSchedule). Append only.</summary>
-    public enum RhythmPlace { Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch }
+    public enum RhythmPlace
+    {
+        Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch,
+        /// <summary>A gathering place the species shares with its own residences (the crows' trailhead roost). See WeatherHabits.roostLabel. Appended.</summary>
+        Roost,
+    }
 
     /// <summary>
     /// A species' daily rhythm as data (1.0). When <see cref="enabled"/>, WildlifeSchedule uses these instead of its
@@ -94,6 +99,81 @@ namespace WildLens.Data
         }
     }
 
+    /// <summary>One step of where a species goes after rain stops: it applies while at most <see cref="untilHours"/> game hours have passed.</summary>
+    [Serializable]
+    public class AfterRainStage
+    {
+        public RhythmPlace place = RhythmPlace.Water;
+        [Min(0f)] [Tooltip("Game hours after the rain stopped that this step lasts (the next step starts after it).")] public float untilHours = 2f;
+        [Tooltip("Only in the first sunshine after rain (not raining, clouds broken); in grey weather the step is skipped.")] public bool needsSun;
+
+        public AfterRainStage() { }
+        public AfterRainStage(RhythmPlace place, float untilHours, bool needsSun = false)
+        {
+            this.place = place; this.untilHours = untilHours; this.needsSun = needsSun;
+        }
+    }
+
+    /// <summary>
+    /// How the weather changes where a species chooses to be (1.9, "natural events"). Pure data read by WildlifeSchedule: no
+    /// triggers, no spawning, nothing aimed at the player. The world's own conditions (hour, weather now, weather recently, the four-day
+    /// forecast) decide, so the same pattern repeats and a watcher can learn it. Off by default (old assets behave exactly as before).
+    /// </summary>
+    [Serializable]
+    public class WeatherHabits
+    {
+        public bool enabled;
+
+        [Header("While it rains")]
+        [Tooltip("Where the species sits while it rains. Off: the general rule (animals of open ground go to the woods, hawks to their perches).")]
+        public bool rainShelter;
+        public RhythmPlace rainPlace = RhythmPlace.Woodland;
+
+        [Header("After rain")]
+        [Tooltip("Steps in order of untilHours (robin: meadow for the first hour, then the water's edge).")]
+        public List<AfterRainStage> afterRain = new List<AfterRainStage>();
+        [Tooltip("More active and out in the open for a while after rain (more feeding and flitting, less resting).")]
+        public bool activeAfterRain;
+
+        [Header("Fair weather only")]
+        [Tooltip("Bit per day period (1 << DayPeriod: 1 dawn, 2 morning, 3 midday, 4 golden hour, 5 dusk). In those periods the rhythm's place is used only in fair weather.")]
+        public int fairOnlyPeriods;
+        [Tooltip("Where it is in a fair-weather-only period when the weather is not fair (grey, raining or just after rain).")]
+        public RhythmPlace foulPlace = RhythmPlace.Perch;
+
+        [Header("Other")]
+        [Tooltip("On an overcast day it keeps the hours of the next period of the day (raccoons out early on the grey day).")]
+        public bool overcastEarly;
+        [Tooltip("For RhythmPlace.Roost: the label of the residence it gathers at (\"Trailhead\"); empty: its first residence.")]
+        public string roostLabel = "";
+
+        public bool IsFairOnly(int period) => period >= 0 && period < 31 && (fairOnlyPeriods & (1 << period)) != 0;
+
+        /// <summary>Bit mask for <see cref="fairOnlyPeriods"/> from day period indices (0 night, 1 dawn, 2 morning, 3 midday, 4 golden hour, 5 dusk).</summary>
+        public static int PeriodMask(params int[] periods)
+        {
+            int m = 0;
+            if (periods != null) foreach (int p in periods) if (p >= 0 && p < 31) m |= 1 << p;
+            return m;
+        }
+
+        /// <summary>The longest game-hour window after rain in which this species shows any habit.</summary>
+        public float AfterRainWindow()
+        {
+            float w = 0f;
+            if (afterRain != null) foreach (var s in afterRain) if (s != null && s.untilHours > w) w = s.untilHours;
+            return activeAfterRain ? Mathf.Max(w, 2f) : w;
+        }
+
+        public WeatherHabits Clone()
+        {
+            var c = (WeatherHabits)MemberwiseClone();
+            c.afterRain = new List<AfterRainStage>();
+            if (afterRain != null) foreach (var s in afterRain) if (s != null) c.afterRain.Add(new AfterRainStage(s.place, s.untilHours, s.needsSun));
+            return c;
+        }
+    }
+
     [Serializable]
     public class BehaviorOption
     {
@@ -119,7 +199,7 @@ namespace WildLens.Data
     public class SpeciesDefinition : ScriptableObject
     {
         /// <summary>Data layout version. Assets below this are upgraded by the editor (SpeciesAssetMigrator).</summary>
-        public const int CurrentDataVersion = 3;
+        public const int CurrentDataVersion = 4; // 4: weather habits (SpeciesDefaults.ApplyHabits)
         [HideInInspector] public int dataVersion; // 0 on assets created before versioning
 
         [Header("Identity")]
@@ -174,6 +254,10 @@ namespace WildLens.Data
         public Vector2 flightAltitude = new Vector2(20f, 38f);
         [Tooltip("Radius of circling flight (min, max).")]
         public Vector2 circleRadius = new Vector2(16f, 34f);
+
+        [Header("Weather habits (1.9)")]
+        [Tooltip("How rain, grey days and fair days change where this species goes. Off by default.")]
+        public WeatherHabits weatherHabits = new WeatherHabits();
 
         [Header("Behaviours")]
         public List<BehaviorOption> behaviors = new List<BehaviorOption>();

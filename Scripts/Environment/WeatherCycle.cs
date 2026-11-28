@@ -45,6 +45,52 @@ namespace WildLens.Environment
         public int ForecastDay { get; private set; }
         public event Action<WeatherCondition> Changed;
 
+        // ------------------------------------------------------------------ shared conditions (1.9)
+        // Read-only helpers derived from Cover, Rain and the clock, so wildlife habits (and anything else) agree on what "after rain",
+        // "fair" and "a fair evening" mean. They change no weather.
+
+        /// <summary>Rain above this counts as raining (what WildlifeSchedule and the macro subjects have always used).</summary>
+        public const float RainThreshold = 0.25f;
+        private const float Never = -1e9f;
+        private float _lastRainTime = Never; // day * 24 + hour when it last rained; per instance, so a scene reload forgets it
+
+        public bool IsRaining => Rain > RainThreshold;
+
+        /// <summary>Game hours since it last rained (0 while raining; very large if it has not rained since the clock started or was set back).</summary>
+        public float HoursSinceRain
+        {
+            get
+            {
+                if (IsRaining) return 0f;
+                var clock = DayCycle.Instance;
+                if (clock == null) return 1e9f;
+                float now = clock.Day * 24f + clock.Hour;
+                return now < _lastRainTime ? 1e9f : now - _lastRainTime;
+            }
+        }
+
+        /// <summary>True while it rains and for <paramref name="hours"/> game hours after (the same idea as the macro subjects' tracker).</summary>
+        public bool RecentlyRained(float hours) => IsRaining || HoursSinceRain <= hours;
+
+        /// <summary>It stopped raining within <paramref name="hours"/> game hours (false while it is still raining).</summary>
+        public bool RainEndedWithin(float hours) => !IsRaining && HoursSinceRain <= hours;
+
+        /// <summary>The first sunshine after rain: not raining, it rained within about two hours, and the cloud has broken.</summary>
+        public bool SunAfterRain => RainEndedWithin(2f) && !OvercastSky && Cover < 0.6f;
+
+        /// <summary>A fair spell: not raining, not overcast, and at least an hour since the last rain (warm air rising again, wet leaves drying).</summary>
+        public bool IsFair => !IsRaining && !OvercastSky && HoursSinceRain > 1f;
+
+        /// <summary>Golden hour or dusk, and fair.</summary>
+        public bool IsFairEvening
+        {
+            get
+            {
+                var clock = DayCycle.Instance;
+                return clock != null && (clock.Period == DayPeriod.GoldenHour || clock.Period == DayPeriod.Dusk) && IsFair;
+            }
+        }
+
         // (hour, cloud cover, rain) keys for each forecast day.
         private static readonly Vector3[][] Days =
         {
@@ -84,6 +130,11 @@ namespace WildLens.Environment
             Cover = Mathf.Lerp(Cover, w.x, k);
             Rain = Mathf.Lerp(Rain, w.y, k);
             if (OvercastSky ? Cover < 0.55f : Cover > 0.66f) OvercastSky = !OvercastSky;
+
+            // 1.9: remember when it last rained (the clock set back, or a scene reload, forgets it).
+            float nowHours = day * 24f + hour;
+            if (nowHours < _lastRainTime) _lastRainTime = Never;
+            if (Rain > RainThreshold) _lastRainTime = nowHours;
 
             var c = Rain > 0.2f ? WeatherCondition.LightRain : Cover > 0.68f ? WeatherCondition.Overcast : Cover > 0.4f ? WeatherCondition.Cloudy : WeatherCondition.Fair;
             if (c != Condition || force)

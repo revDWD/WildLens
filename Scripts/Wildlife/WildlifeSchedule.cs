@@ -17,6 +17,13 @@ namespace WildLens.Wildlife
     ///   Hawk       morning → golden hour: soaring over the ridge, using its perch · dawn & dusk: snags by meadows
     ///   Squirrel   stays in its trees; busiest in the morning and late afternoon, quiet at midday
     ///
+    /// 1.9, natural events: the weather moves them too, by data (<see cref="WeatherHabits"/> on each species, decided by
+    /// <see cref="WeatherHabitRules"/>): songbirds sit tight in brush while it rains and bathe at the water's edge after it, deer
+    /// shelter and then come out to feed in the first sun, the hawk soars only in fair weather, the owl calls it a night in the rain,
+    /// crows gather at the trailhead at dusk. Nothing is triggered by the player and nothing is spawned: the same hour and the same
+    /// forecast always give the same pattern. Weather-triggered moves are staggered by a stable per-group delay so a flock
+    /// does not set off on the same frame; a change of day period still moves everyone at once, as before.
+    ///
     /// Players learn these patterns the way naturalists do; the trailhead board and signs hint at them.
     /// </summary>
     public class WildlifeSchedule : MonoBehaviour
@@ -24,17 +31,45 @@ namespace WildLens.Wildlife
         [Tooltip("Animals only move to places within this distance of their own territory.")]
         public float maxShift = 320f;
 
+        [Tooltip("Longest delay (seconds) before a group answers a change of weather; each group and animal has its own stable share of it.")]
+        public float weatherStagger = 14f;
+
         public static WildlifeSchedule Instance { get; private set; }
 
+        private sealed class AnimalState
+        {
+            public int appliedKey = int.MinValue;
+            public int appliedPeriod = -1;
+            public int pendingKey = int.MinValue;
+            public float due;
+        }
+
         private WildlifeSpawner _spawner;
-        private DayPeriod _applied = (DayPeriod)(-1);
-        private bool _rainApplied;
+        private readonly Dictionary<AnimalAgent, AnimalState> _states = new Dictionary<AnimalAgent, AnimalState>();
+        private float _nextPoll;
 
         /// <summary>Raining hard enough to send animals to shelter (1.4).</summary>
-        public static bool Raining => WeatherCycle.Instance != null && WeatherCycle.Instance.Rain > 0.25f;
+        public static bool Raining => WeatherCycle.Instance != null && WeatherCycle.Instance.IsRaining;
 
         private void Awake() => Instance = this;
         private void OnDestroy() { if (Instance == this) Instance = null; }
+
+        /// <summary>Behaviour weighting for a species at a time of day (multiplies the species' own weights). Kept for callers from before 1.9.</summary>
+        public static float Bias(string species, DayPeriod p, AnimalActivity a) =>
+            WeatherHabitRules.Bias(species, new HabitDecision { period = (int)p }, a);
+
+        private static HabitWeather Snapshot(DayCycle clock)
+        {
+            var w = new HabitWeather { fair = true, hoursSinceRain = 1e9f, hour = clock.Hour };
+            var weather = WeatherCycle.Instance;
+            if (weather == null) return w;
+            w.raining = weather.IsRaining;
+            w.fair = weather.IsFair;
+            w.overcast = weather.OvercastSky;
+            w.sunAfterRain = weather.SunAfterRain;
+            w.hoursSinceRain = weather.HoursSinceRain;
+            return w;
+        }
 
         private void Update()
         {
@@ -42,81 +77,80 @@ namespace WildLens.Wildlife
             if (clock == null) return;
             if (_spawner == null) _spawner = SceneQuery.FindOne<WildlifeSpawner>();
             if (_spawner == null || _spawner.Spawned.Count == 0) return;
-            bool raining = Raining;
-            if (clock.Period == _applied && raining == _rainApplied) return;
-            _applied = clock.Period;
-            _rainApplied = raining;
-            foreach (var a in _spawner.Spawned) if (a != null) Apply(a, _applied, raining);
-        }
+            if (Time.time < _nextPoll) return;
+            _nextPoll = Time.time + 0.25f;
 
-        private enum Place { Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch } // same order as RhythmPlace
-
-        private static Place Where(string species, DayPeriod p)
-        {
-            switch (species)
+            var weather = Snapshot(clock);
+            int period = (int)clock.Period;
+            foreach (var a in _spawner.Spawned)
             {
-                case "white_tailed_deer":
-                    return p == DayPeriod.Dusk ? Place.Water : p == DayPeriod.Midday ? Place.Woodland : p == DayPeriod.Night ? Place.Woodland : Place.Meadow;
-                case "eastern_cottontail":
-                    return p == DayPeriod.Dawn || p == DayPeriod.Dusk ? Place.MeadowEdge : Place.Brush;
-                case "red_fox":
-                    return p == DayPeriod.Dawn || p == DayPeriod.Dusk ? Place.MeadowEdge : p == DayPeriod.Midday ? Place.Woodland : Place.Home;
-                case "red_tailed_hawk":
-                    return p == DayPeriod.Morning || p == DayPeriod.Midday || p == DayPeriod.GoldenHour ? Place.Ridge : Place.Perch;
-                default:
-                    return Place.Home;
+                if (a == null || a.Species == null) continue;
+                if (!_states.TryGetValue(a, out var st)) _states[a] = st = new AnimalState();
+                var species = a.Species;
+                var d = WeatherHabitRules.Decide(species.speciesId, species.rhythm, species.weatherHabits, period, weather);
+                int key = d.Key;
+                if (key == st.appliedKey) { st.pendingKey = int.MinValue; continue; }
+
+                // The first placement and a change of day period are immediate (as before 1.9). A change of weather alone is
+                // answered after a stable delay that differs per group and, a little, per animal.
+                bool immediate = st.appliedKey == int.MinValue || st.appliedPeriod != period;
+                if (!immediate)
+                {
+                    if (st.pendingKey != key) { st.pendingKey = key; st.due = Time.time + Delay(a); }
+                    if (Time.time < st.due) continue;
+                }
+                st.appliedKey = key;
+                st.appliedPeriod = period;
+                st.pendingKey = int.MinValue;
+                Apply(a, d);
             }
         }
 
-        /// <summary>Behaviour weighting for a species at a time of day (multiplies the species' own weights).</summary>
-        public static float Bias(string species, DayPeriod p, AnimalActivity a)
+        /// <summary>A stable delay in seconds: the same for a group (its territory and species), a little different for each animal.</summary>
+        private float Delay(AnimalAgent a)
         {
-            bool quiet = p == DayPeriod.Midday || p == DayPeriod.Night;
-            bool active = p == DayPeriod.Dawn || p == DayPeriod.Dusk || p == DayPeriod.GoldenHour;
-            switch (a)
-            {
-                case AnimalActivity.Resting: return quiet ? 4f : active ? 0.4f : 1f;
-                case AnimalActivity.Sitting: return quiet && species == "eastern_cottontail" ? 2.5f : 1f;
-                case AnimalActivity.Grazing:
-                case AnimalActivity.Foraging: return active ? 1.6f : quiet ? 0.6f : 1f;
-                case AnimalActivity.Perched: return species == "red_tailed_hawk" && !quiet ? 1.8f : 1f;
-                case AnimalActivity.Climbing: return species == "eastern_gray_squirrel" && !quiet ? 1.5f : quiet ? 0.5f : 1f;
-                default: return 1f;
-            }
-        }
-
-        private void Apply(AnimalAgent a, DayPeriod p, bool raining)
-        {
-            if (a.Species == null) return;
+            Vector3 o = a.OriginHome;
             string id = a.Species.speciesId;
-            // Rain (1.4): more resting and sitting tight, less foraging out in the open.
-            a.ActivityBias = raining
-                ? act => Bias(id, p, act) * (act == AnimalActivity.Resting || act == AnimalActivity.Sitting ? 2f : act == AnimalActivity.Grazing || act == AnimalActivity.Foraging ? 0.6f : 1f)
-                : (System.Func<AnimalActivity, float>)(act => Bias(id, p, act));
+            float group = WeatherHabitRules.Hash01(id, Mathf.FloorToInt(o.x / 12f), Mathf.FloorToInt(o.z / 12f));
+            float self = WeatherHabitRules.Hash01(id, Mathf.RoundToInt(o.x * 10f), Mathf.RoundToInt(o.z * 10f) + 7);
+            return Mathf.Max(0f, weatherStagger) * group + self * 3f;
+        }
+
+        private void Apply(AnimalAgent a, HabitDecision d)
+        {
+            string id = a.Species.speciesId;
+            a.ActivityBias = act => WeatherHabitRules.Bias(id, d, act);
             Vector3 origin = a.OriginHome;
             Vector3 target = origin;
-            // Data first (1.0): species with a DailyRhythm need no code here.
-            var rhythm = a.Species.rhythm;
-            Place place = rhythm != null && rhythm.enabled ? (Place)(int)rhythm.For((int)p) : Where(id, p);
-            // Rain sends animals of open ground into the woods and hawks to their perches; water birds and animals
-            // already in brush or at home stay put. Placement only: no new behaviour.
-            if (raining)
+            switch (d.place)
             {
-                if (place == Place.Meadow || place == Place.MeadowEdge) place = Place.Woodland;
-                else if (place == Place.Ridge) place = Place.Perch;
+                case RhythmPlace.Meadow: target = Nearest(origin, HotspotType.Meadow, null, false) ?? origin; break;
+                case RhythmPlace.MeadowEdge: target = Nearest(origin, HotspotType.Meadow, null, true) ?? origin; break;
+                case RhythmPlace.Brush: target = Nearest(origin, HotspotType.BrushPile, null, false) ?? origin; break;
+                case RhythmPlace.Perch: target = Nearest(origin, HotspotType.Perch, null, false) ?? origin; break;
+                case RhythmPlace.Woodland: target = Nearest(origin, HotspotType.None, ScheduleRole.Woodland, false) ?? origin; break;
+                case RhythmPlace.Water: target = Nearest(origin, HotspotType.None, ScheduleRole.Water, false) ?? origin; break;
+                case RhythmPlace.Ridge: target = Nearest(origin, HotspotType.None, ScheduleRole.Ridge, false, 450f) ?? origin; break;
+                case RhythmPlace.Roost: target = Roost(a.Species, origin); break;
             }
-            switch (place)
+            // Residents of a place mostly stay put; others commute. A small stable jitter keeps a group from stacking up.
+            float jx = (WeatherHabitRules.Hash01(id, Mathf.RoundToInt(origin.x * 10f), Mathf.RoundToInt(origin.z * 10f) + 1) * 2f - 1f) * 3f;
+            float jz = (WeatherHabitRules.Hash01(id, Mathf.RoundToInt(origin.x * 10f), Mathf.RoundToInt(origin.z * 10f) + 2) * 2f - 1f) * 3f;
+            a.SetHome(TerrainUtil.Ground(target + new Vector3(jx, 0f, jz)));
+        }
+
+        /// <summary>The place a species gathers at: one of its own residences (the one labelled in its habits, else the first); its own territory if it has none.</summary>
+        private static Vector3 Roost(SpeciesDefinition species, Vector3 fallback)
+        {
+            string label = species.weatherHabits != null ? species.weatherHabits.roostLabel : "";
+            Vector3? first = null;
+            foreach (var res in WildlifeResidence.All)
             {
-                case Place.Meadow: target = Nearest(origin, HotspotType.Meadow, null, false) ?? origin; break;
-                case Place.MeadowEdge: target = Nearest(origin, HotspotType.Meadow, null, true) ?? origin; break;
-                case Place.Brush: target = Nearest(origin, HotspotType.BrushPile, null, false) ?? origin; break;
-                case Place.Perch: target = Nearest(origin, HotspotType.Perch, null, false) ?? origin; break;
-                case Place.Woodland: target = Nearest(origin, HotspotType.None, ScheduleRole.Woodland, false) ?? origin; break;
-                case Place.Water: target = Nearest(origin, HotspotType.None, ScheduleRole.Water, false) ?? origin; break;
-                case Place.Ridge: target = Nearest(origin, HotspotType.None, ScheduleRole.Ridge, false, 450f) ?? origin; break;
+                if (res == null || res.species == null || System.Array.IndexOf(res.species, species.speciesId) < 0) continue;
+                if (!first.HasValue) first = res.transform.position;
+                if (!string.IsNullOrEmpty(label) && string.Equals(res.label, label, System.StringComparison.OrdinalIgnoreCase)) return res.transform.position;
             }
-            // Residents of a place mostly stay put; others commute. A small jitter keeps a group from stacking up.
-            a.SetHome(TerrainUtil.Ground(target + new Vector3(Random.Range(-3f, 3f), 0f, Random.Range(-3f, 3f))));
+            return first ?? fallback;
         }
 
         private Vector3? Nearest(Vector3 origin, HotspotType type, ScheduleRole? role, bool edge, float limit = -1f)

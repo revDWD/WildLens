@@ -42,7 +42,7 @@ namespace WildLens.EditorTools
             { "great_blue_heron", (new[] { "heron" }, new[] { "egret", "bittern", "ibis", "spoonbill", "pelican", "crane", "stork", "flamingo" }) },
             { "spotted_sandpiper", (new[] { "sandpiper" }, new[] { "killdeer", "plover", "dunlin", "snipe", "shorebird", "wader", "tern", "seagull", "gull" }) },
             { "northern_cardinal", (new[] { "cardinal", "redbird" }, new[] { "songbird", "finch", "sparrow", "robin", "oriole", "canary", "chickadee", "wren", "tit", "thrush", "warbler", "swallow", "bird" }) },
-            { "blue_jay", (new[] { "bluejay", "jay" }, new[] { "bluebird", "songbird", "finch", "sparrow", "robin", "chickadee", "tit", "wren", "thrush", "warbler", "swallow", "bird" }) },
+            { "blue_jay", (new[] { "bluejay", "jay" }, new[] { "songbird", "finch", "sparrow", "robin", "chickadee", "tit", "wren", "thrush", "warbler", "swallow", "bird" }) }, // 1.9: "bluebird" moved to the bluebird
             // The crow and the sparrow are species of their own now and both are "owned elsewhere"; a small sparrow tinted black reads as a
             // blackbird better than a crow shrunk to blackbird size, so sparrow ranks ahead of crow here.
             { "red_winged_blackbird", (new[] { "blackbird" }, new[] { "grackle", "starling", "sparrow", "songbird", "crow", "raven", "thrush", "bird" }) },
@@ -55,6 +55,11 @@ namespace WildLens.EditorTools
             { "american_goldfinch", (new[] { "goldfinch", "finch", "canary" }, new string[0]) },
             { "song_sparrow", (new[] { "sparrow" }, new[] { "wren" }) },
             { "american_black_bear", (new[] { "blackbear", "bear" }, new string[0]) }, // "bear" is a whole word: never "beard" or "bearing"
+            // 1.9: three more songbirds with no model of their own in the packs seen so far: a tinted Living Birds model stands in
+            // (the chickadee for the titmouse, the sparrow for the other two; "bluebird" used to be the blue jay's stand-in word).
+            { "eastern_bluebird", (new[] { "bluebird" }, new[] { "sparrow", "finch", "songbird", "bird" }) },
+            { "tufted_titmouse", (new[] { "titmouse" }, new[] { "chickadee", "tit=", "sparrow", "songbird", "bird" }) },
+            { "louisiana_waterthrush", (new[] { "waterthrush", "thrush" }, new[] { "sparrow", "wren", "songbird", "bird" }) },
         };
 
         /// <summary>Words that rule a model out for ONE species only ("polar" is not a black bear, "red panda" is still a raccoon stand-in). "=" means whole word.</summary>
@@ -275,6 +280,21 @@ namespace WildLens.EditorTools
             return list;
         }
 
+        /// <summary>
+        /// 1.9, the upgrade rule: is a candidate strictly better than the model a species was automatically built from? Compared on
+        /// (kind, not "owned" by another species, keyword rank) and nothing finer, so equal candidates never swap and a species only ever moves
+        /// up: the real animal over any stand-in; among stand-ins one that is nobody else's real animal over one that is; then the
+        /// closer keyword ("shiba" before "dog"). A current model that no longer matches by name is left alone (it cannot be judged).
+        /// </summary>
+        internal static bool IsStrictUpgrade(MatchKind curKind, bool curOwned, int curRank, MatchKind newKind, bool newOwned, int newRank)
+        {
+            if (curKind == MatchKind.None || newKind == MatchKind.None) return false;
+            if (newKind != curKind) return newKind > curKind;
+            if (newKind == MatchKind.Exact) return false; // two models that are both the animal itself: keep what is there
+            if (newOwned != curOwned) return !newOwned;
+            return newRank < curRank;
+        }
+
         // <pure-end>
 
         private class Candidate
@@ -375,9 +395,10 @@ namespace WildLens.EditorTools
         /// <summary>
         /// 1.6: the hands-off route. Every species without a model gets its best match (the animal itself, else a stand-in,
         /// tinted) at its default size. Run by every rebuild and after animal packs are imported. A species that already has a
-        /// model is never replaced by a different one, so hand-made choices in the window stick; since 1.8 a prefab that this
-        /// automatic route built with an older factory is rebuilt from the same model (see <see cref="RefreshOldBuilds"/>).
-        /// Returns how many were set up or refreshed.
+        /// model is never replaced by a hand-made choice (see manual builds); since 1.8 a prefab that this automatic route built
+        /// with an older factory is rebuilt from the same model (see <see cref="RefreshOldBuilds"/>); since 1.9 a model the automatic
+        /// route chose is moved to a strictly better one when it is imported (see <see cref="UpgradeBuilds"/>).
+        /// Returns how many were set up, refreshed or upgraded.
         /// </summary>
         public static int AutoSetUp(SpeciesDatabase db)
         {
@@ -387,16 +408,27 @@ namespace WildLens.EditorTools
             try { refreshed = RefreshOldBuilds(db, settings); }
             catch (System.Exception e) { Debug.LogWarning("[WildLens] Refreshing older wildlife models failed: " + e.Message); }
             settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath); // a record may just have created it
-            bool anyMissing = false;
+            bool anyMissing = false, anyUpgradable = false;
             foreach (var sp in db.species)
-                if (sp != null && sp.prefab == null && !IsKeptPlaceholder(settings, sp.speciesId)) { anyMissing = true; break; }
-            if (!anyMissing) return refreshed;
+            {
+                if (sp == null || IsKeptPlaceholder(settings, sp.speciesId)) continue;
+                if (sp.prefab == null) { anyMissing = true; break; }
+                var rec = AnimalPrefabFactory.FindRecord(settings, sp.speciesId);
+                if (rec != null && !rec.manual && !string.IsNullOrEmpty(rec.sourceGuid)) anyUpgradable = true;
+            }
+            if (!anyMissing && !anyUpgradable) return refreshed;
             var models = FindAnimatedModels();
             if (models.Count == 0) return refreshed;
+            var rows = BuildRows(db, models, settings);
+            int upgraded = 0;
+            try { upgraded = UpgradeBuilds(rows, settings); }
+            catch (System.Exception e) { Debug.LogWarning("[WildLens] Upgrading wildlife models failed: " + e.Message); }
+            refreshed += upgraded;
+            if (!anyMissing) return refreshed;
             var sb = new StringBuilder();
             var unmatched = new List<string>();
             int done = 0;
-            foreach (var row in BuildRows(db, models, settings))
+            foreach (var row in rows)
             {
                 if (row.species.prefab != null || row.kept) continue; // a model already assigned, or sent back to a placeholder by hand: never touched
                 if (row.Picked == null) { unmatched.Add(row.species.displayName); continue; }
@@ -418,6 +450,49 @@ namespace WildLens.EditorTools
                           "\nPress Play to see them. To change one, open WildLens ▸ Wildlife Pack Setup." +
                           "\nRun WildLens ▸ Asset Audit Report for the full list of what was found.");
             return done + refreshed;
+        }
+
+        /// <summary>
+        /// 1.9: a species whose model the automatic route chose is moved to a strictly better one when it appears (the real animal instead
+        /// of a stand-in, or a closer stand-in; see <see cref="IsStrictUpgrade"/>): the fox that was a tinted dog becomes the Fox model once one
+        /// is imported. Only when ALL hold: the species has a prefab and is not kept as a placeholder; its build record exists, is not
+        /// <c>manual</c> (nothing a person chose in a setup window is ever touched) and names a model that still exists and still matches the
+        /// species; and the best candidate beats it. The record then names the new model, so the next run finds nothing better and changes
+        /// nothing. Size is the default size, yaw 0, tint as for any new match. Returns how many were rebuilt.
+        /// </summary>
+        private static int UpgradeBuilds(List<Row> rows, SliceBuildSettings settings)
+        {
+            int count = 0;
+            var lines = new List<string>();
+            foreach (var row in rows)
+            {
+                var sp = row.species;
+                if (sp == null || sp.prefab == null || row.kept || row.candidates.Count == 0 || string.IsNullOrEmpty(sp.speciesId)) continue;
+                var rec = AnimalPrefabFactory.FindRecord(settings, sp.speciesId);
+                if (rec == null || rec.manual || string.IsNullOrEmpty(rec.sourceGuid)) continue;
+                string curPath = AssetDatabase.GUIDToAssetPath(rec.sourceGuid);
+                if (string.IsNullOrEmpty(curPath)) continue;
+                Candidate cur = null;
+                foreach (var c in row.candidates) if (c.path == curPath) { cur = c; break; }
+                var best = row.candidates[0];
+                if (cur == null || best == cur || best.path == curPath) continue;
+                if (!IsStrictUpgrade(cur.kind, cur.ownedElsewhere, cur.rank, best.kind, best.ownedElsewhere, best.rank)) continue;
+                try
+                {
+                    AnimalPrefabFactory.Create(sp, best.asset, AnimalPrefabFactory.Classify(best.clips), AnimalPrefabFactory.DefaultSize(sp), 0f,
+                        TintByDefault(sp.speciesId, best.kind), out _, manual: false);
+                    lines.Add($"{sp.displayName}: now uses {best.asset.name} (was {cur.asset.name})");
+                    count++;
+                }
+                catch (System.Exception e)
+                {
+                    lines.Add($"{sp.displayName}: could not move to {best.asset.name} ({e.Message}); it keeps {cur.asset.name}");
+                }
+            }
+            if (lines.Count > 0)
+                Debug.Log("[WildLens] Wildlife models upgraded (a better match was imported):\n  • " + string.Join("\n  • ", lines) +
+                          "\nOnly models WildLens chose itself are ever replaced; one you set by hand in a setup window stays.");
+            return count;
         }
 
         /// <summary>

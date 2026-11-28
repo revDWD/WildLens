@@ -11,6 +11,7 @@ namespace WildLens.EditorTools
     /// (<see cref="SpeciesDefaults.ApplyTuning"/>: awareness, behaviours, photo requirements, observation,
     /// habitat hotspots, group size). Visuals, prefabs and movement are left as you tuned them.
     /// Custom species keep their values; old alert/flee distances carry over via FormerlySerializedAs.
+    /// Data version 4 (1.9): an asset already at version 3 gets only the natural-events data (SpeciesDefaults.ApplyHabits), never the full tuning.
     /// </summary>
     [InitializeOnLoad]
     public static class SpeciesAssetMigrator
@@ -32,9 +33,17 @@ namespace WildLens.EditorTools
                 if (asset == null || asset.dataVersion >= SpeciesDefinition.CurrentDataVersion) continue;
 
                 var defaults = SpeciesDefaults.CreateById(asset.speciesId);
-                if (defaults != null)
+                if (defaults != null && asset.dataVersion >= 3)
                 {
-                    SpeciesDefaults.ApplyTuning(asset, defaults);
+                    // 1.9 (version 3 → 4): only the natural-events data arrives (weather habits, the hints in the field notes and, for the
+                    // few species that changed, the rhythm and colours). Awareness, behaviours, groups and anything tuned by hand stay as they are.
+                    SpeciesDefaults.ApplyHabits(asset, defaults);
+                    asset.dataVersion = SpeciesDefinition.CurrentDataVersion;
+                    Object.DestroyImmediate(defaults);
+                }
+                else if (defaults != null)
+                {
+                    SpeciesDefaults.ApplyTuning(asset, defaults); // also brings the habits
                     Object.DestroyImmediate(defaults);
                 }
                 else

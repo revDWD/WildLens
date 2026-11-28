@@ -32,6 +32,7 @@ namespace WildLens.Wildlife
         private static readonly HashSet<string> OwnStreamSpecies = new HashSet<string>
         {
             "american_crow", "american_robin", "black_capped_chickadee", "american_goldfinch", "song_sparrow", "american_black_bear",
+            "eastern_bluebird", "tufted_titmouse", "louisiana_waterthrush", // 1.9
         };
 
         private static bool HasOwnStream(SpeciesDefinition s) => s != null && OwnStreamSpecies.Contains(s.speciesId);
