@@ -20,7 +20,7 @@ namespace WildLens.Data
                 Kingfisher(), Sandpiper(),
                 // 1.5: the waterfall's resident.
                 Phoebe(),
-                // 1.7: six species a place was waiting for (trailhead and road, glades, blind meadow, creek brush, deep woods).
+                // 1.8: six species a place was waiting for (trailhead and road, glades, blind meadow, creek brush, deep woods).
                 // Appended, never reordered: ids and list order are permanent.
                 Crow(), Robin(), Chickadee(), Goldfinch(), SongSparrow(), BlackBear(),
             };
@@ -385,7 +385,7 @@ namespace WildLens.Data
             return s;
         }
 
-        // ------------------------------------------------------------------ 1.7 residents (a place first)
+        // ------------------------------------------------------------------ 1.8 residents (a place first)
 
         // 1.8: the songbird factory's 'length' is the BODY (breast to tail base, about 0.45 of the bird's total length, as for the
         // cardinal 0.1 / jay 0.12 / blackbird 0.1); PlaceholderAnimalBuilder scales the hawk body by length / 0.42. The six below

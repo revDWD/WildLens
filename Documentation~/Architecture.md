@@ -57,7 +57,7 @@ Scripts/
   UI/            HudController (owns views), ViewfinderView, PhotoPreviewView (prints, keeper), ShutterEffectView,
                  NoticeView, JournalUI, UIFactory
   Data/          SpeciesDefinition (all per-species tuning), SpeciesDefaults, SpeciesDatabase, AnimalActivity,
-                 NaturalistSubject + SubjectDefaults (macro subjects; fourteen since 1.7)
+                 NaturalistSubject + SubjectDefaults (macro subjects; fourteen since 1.7); twenty-four species since 1.8
   Debugging/     CameraDiagnostics (F3 overlay, F4 zoom self-test)
 Editor/
   WildLensSliceBuilder (pipeline), WildLensBuilderWindow, SliceBuildSettings, TrailBuilder, PropBuilder,
@@ -65,7 +65,8 @@ Editor/
   EcosystemBuilder: creek, pull-offs, storytelling, residences, anchors, mist; RoadBuilder: Reserve Road),
   FoliageCards (leaf clusters, conifer crowns),
   ArtLibrary (CC0 art import, prefabs, sky), GeneratedAssets, ProceduralMeshes, ComparisonCapture,
-  SpeciesAssetMigrator, AnimalModelSetup (bought model → species prefab),
+  SpeciesAssetMigrator, AnimalModelSetup (bought model → species prefab), AnimalPrefabFactory and WildlifePackSetup
+  (the shared model → prefab factory and the automatic set-up; 1.8 below),
   EnvironmentKit (free packs by ecological role), EnvironmentKitScanner (fills the kit from the project),
   KitPlacement (VegetationBuilder partial: places kit assets, adds colliders/features),
   FordBuilder (VegetationBuilder partial: the Creek Ford), SignKit (sign standard, pictograms, text measuring),
@@ -77,7 +78,7 @@ Documentation~/  Systems.md (systems and tuning), VisualRoadmap.md (assets, lice
                  ReserveExpansion.md (reserve design and next steps), WildlifeExpansion.md (species framework & roadmap),
                  EnvironmentMigration.md (environment audit, free assets, migration plan, before/after),
                  WildlifeAssetStrategy.md (animal model options and the style decision),
-                 WildlifeCampaign.md (1.7: audit, species, small life, bike and ecology plan)
+                 WildlifeCampaign.md (the pack audit, species, small life, bike and ecology plan; filled in from the real audit in 1.8)
 Tools~/          CompileCheck (compile the package without Unity)
 CONTRIBUTING.md  setup, build → playtest loop, release checklist
 ```
@@ -137,3 +138,23 @@ Key flows:
   `autoMacroFromPacks`) fills each empty `prefab` from the user's packs → `VegetationBuilder.BuildMacroSubjects` places the
   bundled plants as before, then `BuildSmallLife` (own seeded generators, habitat by habitat) → each instance carries
   `MacroSubject` (focus, hours and weather via `IsShowing`, `RecentlyRained`) and, if not `Still`, `MacroMotion`.
+
+**1.8 additions:**
+- **The model factory, from the real audit** (`Editor/AnimalPrefabFactory.cs`): `Create` → unpack the pack's prefab copy →
+  `StripPackComponents` → measure the posed model and scale it to `RealSize` (heron by height) → `ConvertMaterialsForPipeline`
+  (built-in shaders to URP copies) → `Tint` → save the prefab → `RecordBuild` (an `AnimalBuildRecord` in
+  `SliceBuildSettings.animalBuilds`). `BuildController` loops the clips (`LoopedCopy`). `FactoryVersion` (2) is the
+  version of this output: bump it when the output improves.
+- **Refresh and watcher** (`Editor/WildlifePackSetup.cs`): `AutoSetUp` first runs `RefreshOldBuilds` (rebuilds the factory's
+  own older prefabs from the same model), then fills species without a model; `keepPlaceholder` skips species sent back to
+  a placeholder. `WildlifePackImportWatcher` keeps "an import is pending" in `SessionState` so it survives script reloads.
+  Ranking, `Prefer`, `TintExact`, `SpeciesNever`, `NeverAnimals` and `Reserved` sit inside the `<pure-begin>` block.
+- **Six new species:** `SpeciesDefaults` (appended), residences from `EcosystemBuilder.BuildNewResidents` (trailhead, a
+  pull-off, the deep woods), `DiscoveryBuilder` (Fern Glade, Creek Alcove), `ReserveBuilder` (pond brush; grove and blind
+  site residents). `WildlifeSpawner.OwnStreamSpecies` gives them their own random streams.
+- **Small life:** `MacroPackSetup` matches by every folder above a model, picks the middle size, and fills
+  `NaturalistSubject.variants`; `MacroBuilder` picks a variant per instance, varies mushroom size, limits two per log and
+  converts pack materials through the factory's function.
+- **Journal:** `JournalUI` shows a 7-row window that follows the selection (W/S and the wheel).
+- **Asset Audit:** an Other static models section, child node names for vehicles, "by folder" marks, animation-only
+  files and rigs summarised rather than listed.

@@ -1,4 +1,4 @@
-# Wildlife asset strategy (1.6, updated 1.7)
+# Wildlife asset strategy (1.6, updated 1.8)
 
 **Direction (from the director, 1.6):** wildlife does **not** need to be photorealistic, and the animals don't all need
 to share a style or come from one pack. A colourful stylised bird can be a blue jay; a stylised owl can be a barred
@@ -12,7 +12,7 @@ photographic environment.
    ears, a fox's brush tail, an owl's round head, a heron's neck. If the outline is right, the style barely matters.
 2. **Animation.** A model that walks, grazes, looks up and flies sells life; a beautiful statue doesn't. Idle, walk,
    run, eat and look for mammals; perch, take-off, fly and land for birds.
-3. **Variety.** Eighteen species that each look like *something* is the goal; two perfect ones is not.
+3. **Variety.** Twenty-four species that each look like *something* is the goal; two perfect ones is not.
 4. **Consistency within a species.** Every deer in the reserve uses the same model. Styles may differ *between*
    species, never *within* one.
 5. **Realism**, last.
@@ -27,6 +27,34 @@ every model in your project by pack, which reserve species each can be (the real
 clips and which behaviours they cover, and any shader that needs Unity's material converter. It saves
 `WildLensAssetAudit.md` in the project folder and copies it to the clipboard (a short version when the full one is too long; the file always has everything): paste it into the chat. The 1.7 plan
 ([WildlifeCampaign.md](WildlifeCampaign.md)) is decided from that report, not from guesses about what a pack contains.
+
+## What the user's packs gave us (1.8, from the real audit)
+
+| Pack | What it gave |
+|---|---|
+| ithappy "Animals FREE" | deer (the real one), a chicken (the turkey's stand-in), a dog (the fox's, tinted); horse, tiger, kitty and penguin unused |
+| Dinopunch "Living Birds" | cardinal, blue jay, crow, robin, chickadee, goldfinch and sparrow (seven exact matches); the sparrow, tinted, also stands in for the blackbird, kingfisher and phoebe |
+| Blink stylised bear | the black bear (tinted black) |
+| SinuousShrooms | 11 static mushrooms for the macro lens |
+
+Eight species still have no model in any pack: cottontail, squirrel, heron, raccoon, owl, groundhog, opossum, sandpiper.
+The full pack-by-pack table is in [WildlifeCampaign.md](WildlifeCampaign.md) §1.
+
+What the packs taught (1.8): a pack's models are **not** ready to use as they come.
+- **Built-in shaders are pink in URP.** Living Birds and the bear use built-in shaders. The factory now makes a
+  **converted copy** of each such material (texture, colour, normal map, emission, metallic and smoothness, cut-out or
+  transparency and two-sided drawing kept) on a URP Lit shader, in `Assets/WildLens/Animals`. The pack's own materials are
+  never touched. Written blind: a screenshot decides.
+- **Pack scripts are removed** from the animal (the pack's own behaviours, colliders, audio, effects, lights).
+- **Real sizes.** The factory scales every model to the species' real size from a table (`AnimalPrefabFactory.RealSize`):
+  cardinal 22 cm, blue jay 28 cm, crow 45 cm, robin 25 cm, chickadee 13 cm, goldfinch 12 cm, song sparrow 15 cm, turkey
+  1.0 m, black bear 1.6 m, coyote 1.25 m and so on; the heron by its standing height (1.2 m). Birds are measured beak to
+  tail, mammals by their larger side. A model that looks wrong is one size field in **Wildlife Pack Setup**.
+- **Clips loop.** Pack clips mostly have Loop Time off; the factory loops copies inside the animal's controller.
+- **Clip names lie.** A bear's "jump" is its only walk; "fly-left" is not "fly"; a pecking clip is not an idle. The clip
+  choice prefers plain names and the earlier keyword of a role.
+- **Old models are refreshed.** Animals the automatic setup built before 1.8 are rebuilt once from the same model. A
+  species you set up by hand, or sent back to a placeholder, is left alone.
 
 ## Shipped with WildLens (1.6.1)
 
@@ -53,7 +81,7 @@ project**. It:
   | Species | Stand-ins it will accept (closest first) |
   |---|---|
   | Deer | roe, elk, reindeer, caribou, moose, antelope, gazelle, impala |
-  | Fox | shiba, fennec, jackal |
+  | Fox | shiba, fennec, jackal, dog (the last resort: the coyote takes a wolf first) |
   | Coyote | wolf, dingo, dhole, jackal, husky, shepherd, dog |
   | Squirrel | chipmunk |
   | Raccoon | badger, red panda, coati |
@@ -65,9 +93,15 @@ project**. It:
   | Spotted sandpiper | killdeer, plover, dunlin, snipe, shorebird, wader, tern, seagull, gull |
   | Cardinal | songbird, finch, sparrow, robin, oriole, canary, chickadee, wren, tit, thrush, warbler, swallow, bird (one model, tinted) |
   | Blue jay | bluebird, then the same songbirds (tinted) |
-  | Red-winged blackbird | grackle, starling, crow, raven, songbird, sparrow, thrush, bird (tinted) |
+  | Red-winged blackbird | grackle, starling, sparrow, songbird, crow, raven, thrush, bird (tinted) |
   | Kingfisher | songbird, sparrow, bird (tinted) |
   | Phoebe | sparrow, songbird, finch, wren, chickadee, bird (tinted) |
+  | American crow | none: crow or raven itself |
+  | American robin | none: robin itself |
+  | Chickadee | none: chickadee, or tit |
+  | American goldfinch | none: goldfinch, finch or canary |
+  | Song sparrow | wren (the sparrow itself is the exact match) |
+  | Black bear | none: bear itself (never polar, panda, teddy or koala; a model named black or dark first; always tinted black) |
   | Rabbit, owl | none: only the animal itself |
 
   The full tables, the ranking and the word rules are in [Systems.md](Systems.md) (1.7.0). **Reserved names:** woodpecker,
@@ -78,7 +112,8 @@ project**. It:
   model with the most recognised clips, then path order so the pick is the same on every machine), with a size, a yaw correction and **tint** (on by default for stand-ins);
 - **Set up ticked species** runs the same factory as Animal Model Setup for each row. It classifies clips by name,
   builds the Animator Controller, scales the model to the species' real size (birds by beak-to-tail length), puts its
-  feet on the ground and assigns the prefab.
+  feet on the ground and assigns the prefab. Since 1.8 it also converts built-in-shader materials for URP, removes the
+  pack's scripts and loops the clips (above).
 
 Tint copies the model's materials (the pack's own are never changed) and colours them by coverage: largest area →
 the species' primary colour, next → secondary, third → accent. This is how one songbird model becomes a red
@@ -96,8 +131,8 @@ Research was done from search results (most store and CC0 hosts can't be opened 
 | Source | Licence | What it gives the reserve | Notes |
 |---|---|---|---|
 | **Quaternius** animal packs ([itch.io](https://quaternius.itch.io/lowpoly-animated-animals), quaternius.com) | **CC0** | The "Ultimate Animated Animal Pack" is reported to include deer/stag, fox, wolf (coyote), husky; an older pack has wolf, eagle (hawk), dog, cat ([OpenGameArt](https://opengameart.org/content/animated-animales-low-poly)) | Low-poly, flat colour, good clips. CC0, so a future release *could* commit an opt-in copy |
-| **ithappy: Animals FREE** ([Asset Store](https://assetstore.unity.com/packages/3d/characters/animals/animals-free-260727)) | Asset Store EULA, free | Animated, cartoon-style; species list to confirm | Import locally, never commit |
-| **Dinopunch: Living Birds** ([Asset Store](https://assetstore.unity.com/packages/3d/characters/animals/birds/living-birds-15649)) | EULA, free | A variety of animated perching/flying birds (crows confirmed; songbirds likely) | Old (2018, Unity 4.5): materials may need the URP converter |
+| **ithappy: Animals FREE** ([Asset Store](https://assetstore.unity.com/packages/3d/characters/animals/animals-free-260727)) | Asset Store EULA, free | Deer, chicken, dog, horse, tiger, kitty, penguin (confirmed by the audit); idle, walk and run only | Import locally, never commit |
+| **Dinopunch: Living Birds** ([Asset Store](https://assetstore.unity.com/packages/3d/characters/animals/birds/living-birds-15649)) | EULA, free | Seven animated birds, confirmed by the audit: blue jay, cardinal, chickadee, crow, goldfinch, robin, sparrow (16 clips) | Old (2018, Unity 4.5): built-in shaders, and its own scripts; both handled automatically since 1.8 |
 | Quaternius / other CC0 bird packs | CC0 | Songbirds, owls | Search Poly Pizza and itch.io filtered to CC0 |
 | Smithsonian 3D (3d.si.edu) | CC0 | Insect scans for macro | Static: needs the reserved macro behaviours |
 
@@ -109,11 +144,12 @@ packs.
 
 ## Suggested order
 
-1. **Deer** (the most photographed animal), **fox**, **coyote** (wolf stand-in), **hawk** (eagle stand-in): one
-   Quaternius download covers most of them.
-2. **One songbird model**, tinted into five species. The biggest gain in variety for the least work.
-3. **Owl, heron, turkey**: the reserve's distinctive silhouettes; any stylised version reads.
-4. Rabbit, squirrel, raccoon, groundhog, opossum, sandpiper, as packs turn up.
+Done by the user's packs (1.8): deer, turkey, fox (tinted dog), the songbirds, the bear; coyote and hawk from the shipped
+wolf and eagle. What is left, most photographed first:
+
+1. **Cottontail and squirrel**, then **raccoon and groundhog**: a stylised forest-animals pack usually has several.
+2. **Owl and heron**: the reserve's distinctive silhouettes; any stylised version reads.
+3. **Opossum and sandpiper**, as packs turn up. Check each listing for its licence and its contents before importing.
 
 After each step, playtest: photograph the animal at 4× and 16× at dawn and golden hour, and send screenshots. Note
 any that are the wrong size (fix with the row's size field) or face backwards (yaw 180).

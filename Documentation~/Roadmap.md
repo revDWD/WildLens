@@ -6,28 +6,28 @@ the place feel more real?* and *why would a photographer come here?*
 
 ## Next, in order
 
-1. **Run the Asset Audit Report and paste it** ([WildlifeCampaign.md](WildlifeCampaign.md)). **WildLens ▸ Asset Audit
-   Report** lists what is really in the imported packs: which animals, which reserve species they can be, clips, shader
-   problems, small-life models and vehicles. Every animal, small-life and bike decision after this is made from it. The
-   tool has never run in Unity: expect fixes on first use.
-2. **Playtest 1.6 and 1.7.** The Reserve Board (all three faces, at dawn and dusk), the bike bay, signs and
-   interpretive panels read from the trail, the ford's log seat, Willow Falls after the day-3 shower, the hidden places,
-   and macro on a dandelion and the periwinkle (and on whatever small life the audit let in).
-3. **Animals from free packs** ([WildlifeAssetStrategy.md](WildlifeAssetStrategy.md), order in
-   [WildlifeCampaign.md](WildlifeCampaign.md) §3). The biggest visual gain available, and an afternoon rather than a
-   purchase. With the packs imported, the automatic setup does most of it: read the Console line (which species got a
-   model, which did not), photograph each species at 4× and 16×, and fix sizes and yaws in **Wildlife Pack Setup**. Then
-   fill gaps one species at a time.
+1. **Playtest 1.8 and paste a fresh Asset Audit Report** ([WildlifeCampaign.md](WildlifeCampaign.md)). The 1.7 audit was the
+   first report from inside Unity; 1.8 acted on it and **has not run in Unity**. Update, rebuild, read the Console lines
+   (`Wildlife models`, including "refreshed for 1.8"), photograph each pack animal at 4× and 16× (deer, the chicken-turkey,
+   cardinal, blue jay, crow, chickadee, goldfinch, robin, the bear at dawn): pink, frozen, wrong size or backwards? Look
+   at the mushrooms on the grove's logs with the macro lens and scroll the journal list. Then run the audit again: it now
+   lists the motorcycle pack's models by name.
+2. **Fix sizes and facing from the screenshots**: one size field and one yaw field per species in **Wildlife Pack Setup**.
+3. **Models for the eight placeholder species** (cottontail, squirrel, heron, raccoon, owl, groundhog, opossum,
+   sandpiper; [WildlifeAssetStrategy.md](WildlifeAssetStrategy.md), order in [WildlifeCampaign.md](WildlifeCampaign.md)
+   §3). The biggest visual gain left, and an afternoon rather than a purchase. Import, let the automatic setup run, read
+   the Console, photograph each at 4× and 16×. Then judge the motorcycle pack.
 4. **Prove the Environment Kit in Unity** ([EnvironmentMigration.md](EnvironmentMigration.md) §5). Import Unity's free
    *Terrain URP Demo Scene* / *Terrain Sample Asset Pack*, scan, rebuild, send comparison captures; tune `treeScale`,
    grass densities and role assignments. Trees are the second-biggest visual weakness.
 5. **Macro, round two: the rest** ([Systems.md](Systems.md), Macro). The first step is done in 1.7: twelve small-life
-   subjects, found in your packs and placed in their habitats, with `Flits`, `Perches`, `Hops` and `Glows` working.
+   subjects, found in your packs and placed in their habitats, with `Flits`, `Perches`, `Hops` and `Glows` working. The
+   user's packs have given mushrooms only (1.8); no butterflies, frogs or insects exist in them yet.
    What remains: a fallback for subjects with no model (CC0 small-life scans and models, Smithsonian 3D and Poly Haven
    first), real perches for dragonflies (a stem or reed instead of a point in the air), a frog chorus at dusk (with item 9), the
    *Next* plants and fungi in [WildlifeCampaign.md](WildlifeCampaign.md) §4 (milkweed, cattails, trillium, goldenrod,
    bracket fungus, a fairy ring), and a check that the movement never breaks "standing still lets it settle".
-6. **Playtest-driven tuning of 1.0–1.7.** Road routing and grading, ride comfort, each destination at each time of
+6. **Playtest-driven tuning of 1.0–1.8.** Road routing and grading, ride comfort, each destination at each time of
    day, schedules being learnable, animals' awareness with the new models (silhouettes change what is "visible").
 7. **Props worth looking at** ([VisualRoadmap.md](VisualRoadmap.md)). Bevelled posts, a shingled roof for the Reserve
    Board, a timber blind; lit sign lettering (TextMeshPro with a CC0 font, if one fits).
@@ -35,7 +35,7 @@ the place feel more real?* and *why would a photographer come here?*
 9. **Night and wet weather.** A CC0 night sky (Poly Haven), wet surfaces and puddles in rain, rain that stops at roofs,
    a frog chorus at dusk.
 10. **Expansion species, one at a time** ([WildlifeExpansion.md](WildlifeExpansion.md); candidates and places in
-   [WildlifeCampaign.md](WildlifeCampaign.md) §2). Wood duck, painted turtle, pileated woodpecker, each when the audit
+   [WildlifeCampaign.md](WildlifeCampaign.md) §2). Chipmunk, goose, duck, turtle, woodpecker, vulture, skunk, dove, bat, each when the audit
    shows a usable model and the place it would really live exists. Free packs make the model the easy part;
    the niche still comes first.
 11. **New places with a reason** ([ReserveExpansion.md](ReserveExpansion.md)). A wetland boardwalk with a second blind

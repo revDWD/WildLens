@@ -2,7 +2,7 @@
 
 A quiet, first-person wildlife photography game set in a nature reserve. Walk the Meadow Loop or ride the trail bike
 along the Reserve Road to a ridge overlook, a reedy pond, an old-growth grove and a meadow blind; learn where and
-*when* the deer, foxes, hawks, cottontails and squirrels are; approach without spooking them; and take photographs
+*when* the deer, foxes, hawks, crows, chickadees, a shy black bear and the rest of its twenty-four species are; approach without spooking them; and take photographs
 worth keeping. The reserve changes from dawn mist to golden hour to dusk, and its wildlife keeps hours.
 
 **New here?** Players: read *Install & run* and *Controls* below. Contributors (people or AI agents): start with
@@ -22,7 +22,7 @@ worth keeping. The reserve changes from dawn mist to golden hour to dusk, and it
 | [`Documentation~/VisualRoadmap.md`](Documentation~/VisualRoadmap.md) | Art sources, licences, visual weaknesses, Unity 6 notes |
 | [`Documentation~/EnvironmentMigration.md`](Documentation~/EnvironmentMigration.md) | Environment audit, free asset list, migration plan, before/after |
 | [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md) | Animal models: stylised and mixed packs welcome, free sources, Wildlife Pack Setup |
-| [`Documentation~/WildlifeCampaign.md`](Documentation~/WildlifeCampaign.md) | The 1.7 plan: auditing your packs, which species to keep, replace and add, small life, the bike, where each new animal belongs |
+| [`Documentation~/WildlifeCampaign.md`](Documentation~/WildlifeCampaign.md) | The plan, filled in from a real pack audit (1.8): which species to keep, replace and add, small life, the bike, where each animal belongs |
 | [`Documentation~/TrailBike.md`](Documentation~/TrailBike.md) | The bike model, free models reviewed, dropping one in, next improvements |
 
 ## Install & run
@@ -112,7 +112,8 @@ database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials,
   [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md).
 - Not sure what your packs contain? (1.7) **WildLens ▸ Asset Audit Report** lists every model by pack, which reserve
   species it can be, its animations and any shader problems, saves `WildLensAssetAudit.md` in your project folder and
-  copies it to the clipboard. It changes nothing.
+  copies it to the clipboard. It changes nothing. (1.8) Pack models set themselves up with real sizes, looping clips and
+  URP-ready material copies; the journal list scrolls.
 
 ### Small life for the macro lens (1.7)
 Press **M** with the camera raised to photograph small subjects at your feet; the journal keeps a field notebook. Two

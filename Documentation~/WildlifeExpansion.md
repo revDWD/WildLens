@@ -2,9 +2,10 @@
 
 WildLens 1.0 ships five species and a framework for more. A new species is **data, not code**: a Species Definition
 asset (behaviour, senses, habitat, daily rhythm, generic placeholder body), optionally replaced by a purchased model.
-This document is the plan for growing the reserve's ecosystem without growing its mechanics. The 1.7 candidate list
-(crow, chipmunk, goose, duck, turtle, woodpecker, vulture, skunk, dove and robin, bat, bear), each with its place and hours,
-is in [WildlifeCampaign.md](WildlifeCampaign.md) §2.
+This document is the plan for growing the reserve's ecosystem without growing its mechanics. The candidate list
+still waiting for a model (chipmunk, goose, duck, turtle, woodpecker, vulture, skunk, dove, bat), each with its place and
+hours, is in [WildlifeCampaign.md](WildlifeCampaign.md) §2. Crow, robin, chickadee, goldfinch, song sparrow and black
+bear were added in 1.8 (below).
 
 ## Principles
 1. **Every species earns its place in the reserve's story.** It should live somewhere specific and be active at a
@@ -44,13 +45,18 @@ their pattern.
 6. Rhythm: enable `Daily Rhythm` and choose a place per period.
 7. Photography: `photoSizeScale` (small animals < 1), `clearPhotoDistance`.
 8. Add it to `SpeciesDatabase` (the journal picks it up automatically), rebuild, play a whole day.
-9. Later: import a free pack and run Wildlife Pack Setup (or Animal Model Setup for one model). **A species also needs
+9. **A real size** in `AnimalPrefabFactory.RealSize` (metres: birds beak to tail, mammals nose to tail or height; give a
+   heron-like bird `MeasuredByHeight`). Without it a model is scaled from the placeholder's proportions, which is how
+   every 1.7 songbird came out too big.
+10. **Add its id to `WildlifeSpawner.OwnStreamSpecies`** if it is appended after 1.7, so it draws from its own random
+    stream and moves no animal that was already there. Append to `SpeciesDefaults.CreateAll()`; never reorder.
+11. Later: import a free pack and run Wildlife Pack Setup (or Animal Model Setup for one model). **A species also needs
    an entry in `WildlifePackSetup.Names`** (its exact names and stand-ins) or no pack model will ever be matched to it;
    check `Reserved` too (woodpecker, hummingbird, duck, mallard, goose and swan are held back for their own species).
 
 ## Planned species (roadmap)
 
-Ordered by how much each adds to the reserve's story for the effort. All fit the existing brains.
+Ordered by how much each adds to the reserve's story for the effort. All fit the existing brains. (This was the 1.1 plan.)
 
 | # | Species | Body | Habitat & hotspots | Rhythm | Story it adds | Notes |
 |---|---|---|---|---|---|---|
@@ -77,6 +83,22 @@ woods) had no wildlife of its own:
 grove, kingfisher → riffle), not by a count. Data-only bodies kept the cost to an afternoon each. Residents that
 stay home (`RhythmPlace.Home`) make a place reliably "about" its animal; species that commute make the clock matter.
 Use both deliberately.
+
+**1.8 added six more, each because a place was waiting for it:**
+
+| Species | Where | Why it earns its place |
+|---|---|---|
+| **American crow** | the trailhead (between the Reserve Board and the bike bay) and one road pull-off | The trailhead and the road had no wildlife; the first life you see |
+| **American robin** | trailhead grass, the Meadow Loop's edge | A common bird close to the start |
+| **Black-capped chickadee** | Fern Glade (hidden), Old-Growth Grove | Gives a hidden place a resident; the tamest animal in the reserve |
+| **American goldfinch** | the blind's meadow | Colour in the wildflowers in front of the hide |
+| **Song sparrow** | pond brush, Creek Alcove, loop brush piles | A small voice at the water's edge |
+| **American black bear** | one, deep woods; dawn at the woodland edge, dusk at the creek | The director's decision: one individual, the widest awareness, always moves away, no failure state |
+
+**What worked (1.8):** every one was added for a place first, and the pack model was found afterwards. Residences made from
+existing site data (no random draws) moved nothing else in a rebuild. **What didn't:** the first placeholder bodies for
+the songbirds were sized from proportions and came out far too big, and a pack model scaled from the same numbers was
+0.67 m long. Give every species its real size.
 
 **Next candidates, only with a place:** wood duck and painted turtle need a marsh with loafing logs (the wetland
 boardwalk); a green frog chorus needs evening audio, not a body; a pileated woodpecker needs big dead trees in the

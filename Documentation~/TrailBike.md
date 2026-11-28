@@ -49,3 +49,6 @@ wheel parts it has, whether it has a separate steering part (handlebars or fork)
 already uses. The acceptance criteria for a replacement (small, upright, rack, separate wheel and fork objects; leave
 sport bikes and fused meshes; a utility vehicle is scenery, never the bike) are in
 [WildlifeCampaign.md](WildlifeCampaign.md) §5.
+
+**A motorcycle pack is now imported in the director's project** (18 static models). It has not been judged: the 1.8 audit
+lists its models by name, and the criteria above and in WildlifeCampaign.md §5 then decide whether any is usable.

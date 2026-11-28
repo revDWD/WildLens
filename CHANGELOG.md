@@ -1,5 +1,103 @@
 # Changelog
 
+## [1.8.0] New Neighbours
+Made from your 1.7 Asset Audit, the first report from inside Unity. It proved the automatic setup works (the deer from
+ithappy, the chicken as the turkey, the shipped wolf as the coyote, the shipped eagle as the hawk) and showed what was
+wrong with everything else. **Nothing below has run in Unity yet** apart from what the audit showed.
+### Six new species, each for a place
+- **American crow**: the trailhead (between the Reserve Board and the bike bay) and one road pull-off; a group of 2 to 3
+  at each. Bold: it notices you at 26 m, goes alert at 15 m and flies at 7 m.
+- **American robin**: the trailhead grass and the Meadow Loop's edge; a pair. Meadow at dawn, morning and golden hour,
+  woodland at midday, brush at dusk.
+- **Black-capped chickadee**: the Fern Glade (a hidden place) and the Old-Growth Grove; 2 to 3 together. **The tamest
+  animal in the reserve**: it notices you at 10 m, goes alert at 5.5 m and flies only at 2.5 m, and waits 8 s before
+  deciding. Stand still and it comes close.
+- **American goldfinch**: the Wildflower Meadow Blind's meadow; 3 to 4 together. Brush at dawn and dusk, meadow by day.
+- **Song sparrow**: the Cattail Pond's brush, the Creek Alcove and two spots among the loop's brush piles. Single birds.
+- **American black bear**: **one**, in the deep woods (the woodland spot farthest from the trailhead). Meadow edge at dawn,
+  woodland in the morning and golden hour, rests at midday, the creek at dusk. The widest berth in the reserve: it
+  notices you at 75 m, goes alert at 50 m and moves off at 28 m, and when it does it only ever walks away 45 to 75 m.
+  There is no chase and no failure: keep still and far back and it settles. Placed from the existing site data with no
+  random draws, so nothing else in a rebuilt reserve moves.
+- Twenty-four species in all. The new ones draw from their own random streams, so adding them moves no animal that was
+  already there.
+### Pack animals that render and move properly
+- **Built-in-shader models are no longer pink in URP.** The two bird and bear packs use built-in shaders. The factory now
+  makes a **converted copy** of each such material (texture, colour, normal map, emission, metallic and smoothness, alpha
+  cut-out or transparency and two-sided drawing carried over). Your packs' own materials are never touched. Written blind:
+  the audit could name the shaders but not show the result.
+- **Pack scripts are removed from the animals** (their own scripts, colliders, rigid bodies, audio, navigation, effects,
+  lights and cameras), so nothing in a pack fights WildLens's own movement.
+- **Real sizes.** A table of real animal sizes (cardinal 22 cm, blue jay 28 cm, crow 45 cm, robin 25 cm, chickadee 13 cm,
+  goldfinch 12 cm, song sparrow 15 cm, barred owl 50 cm, turkey 1.0 m, black bear 1.6 m, coyote 1.25 m...) replaces
+  sizes worked out from proportions. The heron is measured by its standing height (1.2 m). The 1.7 chicken-as-turkey was
+  about 1.45 m; the five songbirds were 2 to 5 times too big.
+- **Animations loop.** Pack clips usually have Loop Time off, so a walk played once and froze. Every clip that is not
+  already looping now gets a looped copy inside the animal's controller (landing and take-off stay one-shot). The pack's
+  clips are not touched.
+- **Better clips chosen.** In a clip name, an earlier keyword of a role beats a later one (walk before jump: the bear's
+  jump is no longer its walk). Clips with left, right, back, turn, combat or alternative in the name lose to plain ones
+  (fly-straight over fly-left). With no idle clip a bird now stands in its "look" clip (it used to take the first clip in
+  the file, which could be pecking for ever). Singing and calling are only ever the last choice for "looking around".
+  Hit, stun, dodge, block, taunt, spawn and similar clips are never used.
+- **Better models chosen.** A model called "controller", "manager", "spawner", "system" or "demo" is not an animal.
+  Animation-only files and rigs are left out of the audit's animal tables.
+- **Black bear**: a model named black or dark is preferred over the brown ones, and it is tinted black even though it is
+  the real thing. A near-black tint is lifted slightly so a textured model does not turn into a black hole.
+- **Old auto-built models are refreshed once.** On the first rebuild after updating, every species the automatic setup
+  built with the old factory is rebuilt from the same model with the new sizes, loops and materials. A model you set by
+  hand in a setup window is never rebuilt, and the **Placeholder** button now sticks (the species stays a placeholder).
+- **The import watcher survives script reloads.** Importing a pack that carries scripts reloads Unity's scripts, which
+  threw the waiting set-up away (so the cardinal and blue jay were missed). It is now remembered across the reload.
+### Small life
+- **Mushrooms from SinuousShrooms.** Up to **six models** of one subject are used (the best match and up to five
+  variants). A folder name anywhere above a model can now name it (as a stand-in, at the lowest rank), so
+  `SinuousShrooms/...` counts. Among equally good models the plainest names win and the middle size is picked, not the
+  smallest scrap or the largest. Mushroom count is 8 (from 5), each 0.8 to 1.6 times its size, **at most 2 on one log or
+  stump**; the rest go to the woodland floor.
+- Pack materials for small life are converted for URP the same way (one set of copies per model, in
+  `Assets/WildLens/Generated/SmallLife/Materials`).
+- The audit and the macro matching ignore grounds, rocks, spheres, cubes, leaves, branches, pebbles, stones and demo
+  scenes beside a pack's models ("Mushroom_On_Stump" is still a mushroom).
+### Journal
+- **The species list scrolls.** Seven rows show at once and the window follows the selection, with "more" hints above and
+  below. W/S and the mouse wheel both move it (one species per 0.12 s, so a free-spinning wheel is not a blur).
+### Asset Audit
+- **Other static models** section: every model nothing else recognised, by pack and name (30 per pack, 150 in all), so
+  the **motorcycle pack's 18 models** can be read by name. Vehicle rows list up to 12 child part names and say "by
+  folder" when only a folder named them.
+- Animation-only files are one line per folder. Rigs and demos are left out. Cat, kitty and penguin ("pinguin") are named
+  as not-Willow-Creek animals; a bear that is not a black bear is no reserve species.
+- The audit now uses the same shader test as the converter, so the report and the fix agree.
+### Documentation
+- `WildlifeCampaign.md` is filled in from your audit (the real pack inventory, the 24 species and their models).
+- Environment version 20 (**rebuild the slice**).
+### What to do
+1. Update the package in Package Manager (wait for Unity to finish compiling).
+2. **Rebuild** (WildLens ▸ Vertical Slice Builder ▸ Rebuild Slice In Open Scene). The first rebuild refreshes your
+   existing pack animals and sets up the new species.
+3. Run **WildLens ▸ Asset Audit Report** again and **paste it into the chat** (it now names the motorcycle models).
+4. Press Play and take screenshots (below).
+### What to look at and screenshot next
+- **The Console lines** that start `[WildLens] Wildlife models`: the "refreshed for 1.8" line (which animals were rebuilt),
+  and the "now use animal models from your packs" line with the species it lists and the "No match yet" list. Paste both.
+- **Each pack animal at 4× and 16×**: the deer, the chicken-turkey, the cardinal, the blue jay, a crow at the trailhead,
+  chickadees at the Fern Glade or the grove, goldfinches near the blind, a robin on the trailhead grass, and the bear at
+  dawn at the woodland edge. Look for **pink, frozen, the wrong size or facing backwards**; send a screenshot of any.
+  A wrong size or facing is one field each in **Wildlife Pack Setup**.
+- **Mushrooms on the grove's logs** with the macro lens (M).
+- **The journal**: scroll the species list with W/S and the wheel.
+### Not done, honestly
+- **Nothing here has run in Unity.** The URP conversion of the two packs' real shaders was written without seeing the
+  result. Sizes and facing of every model need a screenshot, and pack animals may need a yaw.
+- **Eight species are still placeholder bodies** because no imported pack has them: cottontail, squirrel, heron, raccoon,
+  owl, groundhog, opossum and sandpiper.
+- The red fox is the pack's dog, tinted: a stand-in. Red-winged blackbird, kingfisher and phoebe share the Living Birds
+  sparrow, tinted.
+- No butterflies, frogs or insects were found in your packs, so only the mushrooms and the two bundled plants are small
+  life. There is no fallback model.
+- The motorcycle pack is still unjudged. Horse, tiger, kitty and penguin are not used (not Willow Creek animals).
+
 ## [1.7.0] Field Audit & Small Life
 ### Find out what is in your packs
 - **WildLens ▸ Asset Audit Report** (also a button in the builder window). One click lists every model in your project

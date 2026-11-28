@@ -954,7 +954,7 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>
-        /// 1.7: the places that were waiting for a resident. Positions come only from existing site data (no random draws, so
+        /// 1.8: the places that were waiting for a resident. Positions come only from existing site data (no random draws, so
         /// nothing else in a build moves): crows and robins at the trailhead, a crow group at one road pull-off, and one
         /// black bear in the woodland farthest from the trailhead. (Chickadees, goldfinches and sparrows are placed where
         /// their places are built: grove, blind, pond, Fern Glade and Creek Alcove.)

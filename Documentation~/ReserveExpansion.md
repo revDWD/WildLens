@@ -27,8 +27,8 @@ The builder reads the terrain and chooses sites for what the land offers (`Edito
 | – | **Meadow Loop** (existing) | gentlest ground | the intimate core: meadow, forest edge, viewpoints | all five |
 | 1–4 | **Ridge Overlook** | highest prominent ground (a hill is raised if the land is flat) | the widest view in the reserve; a deck, bench, perch snag | red-tailed hawk |
 | | **Cattail Pond** | lowest flat basin (dug if needed) | open water, reeds and cattails, a jetty | white-tailed deer |
-| | **Old-Growth Grove** | densest woodland | three giant trees around a quiet clearing, a bench | squirrels, red fox |
-| | **Wildflower Meadow Blind** | most open flat ground | a meadow with flowers and a wooden hide; inside it you're concealed | deer, cottontails |
+| | **Old-Growth Grove** | densest woodland | three giant trees around a quiet clearing, a bench | squirrels, red fox, barred owl, blue jay, chickadees (1.8) |
+| | **Wildflower Meadow Blind** | most open flat ground | a meadow with flowers and a wooden hide; inside it you're concealed | deer, cottontails, cardinal, turkey, goldfinches (1.8) |
 
 * Destinations are spread around the compass (no two within 60° of bearing), 1.5× the loop radius or more from
   its centre, and up to `reserveReach` (380 m) away. Numbers run nearest-first.
@@ -42,6 +42,10 @@ The builder reads the terrain and chooses sites for what the land offers (`Edito
 * The **trailhead kiosk** board reads the live game: version, features, recent changes, species and journal
   progress, trails, viewpoints, destinations with distances, and a heads-up topographic map.
 * The **trail bike** is parked at the trailhead.
+* **Residents added in 1.8 (not a destination, but a place):** crows and robins at the trailhead, a crow group at one road
+  pull-off, song sparrows in the Cattail Pond's brush and the Creek Alcove, chickadees in the Fern Glade, and one black bear
+  in the deep woods (the woodland farthest from the trailhead). The full list per place is in
+  [WildlifeCampaign.md](WildlifeCampaign.md) §6.
 
 ## 0.8.0 Ecosystem Pass (implemented)
 

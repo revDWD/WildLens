@@ -192,6 +192,157 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## New neighbours, real sizes and pack models (1.8.0)
+
+From the user's 1.7 Asset Audit. Nothing here has run in Unity beyond what that audit showed (the automatic setup ran;
+deer, turkey, coyote and hawk models were in use). It supersedes the 1.7.0 and 1.6.0 notes below where they differ.
+
+* **Real sizes** (`AnimalPrefabFactory.RealSize`, read by `DefaultSize`). The size a model is scaled to is a real
+  measurement, not worked out from the placeholder's body plan (that gave every songbird 0.67 m). Birds: beak to tail,
+  measured along the model's +Z. Mammals: the larger of nose-to-tail and height. The heron is measured by its standing
+  **height** (`MeasuredByHeight`). The unlisted five originals and the hawk keep their older constants (deer 1.9 m, fox 1.0,
+  rabbit 0.42, squirrel 0.45, hawk 0.55); anything else falls back to the body plan.
+
+  | Species | Size (m) | Species | Size (m) |
+  |---|---|---|---|
+  | Northern cardinal | 0.22 | Barred owl | 0.50 |
+  | Blue jay | 0.28 | Wild turkey | 1.0 |
+  | Red-winged blackbird | 0.21 | Great blue heron (height) | 1.2 |
+  | Belted kingfisher | 0.32 | Spotted sandpiper | 0.19 |
+  | Eastern phoebe | 0.17 | American black bear | 1.6 |
+  | American crow | 0.45 | Coyote | 1.25 |
+  | American robin | 0.25 | Raccoon | 0.80 |
+  | Black-capped chickadee | 0.13 | Virginia opossum | 0.75 |
+  | American goldfinch | 0.12 | Groundhog | 0.60 |
+  | Song sparrow | 0.15 | | |
+
+  The placeholder bodies of the six new species were also too big (their `length` was the whole bird, but the songbird
+  builder wants the body, about 0.45 of it): fixed in `SpeciesDefaults`.
+* **Looping clips** (`LoopedCopy`). Pack clips usually have Loop Time off. Every clip that is not already looping gets a
+  looped copy stored inside the animal's Animator Controller (named "clip (looped)"); landing and take-off stay as they
+  are; the pack's clips and import settings are untouched. One copy per clip, however many states use it.
+* **URP material conversion** (`ConvertMaterialsForPipeline`; only when URP is the active pipeline, else nothing changes).
+  Any material whose shader fails `BuiltinShaderIssue` (Standard, Legacy Shaders/*, Mobile/*, Nature/*, Autodesk
+  Interactive, or a missing or error shader; built-in Unlit is flagged as "flat") is replaced by a **copy** on
+  Universal Render Pipeline/Lit (Simple Lit if Lit is missing), in `Assets/WildLens/Animals`, named
+  `{speciesId}_{nn}_{material}_URP.mat`, one per source material. Carried over: the main texture (first of `_MainTex`,
+  `_BaseMap`, `_BaseColorMap`, `_DiffuseMap`, `_Diffuse`, `_AlbedoTex`, `_Albedo`) with its tiling and offset, the colour
+  (`_Color`, `_BaseColor`, `_MainColor`, `_TintColor`, `_DiffuseColor`), the normal map (`_BumpMap`, `_NormalMap`,
+  `_NormalTex`, `_Normal`), emission, metallic (0 when the source has none), smoothness (`_Glossiness` or `_Smoothness`,
+  else 0.1), alpha clip (shader name "Cutout", `_Mode` 1, or the keyword) and transparency (name "Transparent"/"Fade",
+  `_Mode` 2 to 3), and two-sided drawing (cutout, "Double", "TwoSided" or "2Sided" shaders). The pack's own materials
+  are never edited. Copies the tint then replaces are deleted again (this species' own only). The Console line says how
+  many were converted. Small life uses the same function (below).
+* **Component stripping** (`StripPackComponents`, on an unpacked copy of the model, never the pack's asset). Removed:
+  every MonoBehaviour that is not in a `WildLens` namespace (up to three passes, since one may require another; missing
+  scripts too), then joints, colliders, rigid bodies, audio sources, and by type name NavMeshAgent, NavMeshObstacle,
+  ParticleSystemRenderer, ParticleSystem, Light, AudioListener, FlareLayer and Camera. The Animator, renderers and bones
+  stay. WildLens adds its own collider, awareness and body at spawn.
+* **Clip choice**, in order (`ScoreName`, lower is better): (1) fewer disfavoured words (left, right, back, backward,
+  backwards, reverse, strafe, turn, combat, battle, aggressive, angry, rare, alt, variant; at most 9 count);
+  (2) an earlier keyword of the role in its list (walk before hop before jump; "Bear_WalkForward" beats "Bear_Jump");
+  (3) fewer words, a straight-ahead word (forward, straight, fwd) counting as one fewer; a head-down Idle adds 100.
+  **Keyword changes:** Groom gained ruffle; Look gained worried, sing, call, chirp, tweet and song at the END of its list
+  (singing is the last choice for looking around). **Ignored** (never mapped, in addition to the 1.7 list) stun,
+  stunned, buff, gethit, knockback, dodge, block, taunt, spawn, despawn. With no Idle clip the animal uses its **Look**
+  clip, else the first clip that is not ignored (before: the first clip in the file, which could be pecking). Pecking
+  itself stays Eat.
+* **Ranking models for a species** (`RankFor`), in order: the real animal before a stand-in; a model that is another
+  species' real animal after one that is not ("owned"); the keyword nearer the front of the list; more recognised clips;
+  the `Prefer` words (black bear: "black", then "dark", in the model name, then the folder); a high-quality "HQ" name; a
+  prefab before a raw model; then path order. **Tinting**: stand-ins are tinted; `TintExact` species (the black bear) are
+  tinted even when exact. A tint colour with luminance under 0.12 is raised to (0.16, 0.15, 0.15), because a near-black
+  multiplier turns a textured model into a black void. Models whose own name has controller, manager, spawner, system or
+  demo (added to `NeverAnimals`) are not animals. `SpeciesNever` rules a word out for one species only (bear: polar, panda,
+  teddy, koala; the folder counts too).
+* **Name table additions** (`WildlifePackSetup.Names`): red fox gained "dog" as its last stand-in (the coyote still takes
+  wolf first). The blackbird's stand-ins are grackle, starling, sparrow, songbird, crow, raven, thrush, bird (sparrow
+  ahead of crow, since a small sparrow tinted black reads better than a shrunken crow).
+
+  | Species | Exact | Stand-ins |
+  |---|---|---|
+  | American crow | crow, raven | |
+  | American robin | robin | |
+  | Black-capped chickadee | chickadee, tit (whole word) | |
+  | American goldfinch | goldfinch, finch, canary | |
+  | Song sparrow | sparrow | wren |
+  | American black bear | blackbear, bear (whole word) | |
+* **The import watcher** (`WildlifePackImportWatcher`). "An import is pending" is kept in `SessionState`
+  (`WildLens.WildlifeImportPending`), so it survives the script reload a pack with scripts causes (before, the queued work
+  was lost and the cardinal and blue jay were missed). Only `.fbx`, `.prefab`, `.blend`, `.gltf` and `.glb` files whose name
+  or folder has a species keyword, a reserved word or an animal word (animal, creature, wildlife, bird, fauna) start it, so
+  a tree pack does nothing. It waits while Unity is compiling or importing and while playing, resumes at editor load and
+  when Play stops, and runs `AutoSetUp` once.
+* **Factory version and refresh** (`AnimalPrefabFactory.FactoryVersion` = 2; each build is recorded in
+  `SliceBuildSettings.animalBuilds` as an `AnimalBuildRecord`: source model, factory version, size, yaw, tint, whether a
+  person chose them). `AutoSetUp` first calls `RefreshOldBuilds`, which rebuilds a species from its same model with
+  today's defaults only if **all** hold: it has a prefab; it is not kept as a placeholder; its record is missing or older
+  than the factory version; the record is not `manual`; and the prefab is the factory's own file
+  (`Assets/WildLens/Animals/{id}.prefab`). The model is the recorded one, else traced back from the prefab's meshes; one
+  that cannot be traced is left alone and recorded as current. The recorded yaw and tint are kept; the size is the
+  current default. The Console line: "Wildlife models refreshed for 1.8 (sizes, looping clips, materials): ...".
+  **Bump `FactoryVersion` whenever the factory's output improves.** A build made in Wildlife Pack Setup or Animal Model
+  Setup is recorded as manual and never refreshed.
+* **Keep as placeholder** (`SliceBuildSettings.keepPlaceholder`). The **Placeholder** button (and Animal Model Setup's
+  revert) adds the species; automatic set-up then skips it. Setting a model for it by hand removes it. Settings from
+  before 1.8 load with the list empty.
+* **Six new species** (`SpeciesDefaults`, appended after the phoebe, so ids and order never move). Awareness is
+  aware / alert / flee in metres. Rhythm order is dawn, morning, midday, golden hour, dusk, night.
+
+  | Species | Real size | Aware / alert / flee | Group | Rhythm | Where (residence radius) |
+  |---|---|---|---|---|---|
+  | American crow | 0.45 m | 26 / 15 / 7 | 2 to 3 | Home all day | Trailhead (8 m), a Reserve Road pull-off (8 m) |
+  | American robin | 0.25 m | 18 / 10 / 5 | 2; plus 1 loop group | Meadow, Meadow, Woodland, Meadow, Brush, Home | Trailhead (8 m), loop meadow hotspots |
+  | Black-capped chickadee | 0.13 m | 10 / 5.5 / 2.5 | 2 to 3 | Home all day | Fern Glade (8 m), Old-Growth Grove |
+  | American goldfinch | 0.12 m | 15 / 8.5 / 4 | 3 to 4 | Brush, Meadow, Meadow, Meadow, Brush, Home | Wildflower Meadow Blind |
+  | Song sparrow | 0.15 m | 16 / 9 / 4.5 | 1; plus 2 loop groups | Home all day | Pond brush (7 m), Creek Alcove (8 m), loop brush piles |
+  | American black bear | 1.6 m | 75 / 50 / 28 | exactly 1 | MeadowEdge, Woodland, Home, Woodland, Water, Home | Deep woods (10 m) |
+
+  The chickadee has the smallest distances in the reserve and an alert patience of 8 s (the others 3 to 5), so it accepts
+  you soonest. The bear has the widest: it only ever moves away (flee distance 45 to 75 m, walk 1.1 m/s, run 9), has no
+  group, spawns 45 to 110 m from the trail and keeps to forest edge. Crow: flight 4 to 10 m. Robin: perches long,
+  flits short (the flying brain has no ground foraging). Habitat hotspots: crow mature trees and perches; robin meadow;
+  chickadee mature trees; goldfinch meadow; song sparrow brush piles.
+  **Positions come from existing site data only, with no new random draws**, so nothing else in a build moves:
+  `EcosystemBuilder.BuildNewResidents` puts the **Trailhead** residence midway between the Reserve Board and the bike
+  bay (birds only fly and perch in nearby trees: the board and the bike are not perches), the **Road pull-off** at the middle
+  one of the destination pads, and the **Deep woods** bear at the woodland anchor that scores highest on distance from
+  the trail's start plus its distance from any path (capped at 40 m); with no woodland anchor, the far side of the
+  Old-Growth Grove at half its radius. The Fern Glade (`DiscoveryBuilder`), the pond brush (`ReserveBuilder`), the
+  Creek Alcove (beside the raccoon) get a `Residence`; the grove and the blind list the new species in their site
+  residents.
+* **Spawner own streams** (`WildlifeSpawner.OwnStreamSpecies`). The six new ids draw their groups and residents from
+  their own `System.Random` (seed XOR a hash of the id, plus a salt per place) and their individuals' seeds count from
+  100000, so the shared stream and every earlier animal's seed are exactly as before. **A new species' id must be added
+  to this set.**
+* **Small life** (`MacroPackSetup`, `MacroBuilder`). A subject takes its `prefab` and up to **five `variants`** of the
+  same match kind (so up to six models). Matching reads **every folder above a model**, not just the nearest: a folder
+  can name a subject only as the lowest rank, `ByFolder` (order None, ByFolder, StandIn, Exact; a candidate's rank is
+  kind × 4, plus 2 if animated, plus 1 if a prefab). A folder that is itself an excluded thing ("Mushroom_Houses") says
+  nothing. **Among equally ranked models** the simplest names win (`NameScore`: fewer words; 10 per word such as big,
+  large, huge, giant, small, tiny, mini, broken, dead, damaged, old, lod, collider, base, stem), then the one of **middle
+  size**, not the smallest or biggest. A folder-matched variant must stay in the pick's own top-level pack folder, have
+  the same rank and be 0.25 to 4 times its size. Exclusions gained ground, terrain, demo, scene, plane, floor, rock,
+  stump, log, grass, material, sphere, cube, sky, camera, water, background, leaf, leaves, branch, twig, pebble, stone;
+  but a mushroom may have stump or log in its name ("Mushroom_On_Stump" stays). The Console lists "equally good, not
+  used" models so one can be dragged in by hand.
+  **Placement:** each instance picks a variant from the subject's seeded generator (the build repeats); **mushrooms are
+  scaled 0.8 to 1.6 times** the subject size (a pack's mushrooms are often clusters); **at most 2 of a species on one log
+  or stump** (`MaxPerLog`), and when every log is full the rest go to the woodland floor. The woodland mushroom's count is
+  8 (was 5). Pack materials are converted for URP once per source model and shared by its instances, in
+  `Assets/WildLens/Generated/SmallLife/Materials`; a model that still uses a shader URP cannot draw is warned about once.
+* **Asset Audit additions.** An **Other static models** section lists everything nothing else recognised, grouped by
+  pack, at most 30 per pack and 150 in all, with triangles and size (read from the file for the rows listed). Vehicle
+  rows list up to 12 child node names, and "(by folder)" marks a vehicle or macro subject named only by a folder above it.
+  Animation-only files (no mesh, folder name starting "anim") are one line per folder; rigs, spawners and demos (no mesh,
+  a name word controller, manager, spawner, system or demo) are left out of the tables and counted in the Summary.
+  Cat, kitty and kitten are a "pet cat"; "pinguin" is exotic; "shroom" is a fungus; a bear is no reserve species unless it
+  could be the black bear. The audit and the converter share one shader test.
+* **Journal list paging** (`JournalUI`). The list is a window of **7 rows** (row pitch 92 px, row height 84 px, first row
+  136 px below the book's top edge; the list column ends at 810 px and the footer starts at 826 px) that follows the
+  selection, with "^ more" and "v more" hints. W/S and the mouse wheel move one species at a time (wheel: direction only,
+  at least **0.12 s** apart on unscaled time). The footer reads "W / S / wheel  select species".
+
 ## Asset Audit, species matching and small life (1.7.0)
 
 * **Asset Audit Report** (`Editor/AssetAudit.cs`; menu WildLens ▸ Asset Audit Report, and a button in the builder
@@ -210,7 +361,7 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   animals); (d) vehicles; (e) scenery (counts only: trees, rocks, plants, props); (f) animated models nothing
   recognised. Sections: Summary (pack table), Animals master table (triangles, size, skinned, clip count, roles
   recognised and missing, shader and pipeline check, which species prefab was built from it), Species coverage (real
-  model, stand-in available, or placeholder, for all eighteen), Per-clip detail, Macro subjects, Vehicles, Animated
+  model, stand-in available, or placeholder, for all twenty-four since 1.8), Per-clip detail, Macro subjects, Vehicles, Animated
   models nothing recognised, Scenery noticed. A static model with a scenery word and an animal word ("Butterfly Bush")
   is filed as scenery. Rows are capped at 400 a table, clips at 40 a model.
 * **Vehicles in the audit**: strong words (motorcycle, motorbike, dirtbike, scooter, atv, utv, jeep, truck, car...); the
@@ -224,7 +375,7 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   | Species | Exact | Stand-ins |
   |---|---|---|
   | White-tailed deer | whitetail, deer, doe, stag, buck, fawn | roe, elk, reindeer, caribou, moose, antelope, gazelle, impala |
-  | Red fox | fox | shiba, fennec, jackal |
+  | Red fox | fox | shiba, fennec, jackal, dog (1.8) |
   | Coyote | coyote | wolf, dingo, dhole, jackal, husky, shepherd, dog |
   | Eastern cottontail | cottontail, rabbit, bunny, hare |   |
   | Eastern gray squirrel | squirrel, squirel | chipmunk |
@@ -238,9 +389,10 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   | Spotted sandpiper | sandpiper | killdeer, plover, dunlin, snipe, shorebird, wader, tern, seagull, gull |
   | Northern cardinal | cardinal, redbird | songbird, finch, sparrow, robin, oriole, canary, chickadee, wren, tit, thrush, warbler, swallow, bird |
   | Blue jay | bluejay, jay | bluebird, songbird, finch, sparrow, robin, chickadee, tit, wren, thrush, warbler, swallow, bird |
-  | Red-winged blackbird | blackbird | grackle, starling, crow, raven, songbird, sparrow, thrush, bird |
+  | Red-winged blackbird | blackbird | grackle, starling, sparrow, songbird, crow, raven, thrush, bird (1.8 order) |
   | Belted kingfisher | kingfisher | songbird, sparrow, bird |
   | Eastern phoebe | phoebe, flycatcher | sparrow, songbird, finch, wren, chickadee, bird |
+  | (1.8) crow, robin, chickadee, goldfinch, song sparrow, black bear | see the 1.8.0 section | |
 
   A name is split into lower-case words (non-letters and camel case: "RedFox_Idle01" is red, fox, idle) plus the whole
   name squashed ("WhiteTailDeer" gives whitetaildeer). A keyword of four letters or fewer ("fox", "owl", "jay", "cat")
@@ -275,16 +427,17 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   | Eat | eat, graze, grazing, feed, drink, sniff, forage, foraging, peck, chew, nibble |
   | Lie | lie, lying, laying, laydown, rest, sleep, nap |
   | Sit | sit |
-  | Groom | groom, lick, scratch, shake, shaking, preen |
-  | Look | look, alert, listen, attention, turnhead, headturn, watch, search |
+  | Groom | groom, lick, scratch, shake, shaking, preen, ruffle (1.8) |
+  | Look | look, alert, listen, attention, turnhead, headturn, watch, search, then worried, sing, call, chirp, tweet, song (1.8) |
   | Run | run, gallop, sprint, flee, dash, chase |
   | Trot | trot, canter, jog |
   | Walk | walk, hop, jump, move, crawl, amble |
   | Idle | idle, stand, breath, perch, stay, wait |
 
   **Ignored clips**: any clip with a word from death, dead, die, dying, attack, attacking, hit, hurt, damage, roar, bite,
-  biting, kill is never mapped (it would put a death pose in an idle slot). With no Idle clip the first clip is used,
-  so the animal is never in a T-pose.
+  biting, kill is never mapped (it would put a death pose in an idle slot); 1.8 adds stun, stunned, buff, gethit, knockback,
+  dodge, block, taunt, spawn and despawn. With no Idle clip the Look clip is used (1.8; before, the first clip), so the
+  animal is never in a T-pose.
 * **Small-life subjects** (`SubjectDefaults`, data in `Assets/WildLens/Data/Subjects`, created once and then yours to
   tune). Hours use the DayPeriod order Night, Dawn, Morning, Midday, Golden hour, Dusk. "Daytime" is Morning, Midday and
   Golden hour. **Rain**: "hides" means not showing while it rains (`Rain` > 0.25); "after rain" means showing only while
@@ -302,7 +455,7 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   | `red_spotted_newt` | Eastern Newt (red eft) | Salamander | Still | WoodlandFloor | Daytime | after rain | 0.07 | 4 | 0 |
   | `woodland_snail` | Whitelip Snail | Snail | Still | DeadWood | Night, Dawn, Morning, Dusk | after rain | 0.03 | 4 | 0 |
   | `firefly` | Common Eastern Firefly | Firefly | Glows | MeadowVerge | Night, Dusk | | 0.012 | 6 | 0.8 |
-  | `woodland_mushroom` | Honey Mushroom | Fungus | Still | DeadWood | all day and night | | 0.07 | 5 | 0 |
+  | `woodland_mushroom` | Honey Mushroom | Fungus | Still | DeadWood | all day and night | | 0.07 | 8 (1.8; was 5) | 0 |
   | `oxeye_daisy` | Oxeye Daisy | Wildflower | Still | MeadowVerge | Daytime | | 0.05 | 6 | 0 |
 
   The two bundled plants (`common_dandelion`, `lesser_periwinkle`) are unchanged. `SubjectBehaviour` now has `Flits`,
@@ -336,7 +489,7 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   subject, whole words or plurals): hive, house, hut, home, box, nest, lamp, light, lantern, statue, toy, pot, vase,
   bouquet, bed, bush, net, fish, soup, sign, icon, swarm, particle(s), vfx, fx, ui, sprite, decal, card, tile, pattern,
   print, cloud, tree, costume, hat, mask ("Spotted_Daisy" is fine, "Flower_Pot" is not). **Ranking**: exact before
-  stand-in; then animated (skinned or with clips) before static; then prefab before raw model; then path order. The
+  stand-in; then animated (skinned or with clips) before static; then prefab before raw model; then (1.8) the simplest names and the middle size, with a folder-only match ranked lowest; then path order. The
   automatic run creates no Subjects folder or assets until some pack model matches a subject. Subjects are served in id order. The
   Console lists each subject with its model, "(stand-in)" where it is one, and "no model found: stays out of the
   reserve" where not.
@@ -402,10 +555,10 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   Animator controller's, the skinned mesh's source model, and `Name@Clip`/`Name_Clip` files beside it). Matches by
   name words (camel-case and underscores split; words ≤ 4 letters must be whole words or plurals, longer ones may sit
   inside a word; the folder name is tried too, as a stand-in only) against `Names`: exact words, then stand-ins. Rows sort
-  exact before stand-in, then by recognised clip count. Clips: names with to, transition, pose, tpose, bind or from are
+  exact before stand-in, then by recognised clip count (1.8 ranking: see the 1.8.0 section). Clips: names with to, transition, pose, tpose, bind or from are
   ignored ("Jump_ToIdle", "Rest_Pose"); "Wings_Folded" is not Fly; "Idle_HeadLow" is Eat; per role the clip with the fewest
-  words wins (an Idle with its head down loses), ties keep the earlier clip. Size defaults from `AnimalPrefabFactory.DefaultSize`; birds are scaled by
-  beak-to-tail length (+Z bounds), mammals by their largest side.
+  words wins (an Idle with its head down loses), ties keep the earlier clip. Size defaults from `AnimalPrefabFactory.DefaultSize` (since 1.8 a table of real sizes; before, the body plan); birds are
+  scaled by beak-to-tail length (+Z bounds), mammals by their largest side.
 * **Automatic setup**: `WildlifePackSetup.AutoSetUp` runs at the end of every build (before the player is built) and,
   through `WildlifePackImportWatcher` (an `AssetPostprocessor`), after any `.fbx/.prefab/.blend/.gltf/.glb` import
   outside `Assets/WildLens`, deferred until the import finishes. It only fills species whose `prefab` is empty, with

@@ -148,7 +148,7 @@ four signs said less than one. Text that has to be fitted down to fit is a text 
 the words. A style rule that made sense for scenery ("don't mix fidelities") was blocking the biggest improvement
 available for animals; check whether a rule's reason still applies to every place it's used.
 
-**1.7.0 Field Audit & Small Life** (current). 1.6.1 shipped two animals and a way to fill the rest from free packs, but the
+**1.7.0 Field Audit & Small Life**. 1.6.1 shipped two animals and a way to fill the rest from free packs, but the
 director had imported animal, nature and vehicle packs into the Unity project and nobody working on the code could see
 them: they live only in that project and may never be committed. So 1.7 starts with a probe: **WildLens ▸ Asset Audit
 Report** lists what is there, which reserve species each model can be, its clips and its shader problems, and puts it on the
@@ -164,3 +164,22 @@ probe that reports it (the Asset Audit) instead of guessing an inventory.** Name
 harmful as too tight: "Foxglove" is not a fox, "Threat" is not "eat", and a woodpecker is not a cardinal. Give every
 placement its own seeded random source so adding one subject moves nothing else, and never use `string.GetHashCode` for a
 seed (it differs between machines). None of this has run in Unity yet.
+
+**1.8.0 New Neighbours** (current). The director imported animal, bird, bear, mushroom, tree and motorcycle packs, ran the
+1.7 Asset Audit and pasted it: the first report from inside Unity. It proved the automatic setup worked (the deer from
+ithappy, the chicken as the turkey, the shipped wolf and eagle), and showed what else the packs held (seven Living Birds,
+a stylised bear, eleven mushrooms, eighteen motorcycle models) and what was wrong. Built-in-shader models would be pink in
+URP, so the factory now makes converted copies of the materials. A pack with scripts reloaded Unity's scripts and the
+queued set-up was lost, so the watcher keeps its state across reloads. The wrong clips were chosen (a bear's jump as its
+walk, fly-left as fly, pecking as idle), so clip choice now prefers plain names and earlier keywords. Pack scripts stayed on
+the models, so they are stripped. Bird sizes were two to five times too big because sizes came from proportions, so there is
+now a table of real sizes (and the old auto-built models are refreshed once, from the same models). Pack clips did not
+loop, so the factory loops copies. The journal showed only about eight species rows, so it scrolls. Six species a place had
+been waiting for were added: crow and robin (trailhead), chickadee (Fern Glade, grove), goldfinch (the blind), song
+sparrow (pond brush, Creek Alcove) and one black bear (deep woods). Mushrooms from SinuousShrooms are the first small life
+(up to six variants, sizes varied, two to a log). *Lessons:* **the audit paid for itself: it showed real clip names,
+shaders and sizes, and each one broke an assumption.** A review by someone who did not write the code caught the 0.67 m
+songbirds; the author had checked that things compiled, not that the numbers were true. Give every species a real size
+from a real measurement. Add new species on their own random streams, so a build moves nothing else. A factory that
+improves must be able to refresh what it made before, without touching what a person tuned. None of 1.8 has run in Unity
+yet; its first test is the user's screenshots.
