@@ -125,6 +125,9 @@ namespace WildLens.EditorTools
                 // The Creek Ford's gravel bar (1.4).
                 float bar = FordBar(p);
                 if (bar > 0f) { rock = Mathf.Max(rock, bar * 0.85f); forest *= 1f - bar; }
+                // 1.9: the rock shelter's dry floor.
+                float bare = GeographyBare(p);
+                if (bare > 0f) { tread = Mathf.Max(tread, bare * 0.9f); forest *= 1f - bare * 0.6f; }
 
                 // The Reserve Road reads as gravel (stone mixed into the dirt), footpaths as worn earth (0.9).
                 if (road != null)
@@ -202,6 +205,7 @@ namespace WildLens.EditorTools
                 float creekD = CreekDistance(p);
                 if (creekD < 2.2f) continue;    // water
                 if (FordBar(p) > 0.3f) continue; // the ford's gravel bar (1.4)
+                if (GeographyNoGrass(p)) continue; // 1.9: the Hidden Pond's water, the rock shelter's floor
                 float edge = Mathf.InverseLerp(half + 0.35f, half + 2.8f, d); // sparse, trampled edges
                 float n = Mathf.PerlinNoise(_noiseOffset + p.x * 0.15f, p.z * 0.15f);
                 float forest = Mathf.Max(Forest(p) * Woods(p), (1f - Mathf.InverseLerp(1.5f, 5f, trees.Nearest(p, 6f))) * 0.8f);

@@ -226,7 +226,10 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>A curtain of falling water: arcs out from the lip, widens a little as it falls, UVs run downward.</summary>
-        private Mesh CurtainMesh(Vector3 lip, Vector3 down, Vector3 side, float poolY)
+        private Mesh CurtainMesh(Vector3 lip, Vector3 down, Vector3 side, float poolY) => CurtainMesh(lip, down, side, poolY, 1.6f, 2f);
+
+        /// <summary>1.9: the same curtain at any width (the Hemlock cascade's steps are narrow).</summary>
+        private Mesh CurtainMesh(Vector3 lip, Vector3 down, Vector3 side, float poolY, float halfTop, float halfBottom)
         {
             const int rows = 10;
             float drop = lip.y - poolY;
@@ -238,7 +241,7 @@ namespace WildLens.EditorTools
                 float t = r / (float)rows;
                 float y = lip.y + 0.05f - (drop + 0.15f) * t;
                 float outward = 0.35f + Mathf.Sqrt(t) * Mathf.Min(1.1f, drop * 0.22f);
-                float half = Mathf.Lerp(1.6f, 2f, t);
+                float half = Mathf.Lerp(halfTop, halfBottom, t);
                 Vector3 c = new Vector3(lip.x, y, lip.z) + down * outward;
                 verts.Add(c - side * half);
                 verts.Add(c + side * half);

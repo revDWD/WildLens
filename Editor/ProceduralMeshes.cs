@@ -122,6 +122,87 @@ namespace WildLens.EditorTools
             return m;
         }
 
+        /// <summary>
+        /// 1.9: a block of rock with an undercut alcove in its front: the Rock Shelter. Local frame: +Z out of the hill, the
+        /// front face at z = 0, the back at z = -depth; y = 0 is the shelter floor, the block runs from <paramref name="bottom"/>
+        /// (buried) to <paramref name="height"/>. Front-face vertices with |x| ≤ alcoveHalfWidth and y ≤ ceiling are pushed back
+        /// to z = -alcoveDepth, so the face itself forms the alcove's back wall, sides and roof: the lowest point of the roof is
+        /// exactly <paramref name="ceiling"/> (no noise there in y), which is what the clearance is designed from. Every face is a
+        /// grid displaced by a noise function of the undisplaced position, so faces meet without cracks. Box-projected UVs at 2.5 m.
+        /// </summary>
+        public static Mesh Crag(int seed, float halfWidth, float depth, float height, float bottom,
+            float alcoveHalfWidth, float alcoveDepth, float ceiling)
+        {
+            float o = seed * 3.77f;
+            var verts = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var tris = new List<int>();
+            float[] xs = { -halfWidth, -halfWidth * 0.82f, alcoveHalfWidth * -1.16f, -alcoveHalfWidth, -alcoveHalfWidth * 0.5f, 0f,
+                           alcoveHalfWidth * 0.5f, alcoveHalfWidth, alcoveHalfWidth * 1.16f, halfWidth * 0.82f, halfWidth };
+            float[] ys = { bottom, 0f, ceiling * 0.35f, ceiling * 0.7f, ceiling, ceiling + 0.4f, (ceiling + 0.4f + height) * 0.5f, height };
+            float[] zs = { -depth, -depth * 0.75f, -depth * 0.5f, -depth * 0.25f, 0f };
+
+            Vector3 Displace(Vector3 p, bool alcove)
+            {
+                float nx = Mathf.PerlinNoise(o + p.y * 0.55f, o + p.z * 0.55f + 11f) - 0.5f;
+                float ny = Mathf.PerlinNoise(o + p.x * 0.55f + 23f, o + p.z * 0.55f) - 0.5f;
+                float nz = Mathf.PerlinNoise(o + p.x * 0.55f, o + p.y * 0.55f + 37f) - 0.5f;
+                Vector3 d = new Vector3(nx, ny, nz) * 0.9f;
+                // The top lumps more; the base and the alcove stay true (clearance and footing are designed, not noise).
+                if (p.y >= height - 0.01f) d.y += (Mathf.PerlinNoise(o + p.x * 0.3f, o + p.z * 0.3f) - 0.5f) * 1.2f;
+                if (alcove) d = new Vector3(d.x * 0.15f, 0f, d.z * 0.25f);
+                if (p.y <= bottom + 0.01f) d.y = 0f;
+                return p + d;
+            }
+            bool InAlcove(float x, float y) => Mathf.Abs(x) <= alcoveHalfWidth + 0.001f && y <= ceiling + 0.001f;
+
+            // One face: a grid over (a, b) axes; position(i, j) gives the undisplaced point; uv from two world axes.
+            void Face(int na, int nb, System.Func<int, int, Vector3> at, System.Func<int, int, bool> alcove, int uvA, int uvB, bool flip)
+            {
+                int start = verts.Count;
+                for (int j = 0; j < nb; j++)
+                for (int i = 0; i < na; i++)
+                {
+                    Vector3 p = at(i, j);
+                    bool al = alcove != null && alcove(i, j);
+                    Vector3 v = Displace(p, al);
+                    verts.Add(v);
+                    uvs.Add(new Vector2(v[uvA], v[uvB]) / 2.5f + new Vector2(seed * 0.13f, seed * 0.29f));
+                }
+                for (int j = 0; j < nb - 1; j++)
+                for (int i = 0; i < na - 1; i++)
+                {
+                    int a = start + j * na + i, b = a + 1, c = a + na, d = c + 1;
+                    if (flip) { tris.Add(a); tris.Add(b); tris.Add(c); tris.Add(b); tris.Add(d); tris.Add(c); }
+                    else { tris.Add(a); tris.Add(c); tris.Add(b); tris.Add(b); tris.Add(c); tris.Add(d); }
+                }
+            }
+
+            // Front (faces +Z) with the alcove pushed back.
+            Face(xs.Length, ys.Length, (i, j) =>
+            {
+                float x = xs[i], y = ys[j];
+                return new Vector3(x, y, InAlcove(x, y) ? -alcoveDepth : 0f);
+            }, (i, j) => InAlcove(xs[i], ys[j]), 0, 1, true);
+            // Back (faces -Z).
+            Face(xs.Length, ys.Length, (i, j) => new Vector3(xs[i], ys[j], -depth), null, 0, 1, false);
+            // Left (-X) and right (+X).
+            Face(zs.Length, ys.Length, (i, j) => new Vector3(-halfWidth, ys[j], zs[i]), null, 2, 1, true);
+            Face(zs.Length, ys.Length, (i, j) => new Vector3(halfWidth, ys[j], zs[i]), null, 2, 1, false);
+            // Top (+Y) and bottom (-Y).
+            Face(xs.Length, zs.Length, (i, j) => new Vector3(xs[i], height, zs[j]), null, 0, 2, false);
+            Face(xs.Length, zs.Length, (i, j) => new Vector3(xs[i], bottom, zs[j]), null, 0, 2, true);
+
+            var m = new Mesh { name = "Crag" };
+            m.SetVertices(verts);
+            m.SetUVs(0, uvs);
+            m.SetTriangles(tris, 0);
+            m.RecalculateNormals();
+            m.RecalculateBounds();
+            m.RecalculateTangents();
+            return m;
+        }
+
         /// <summary>Terrain-hugging ribbon along a closed loop, or an open path when <paramref name="closed"/> is false.</summary>
         public static Mesh TrailRibbon(IReadOnlyList<Vector3> loop, float width, float sampleSpacing, bool closed = true)
         {

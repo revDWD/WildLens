@@ -132,6 +132,11 @@ namespace WildLens.EditorTools
                 }
                 Progress("Undergrowth", 0.7f);
                 veg.BuildUndergrowth(Child(env, "Undergrowth"));
+                if (reserve != null)
+                {
+                    Progress("Reserve: Hemlock Ravine and hidden places", 0.71f);
+                    veg.BuildGeography(reserve); // 1.9: after every shared-random scenery pass, so nothing built before it moves
+                }
                 if (s.autoMacroFromPacks)
                 {
                     // 1.7: small life from the user's packs. Never allowed to stop a build.

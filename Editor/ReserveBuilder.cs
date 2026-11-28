@@ -93,6 +93,7 @@ namespace WildLens.EditorTools
 
         public void PlanReserve(Transform parent, bool shapeTerrain, bool trackMeshes)
         {
+            _trackMeshes = trackMeshes; // 1.9: the ravine footpath, laid later, matches the other tracks
             ChooseSites();
             if (_sites.Count == 0)
             {

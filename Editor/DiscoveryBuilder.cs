@@ -21,6 +21,7 @@ namespace WildLens.EditorTools
     {
         public int DiscoveriesPlaced { get; private set; }
         private Vector3? _fernGlade, _creekAlcove;
+        private readonly List<(Vector3 p, float r)> _discoveryPoints = new List<(Vector3, float)>();
 
         public void BuildDiscoveries(Transform parent)
         {
@@ -151,6 +152,7 @@ namespace WildLens.EditorTools
             d.note = note;
             d.radius = radius;
             DiscoveriesPlaced++;
+            _discoveryPoints.Add((p, radius)); // 1.9: new places keep their distance from the ones already found
         }
     }
 }

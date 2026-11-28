@@ -326,6 +326,40 @@ namespace WildLens.EditorTools
             data.SetHeights(x0, z0, heights);
         }
 
+        private readonly Dictionary<string, List<CombineInstance>> _combinedParts = new Dictionary<string, List<CombineInstance>>();
+
+        /// <summary>
+        /// 1.9: the water-distance field again, now measuring to Willow Creek or Hemlock Run (whichever is nearer), for everything
+        /// built after the geography step (terrain paint and grass, small life). Called once, late; earlier passes saw the creek alone.
+        /// </summary>
+        private void BuildWaterField(IReadOnlyList<Vector3> extra)
+        {
+            if (extra == null || extra.Count < 2) return;
+            var lines = new List<IReadOnlyList<Vector3>> { extra };
+            if (_creek.Count > 1) lines.Add(_creek);
+            Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
+            foreach (var line in lines) foreach (var p in line) { min = Vector2.Min(min, new Vector2(p.x, p.z)); max = Vector2.Max(max, new Vector2(p.x, p.z)); }
+            const float margin = 60f;
+            _creekFieldOrigin = min - Vector2.one * margin;
+            int w = Mathf.CeilToInt((max.x - min.x + margin * 2f) / CreekFieldCell) + 1;
+            int h = Mathf.CeilToInt((max.y - min.y + margin * 2f) / CreekFieldCell) + 1;
+            _creekField = new float[w, h];
+            for (int x = 0; x < w; x++)
+            for (int z = 0; z < h; z++)
+            {
+                Vector2 q = _creekFieldOrigin + new Vector2(x, z) * CreekFieldCell;
+                float best = float.MaxValue;
+                foreach (var line in lines)
+                    for (int i = 1; i < line.Count; i++)
+                    {
+                        Vector2 a = new Vector2(line[i - 1].x, line[i - 1].z), b = new Vector2(line[i].x, line[i].z), ab = b - a;
+                        float t = ab.sqrMagnitude > 0f ? Mathf.Clamp01(Vector2.Dot(q - a, ab) / ab.sqrMagnitude) : 0f;
+                        best = Mathf.Min(best, Vector2.Distance(q, a + ab * t));
+                    }
+                _creekField[x, z] = best;
+            }
+        }
+
         private void BuildCreekField()
         {
             Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
@@ -857,6 +891,7 @@ namespace WildLens.EditorTools
             var mesh = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.CombineMeshes(parts.ToArray(), true, true);
             mesh = GeneratedAssets.Save(mesh, "Mesh_" + name.Replace(" ", ""));
+            _combinedParts[name] = new List<CombineInstance>(parts); // 1.9: so a later carve can lift out stems it undercut
             var go = new GameObject(name);
             go.transform.SetParent(group, false);
             go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);

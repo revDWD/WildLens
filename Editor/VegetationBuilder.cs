@@ -18,7 +18,7 @@ namespace WildLens.EditorTools
         private readonly TrailPath _trail;
         private readonly TrailBuilder.Loop _loop;
         private readonly SliceBuildSettings _s;
-        private readonly System.Random _rng;
+        private System.Random _rng; // 1.9: swapped for a private stream while the late geography step builds (see BuildGeography)
         private Vector2 _min, _max; // grows to cover the reserve (PlanReserve)
         private readonly float _noiseOffset;
         private readonly Dictionary<Vector2Int, List<Vector3>> _occupied = new Dictionary<Vector2Int, List<Vector3>>();

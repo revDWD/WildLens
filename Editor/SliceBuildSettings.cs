@@ -156,6 +156,16 @@ namespace WildLens.EditorTools
                  "Assets/WildLens/Generated/SmallLife). A pack model always wins. Untick to leave small life out unless your packs supply it.")]
         public bool generatedSmallLife = true;
 
+        [Header("Reserve geography (1.9)")]
+        [Tooltip("Hemlock Ravine: where the land falls far enough toward Willow Creek, a steep, shaded side valley is cut by a small " +
+                 "tributary (Hemlock Run) with a stepped cascade at its head, reached by one footpath. Skipped (one Console line says why) " +
+                 "on terrain without the relief. Needs 'Shape terrain at destinations'.")]
+        public bool hemlockRavine = true;
+        [Tooltip("Four more unmarked hidden places, found and named once, never counted: the Cascade Overlook (above the ravine's " +
+                 "cascade), a Hidden Pond in a wooded hollow, a Rock Shelter under an overhanging crag, and Old Cabin Ruins with a " +
+                 "bluebird's fence. Each is skipped cleanly where the land offers no site.")]
+        public bool moreHiddenPlaces = true;
+
         [Header("Scene")]
         public bool configureLightingAndFog = true;
         [Tooltip("Raise shadow distance/cascades/resolution in the active render pipeline or Quality settings (project-wide).")]
