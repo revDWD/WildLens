@@ -132,6 +132,7 @@ namespace WildLens.EditorTools
                 }
                 Progress("Undergrowth", 0.7f);
                 veg.BuildUndergrowth(Child(env, "Undergrowth"));
+                if (s.autoMacroFromPacks) MacroPackSetup.AutoSetUp(); // 1.7: small life from the user's packs
                 veg.BuildMacroSubjects(env); // 1.5: small subjects for the macro lens (real plant scans)
 
                 bool details = s.paintTerrain && s.terrainDetailGrass && !hdrp;

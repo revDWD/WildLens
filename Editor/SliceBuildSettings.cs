@@ -107,7 +107,7 @@ namespace WildLens.EditorTools
         [Range(0, 3)] public int firstWeatherDay = 0;
 
         [Header("Wildlife expansion (1.0)")]
-        [Tooltip("No longer needed: since 1.1 all fifteen species are always built. Kept so older settings assets load. " +
+        [Tooltip("No longer needed: since 1.1 all eighteen species are always built. Kept so older settings assets load. " +
                  "See Documentation~/WildlifeExpansion.md before adding your own species.")]
         public bool previewExpansionSpecies = false;
 
@@ -119,6 +119,12 @@ namespace WildLens.EditorTools
         [Tooltip("On rebuild, while the Environment Kit is empty, scan the project for free nature packs (trees, shrubs, rocks, " +
                  "ground and grass) and use them. A kit that already has contents is left as it is.")]
         public bool autoEnvironmentKit = true;
+
+        [Header("Small life (1.7)")]
+        [Tooltip("On every rebuild, give each macro subject that has no model yet (butterflies, bees, dragonflies, frogs, newts, snails, " +
+                 "fireflies, mushrooms, daisies) the best matching model or prefab found in the project, then place them in their " +
+                 "habitats. Untick to only use WildLens ▸ Macro Subjects From Packs by hand.")]
+        public bool autoMacroFromPacks = true;
 
         [Header("Scene")]
         public bool configureLightingAndFog = true;
