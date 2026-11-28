@@ -10,15 +10,19 @@ worth keeping. The reserve changes from dawn mist to golden hour to dusk, and it
 
 | Document | What's in it |
 |---|---|
-| [`AGENTS.md`](AGENTS.md) | Vision, philosophy, architecture, history and lessons, current state, what to build next and what not to |
+| [`AGENTS.md`](AGENTS.md) | The handoff: what WildLens is, its philosophy, current state, common mistakes, and what to read next for every topic |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, the build → playtest loop, compile checks without Unity, release checklist |
 | [`CHANGELOG.md`](CHANGELOG.md) | Every release |
+| [`Documentation~/Architecture.md`](Documentation~/Architecture.md) | Packaging, the file map and the key flows through the code |
 | [`Documentation~/Systems.md`](Documentation~/Systems.md) | How each system works and where to tune it |
+| [`Documentation~/History.md`](Documentation~/History.md) | Every release, why it was made and what it taught |
+| [`Documentation~/Roadmap.md`](Documentation~/Roadmap.md) | What to build next, in order, and what not to build |
 | [`Documentation~/ReserveExpansion.md`](Documentation~/ReserveExpansion.md) | Reserve design principles and next places |
 | [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md) | Adding species: the framework, ten planned species, assets |
 | [`Documentation~/VisualRoadmap.md`](Documentation~/VisualRoadmap.md) | Art sources, licences, visual weaknesses, Unity 6 notes |
 | [`Documentation~/EnvironmentMigration.md`](Documentation~/EnvironmentMigration.md) | Environment audit, free asset list, migration plan, before/after |
-| [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md) | Animal model options (CC0 to paid), the style decision, recommended route |
+| [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md) | Animal models: stylised and mixed packs welcome, free sources, Wildlife Pack Setup |
+| [`Documentation~/TrailBike.md`](Documentation~/TrailBike.md) | The bike model, free models reviewed, dropping one in, next improvements |
 
 ## Install & run
 
@@ -90,7 +94,7 @@ tune it.
 ## Architecture
 
 Two assemblies: `Scripts/` (runtime, `WildLens.Runtime`) and `Editor/` (scene builder and tools, `WildLens.Editor`).
-The full file map, data flow and build pipeline are in [`AGENTS.md`](AGENTS.md) §4; per-system detail is in
+The full file map, data flow and build pipeline are in [`Documentation~/Architecture.md`](Documentation~/Architecture.md); per-system detail is in
 `Documentation~/Systems.md`. Written into your project (editable): `Assets/WildLens/Data/` (species assets, species
 database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials, textures, terrain backups).
 
@@ -101,7 +105,10 @@ database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials,
   Generic` + `Body Plan`), a `Daily Rhythm`, and habitat hotspots. See
   [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md). Tick **Preview expansion species** in
   the builder settings to see the worked examples (Raccoon, Great Blue Heron).
-- Real art: **WildLens ▸ Animal Model Setup** turns an animated model into the species' prefab.
+- Real art (1.6): import free animal packs (stylised and mixed styles are fine), then **WildLens ▸ Wildlife Pack Setup ▸
+  Scan project ▸ Set up ticked species** matches models to species (with stand-ins such as a wolf for the coyote) and
+  makes their prefabs. **WildLens ▸ Animal Model Setup** does one species by hand. See
+  [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md).
 
 ### Using your own scenery assets (Environment Kit, 1.2)
 Import free nature packs into your project (Unity's free **Terrain URP Demo Scene** and **Terrain Sample Asset Pack**

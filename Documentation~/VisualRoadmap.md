@@ -56,7 +56,8 @@ and fallen trunk (13 MB) or ship 1k ground diffuse maps.
 
 **Conclusion:** there is no free, licence-safe, realistic, animated deer/fox/hawk/rabbit/squirrel for Unity. Free
 low-poly animals would make the game look *less* coherent next to the scanned environment. Licensed realistic
-models (below) are the route; `WildLens ▸ Animal Model Setup` makes integrating one a few minutes' work.
+models (below) are the route; `WildLens ▸ Wildlife Pack Setup` (1.6) matches whole free packs to species, and the 1.6
+direction allows stylised and mixed animal styles ([WildlifeAssetStrategy.md](WildlifeAssetStrategy.md)).
 
 Budget low-poly alternative (consistent style for all five, if you prefer stylised): *Animated Forest Animals Pack*
 (itch.io, deer/fox/rabbit/squirrel, ~$13) ([link](https://bundlesmith.itch.io/animated-forest-animals-pack-low-poly-stylized-models)),

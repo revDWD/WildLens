@@ -1,57 +1,90 @@
-# Wildlife asset strategy (1.5)
+# Wildlife asset strategy (1.6)
 
-Animals are now the reserve's largest visual weakness. 1.5 re-examined the old assumption that every animal must be
-realistic: the director's guidance is that **a coherent style with recognisable silhouettes, animation variety and
-species breadth matters more than photorealism**. This page sets out the options and recommends a route. Research was
-done in November 2026 from search results (several store pages could not be opened from the build machine), so
-**check each listing before buying**.
+**Direction (from the director, 1.6):** wildlife does **not** need to be photorealistic, and the animals don't all need
+to share a style or come from one pack. A colourful stylised bird can be a blue jay; a stylised owl can be a barred
+owl. **A stylised, varied reserve built from free assets beats a realistic reserve full of blocky placeholder
+animals.** This page replaces the 1.5 strategy, which recommended buying semi-realistic packs to match the
+photographic environment.
 
-## What the game needs from an animal
+## What matters, in order
 
-The behaviour code already drives Mecanim through `AnimalAnimatorBridge` (parameters `Speed`, `Activity`,
-`GaitPhase`), and **WildLens ▸ Animal Model Setup** turns any rigged, animated model into a species prefab in minutes.
-The clips that matter, in order: idle, walk, run, graze/eat, look/alert, rest/lie down; birds: perch idle, take-off,
-fly loop, glide, land. A pack that has these for many species is worth more than a beautiful model of one.
+1. **A recognisable silhouette.** At 16× through a lens you read an animal by its outline and posture: deer legs and
+   ears, a fox's brush tail, an owl's round head, a heron's neck. If the outline is right, the style barely matters.
+2. **Animation.** A model that walks, grazes, looks up and flies sells life; a beautiful statue doesn't. Idle, walk,
+   run, eat and look for mammals; perch, take-off, fly and land for birds.
+3. **Variety.** Eighteen species that each look like *something* is the goal; two perfect ones is not.
+4. **Consistency within a species.** Every deer in the reserve uses the same model. Styles may differ *between*
+   species, never *within* one.
+5. **Realism**, last.
 
-## Options found
+What this changes: the old rule "don't mix fidelities" now applies to the **environment** (scenery stays
+photographic and CC0 or kit-sourced). Animals are exempt: they can be stylised and come from several packs.
 
-| Asset | Licence / price | Covers (of our 18) | Animation | Style |
-|---|---|---|---|---|
-| **Quaternius Ultimate Animated Animal Pack** | **CC0**, free (can be committed) | Deer (doe and stag), fox, wolf as a coyote stand-in | 12+ clips: idle, walk, gallop, eat, jump… (no sit/sleep) | Low-poly, flat shaded |
-| **BundleSmith Animated Forest Animals Pack** | Asset Store EULA, ~$33 | Deer, fox, rabbit, squirrel, raccoon, wolf (coyote) | Idle, graze, jump, walk, run, rest, sleep, look: an exact match for our states | Stylised low-poly |
-| **Polyperfect Low Poly Animated Animals** | EULA, $50–100 | Deer, fox, rabbit, squirrel, eagle (hawk stand-in), wolf, many more | Animated (clip list unverified); Unity 6 + URP package, updated Aug 2025 | Low-poly |
-| **Malbers Poly Art: Animal Forest Set** | EULA, $90–180 | Deer, fox, rabbit, raccoon, wolf | ~62 clips per animal | Faceted "poly art" |
-| **Protofactor Forest Animals + Birds packs** | EULA, ~$50 + birds | Deer, fox, rabbit, wolf; owl, eagle | Mecanim, in-place and root motion, LODs | Semi-realistic (older PBR) |
-| **Mixall bird packs** (Soaring Birds ~$30; 60 Birds ~$300) | EULA | Hawk, many songbirds (species list unverified) | Perch, take-off, fly, soar | Realistic, URP |
-| Smithsonian 3D (CC0) | CC0 | Static scans of insects: future macro subjects | none | Photographic |
+## The tool: WildLens ▸ Wildlife Pack Setup (1.6)
 
-Not usable here: Khronos sample Fox (its rig is CC-BY, but only CC0 is committed); Sketchfab "free" animals with
-personal-use notices; Meshy free-plan outputs (CC-BY); Unreal-only packs. Nothing found covers the heron, turkey,
-groundhog, songbirds or sandpiper in a style matching any mammal pack: **birds will need a second pack whatever route is
-chosen.**
+Import any free animal packs into your Unity project (several at once is fine), then open **WildLens ▸ Wildlife
+Pack Setup** and press **Scan project**. It:
 
-## The style decision (the director's call)
+- finds every animated model (a skinned mesh with at least one clip) outside `Assets/WildLens`;
+- matches each to the species it *is* (Deer → white-tailed deer) or can **stand in** for, by name:
 
-The environment is photographic (scanned ground, rocks, skies, wood). AGENTS.md has held that "mixing fidelities is
-worse than either alone". Low-poly flat-shaded animals in front of scanned rocks will look like toys, the same problem
-the primitive placeholders have. So there are three coherent routes:
+  | Species | Stand-ins it will accept |
+  |---|---|
+  | Coyote | wolf, jackal, husky, dog |
+  | Red-tailed hawk | eagle, falcon, buzzard, kite |
+  | Great blue heron | egret, crane, stork, flamingo |
+  | Wild turkey | pheasant, chicken, hen, peacock |
+  | Spotted sandpiper | plover, shorebird, gull |
+  | Groundhog | beaver, gopher, prairie dog |
+  | Cardinal, blue jay, blackbird, kingfisher, phoebe | any songbird, finch, sparrow, robin, "bird" (one model, tinted per species) |
+  | Deer, fox, squirrel | roe/elk/antelope; shiba/jackal; chipmunk |
 
-1. **Semi-realistic animals, photographic reserve (recommended).** Protofactor Forest + Birds covers 6 of the 18
-   (deer, fox, rabbit, coyote via wolf, owl, hawk via eagle) in one PBR style that sits with the scanned environment;
-   add Mixall Soaring Birds for the hawk if the eagle reads wrong. Placeholders remain for the rest until more of
-   the same style is found. Cost ≈ $80–110.
-2. **Stylised animals, restyled reserve.** BundleSmith (6 species, the best clip match) or Polyperfect (widest
-   catalogue), with the environment pushed toward a painterly *Firewatch* look to match (colour grading, simpler
-   ground, stylised foliage). Most species fastest, but it is an art-direction change, not an asset drop.
-3. **CC0 now, decide later.** Commit the Quaternius pack for deer, fox and coyote as an *opt-in* style in the builder,
-   so anyone can try it without buying anything. Cheapest; only 3 species, and stylised.
+- shows one row per species (best match first: the real animal before a stand-in, then the model with the most
+  recognised clips), with a size, a yaw correction and **tint** (on by default for stand-ins);
+- **Set up ticked species** runs the same factory as Animal Model Setup for each row. It classifies clips by name,
+  builds the Animator Controller, scales the model to the species' real size (birds by beak-to-tail length), puts its
+  feet on the ground and assigns the prefab.
 
-**Recommendation:** route 1, deer first (the most-photographed animal), then fox and hawk, as AGENTS.md has long
-said; it keeps the photographic identity the playtests praised. Choose route 2 only together with an environment
-restyle. In either case, the next tooling step is a **pack setup** (one action that maps a whole pack's models to
-species by name and runs Animal Model Setup on each), worth building once a pack is chosen.
+Tint copies the model's materials (the pack's own are never changed) and colours them by coverage: largest area →
+the species' primary colour, next → secondary, third → accent. This is how one songbird model becomes a red
+cardinal, a blue jay and a black, red-shouldered blackbird. It works best on flat-coloured stylised packs; on a
+photographic texture it tints rather than replaces.
+
+Species with no match keep their placeholder bodies, so the reserve is never missing an animal. The **Placeholder**
+button on a row reverts that species. Animals spawn on Play, so no rebuild is needed.
+
+## Recommended free sources (check each page before downloading)
+
+Research was done from search results (most store and CC0 hosts can't be opened from the build machine), so
+**confirm the species list and licence on each page.**
+
+| Source | Licence | What it gives the reserve | Notes |
+|---|---|---|---|
+| **Quaternius** animal packs ([itch.io](https://quaternius.itch.io/lowpoly-animated-animals), quaternius.com) | **CC0** | The "Ultimate Animated Animal Pack" is reported to include deer/stag, fox, wolf (coyote), husky; an older pack has wolf, eagle (hawk), dog, cat ([OpenGameArt](https://opengameart.org/content/animated-animales-low-poly)) | Low-poly, flat colour, good clips. CC0, so a future release *could* commit an opt-in copy |
+| **ithappy: Animals FREE** ([Asset Store](https://assetstore.unity.com/packages/3d/characters/animals/animals-free-260727)) | Asset Store EULA, free | Animated, cartoon-style; species list to confirm | Import locally, never commit |
+| **Dinopunch: Living Birds** ([Asset Store](https://assetstore.unity.com/packages/3d/characters/animals/birds/living-birds-15649)) | EULA, free | A variety of animated perching/flying birds (crows confirmed; songbirds likely) | Old (2018, Unity 4.5): materials may need the URP converter |
+| Quaternius / other CC0 bird packs | CC0 | Songbirds, owls | Search Poly Pizza and itch.io filtered to CC0 |
+| Smithsonian 3D (3d.si.edu) | CC0 | Insect scans for macro | Static: needs the reserved macro behaviours |
+
+Paid, if a gap remains after the free route: **BundleSmith Animated Forest Animals** (~$13–33: deer, fox, rabbit,
+squirrel, raccoon, wolf, with clips that match WildLens's states exactly ([itch.io](https://bundlesmith.itch.io/animated-forest-animals-pack-low-poly-stylized-models)));
+**Low Poly Bird: Predator Pack** (eagles, barn owl, falcon) for the hawk and owl. Not usable: CC-BY rigs (Khronos
+Fox), "personal use" Sketchfab models, free-plan AI generator output (CC-BY), Unreal-only packs, re-uploads of paid
+packs.
+
+## Suggested order
+
+1. **Deer** (the most photographed animal), **fox**, **coyote** (wolf stand-in), **hawk** (eagle stand-in): one
+   Quaternius download covers most of them.
+2. **One songbird model**, tinted into five species. The biggest gain in variety for the least work.
+3. **Owl, heron, turkey**: the reserve's distinctive silhouettes; any stylised version reads.
+4. Rabbit, squirrel, raccoon, groundhog, opossum, sandpiper, as packs turn up.
+
+After each step, playtest: photograph the animal at 4× and 16× at dawn and golden hour, and send screenshots. Note
+any that are the wrong size (fix with the row's size field) or face backwards (yaw 180).
 
 ## Licence rules (unchanged)
 
-Only CC0 is committed to the repository. Store packs are imported into your own project and never committed; the
-builder and Animal Model Setup use them from there. Don't use "free download" re-uploads of paid packs.
+Only CC0 is committed to the repository. Store packs, free ones included, are imported into your own project and never
+committed; Wildlife Pack Setup and Animal Model Setup use them from there and write prefabs to your own
+`Assets/WildLens/Animals`.

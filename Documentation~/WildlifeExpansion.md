@@ -24,7 +24,7 @@ This document is the plan for growing the reserve's ecosystem without growing it
 | `HotspotType.Water` | pond shallows (builder) | Water-edge homes (herons, raccoons); combine with Meadow/BrushPile/MatureTree/Perch |
 | Behaviour weights | `SpeciesDefinition.behaviors` + `WildlifeSchedule.Bias` | Grazing, foraging, resting, sitting, perching, climbing... weighted by time of day |
 | Residences | `WildlifeResidence` (builder) | Pin a species group to a specific place (a log pile, a snag) |
-| Real models | **WildLens ▸ Animal Model Setup** | Animator Controller + correctly scaled prefab from any animated model |
+| Real models | **WildLens ▸ Wildlife Pack Setup** (many species, 1.6) / **Animal Model Setup** (one) | Animator Controller + correctly scaled prefab from any animated model; stand-ins and tints |
 
 **Worked examples:** tick **Preview expansion species** in the builder settings and rebuild. `Raccoon` (generic
 quadruped with mask and ringed tail; woodland by day, creek and pond at dusk and night) and `Great Blue Heron` (wading
@@ -42,7 +42,7 @@ their pattern.
 6. Rhythm: enable `Daily Rhythm` and choose a place per period.
 7. Photography: `photoSizeScale` (small animals < 1), `clearPhotoDistance`.
 8. Add it to `SpeciesDatabase` (the journal picks it up automatically), rebuild, play a whole day.
-9. Later: buy a model, run Animal Model Setup.
+9. Later: import a free pack and run Wildlife Pack Setup (or Animal Model Setup for one model).
 
 ## Planned species (roadmap)
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.6.0] Trailhead & Wildlife Packs
+### The trailhead
+- **One Reserve Board** replaces the kiosk and the separate guidelines post, trail register post and Reserve Road sign:
+  a roofed, **three-sided** kiosk. Facing you as you arrive: the reserve name, time, conditions, map and destinations.
+  Round the side: **PLEASE** (stay on the trails, give wildlife space, watch quietly) in big pictogram lines. On the
+  side facing the bike: **RESERVE ROAD** (ride slowly, park at the pull-offs, walk the last stretch) with the trail
+  register below.
+- The **trail bike** stands in a **bay beside the board**, angled out to the trail, with a hitching rail. The Reserve
+  Road starts there.
+### Readability and polish
+- Sign sub-lines are larger (about 8 cm capitals, from 6) with bigger pictograms; the LOOKOUT marker is smaller.
+- **Interpretive panels** are larger with three short lines, so their text is about 5 cm tall instead of 3.5 cm.
+- The Reserve Board's conditions line and distances are larger, and its footer is shorter.
+- **Log seats** (the Creek Ford's, the lookouts', the hidden places') follow the slope instead of floating at one end.
+### Wildlife: free packs, any style
+- New direction: animals **don't need to be photorealistic or match**. Silhouette, animation and variety come first.
+- **WildLens ▸ Wildlife Pack Setup**: import any free animal packs (several at once), Scan, and it matches models to
+  all 18 species, the real animal first, then a **stand-in** (a wolf as the coyote, an eagle as the hawk, one songbird
+  **tinted** into the cardinal, blue jay, blackbird, kingfisher and phoebe), and sets up every ticked species in one go.
+  Species with no match keep their placeholder bodies.
+- Animal Model Setup now shares its code with the pack tool (and can tint too); birds scale by beak-to-tail length.
+### Documentation
+- AGENTS.md is now a navigation guide (overview, philosophy, state, directions, common mistakes, reading order);
+  new `Documentation~/History.md`, `Architecture.md`, `Roadmap.md` and `TrailBike.md` (free bike models reviewed);
+  `WildlifeAssetStrategy.md` rewritten for the new direction.
+
 ## [1.5.0] Falls & Field Notes
 ### Willow Falls (new destination, number on the board and map)
 - Where Willow Creek naturally loses the most height, its fall is concentrated into a **2–7 m waterfall** over a scanned

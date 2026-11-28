@@ -51,7 +51,7 @@ the scene. Any migration has to work *through* the builder, or the next Rebuild 
    builder. 1.2 does the second (see §4, stage 6, for why not the first, yet).
 3. **URP is the primary target, with Built-in as a fallback; HDRP is not supported.** That rules out the best-known
    free Unity environments (Book of the Dead, Fontainebleau), which are HDRP-only.
-4. **No mixing of fidelities** (AGENTS.md §9). Stylised or low-poly packs beside photographic ground look worse than
+4. **No mixing of fidelities in the environment** ([Roadmap.md](Roadmap.md), "Not to build"; animals are exempt since 1.6). Stylised or low-poly packs beside photographic ground look worse than
    either alone. Free stylised packs are rejected even when good.
 5. **Package size.** `Art~` ships to every user (65 MB before 1.2), so CC0 additions must earn their megabytes.
 
@@ -63,7 +63,7 @@ the scene. Any migration has to work *through* the builder, or the next Rebuild 
 |---|---|---|
 | **[Unity Terrain – URP Demo Scene](https://assetstore.unity.com/packages/3d/environments/unity-terrain-urp-demo-scene-213197)** (Unity Technologies, free; v1.0.3, Jan 2025) | **Custom SpeedTree trees** with LODs and wind, terrain detail vegetation, scanned terrain layers, made with Terrain Tools and "optimized for low-end desktop". **The best single source of game-ready realistic trees available for free.** | Scene at `Assets/TerrainDemoScene_URP/Scenes/TerrainDemoScene.unity`. A Unity bug stopped the trees rendering on some Unity 6 versions; it was fixed in **6000.0.37f1** ([issue](https://issuetracker.unity3d.com/issues/trees-do-not-render-in-unity-terrain-urp-demo-scene)), so use 6000.0.37 or newer. The HDRP version exists too; don't use it. Exact species list not confirmed (check after import). [Blog](https://unity.com/blog/games/experience-the-new-unity-terrain-demo-scenes-for-hdrp-and-urp). |
 | **[Terrain Sample Asset Pack](https://assetstore.unity.com/packages/3d/environments/landscapes/terrain-sample-asset-pack-145808)** (Unity, free; v2.0.1, Jul 2022) | About 20 vegetation prefabs for **instanced terrain details** (grass, ferns, bushes) with Shader Graph materials for URP and HDRP; terrain layers; height stamps. **Replaces the procedurally drawn grass.** | Needs the Shader Graph package. Unity 2021.2+ era: confirm it imports cleanly in Unity 6. [Blog](https://unity.com/blog/games/the-latest-unity-terrain-sample-pack-is-here). |
-| **Terrain Tools** (`com.unity.terrain-tools`, free package) | Sculpting, erosion and stamp tools, if you hand-shape a reserve terrain (AGENTS.md §8, item 8). | A dependency of the demo scene. |
+| **Terrain Tools** (`com.unity.terrain-tools`, free package) | Sculpting, erosion and stamp tools, if you hand-shape a reserve terrain ([Roadmap.md](Roadmap.md)). | A dependency of the demo scene. |
 
 ### Tier 2: CC0, committed to the package (no user action)
 
@@ -71,7 +71,7 @@ the scene. Any migration has to work *through* the builder, or the next Rebuild 
 |---|---|
 | Poly Haven **Rock Face 01 / 02** (Verdant Trail collection; 20k / 30k triangles) | **Integrated in 1.2**: outcrops on steep slopes and the ridge's flanks. |
 | Poly Haven ground scans: *Forest Ground 04–06*, *Brown Mud Leaves 01*, *Aerial Grass Rock*, *Grass Path 2/3*, *Rocky Trail* | Candidates for better forest-floor, path and slope layers. Evaluate in screenshots before adding (≈5 MB each at 2k). |
-| Poly Haven skies: an **overcast** pure sky (e.g. *Kloofendal Overcast Puresky*), dusk and night skies | For weather and night (AGENTS.md §8, item 5). Reachable and CC0; not added yet because they need `DayCycle` work to be visible. |
+| Poly Haven skies: an **overcast** pure sky (e.g. *Kloofendal Overcast Puresky*), dusk and night skies | For weather and night ([Roadmap.md](Roadmap.md)). Reachable and CC0; not added yet because they need `DayCycle` work to be visible. |
 | Poly Haven *Dry Branches Medium 01*, *Tree Stump 02*, *Shrub 03* (17–62k triangles) | Forest-floor variety; low priority. |
 
 Poly Haven **trees** remain unusable (2–17 million triangles each; Pine Tree 01 is a 650 MB FBX). This hasn't changed since 0.5.
@@ -108,7 +108,7 @@ nothing for a player who doesn't opt in.
 | 4 | **Tune from screenshots**: role assignments, `treeScale`, grass density per slot, which layers fill which slots. Fix whatever the first real run exposes. | After stage 3. |
 | 5 | **Atmosphere**: an overcast sky and weather as a second rhythm (CC0 HDRIs); translucent-leaf look comes free with SpeedTree trees. Optionally Adaptive Probe Volumes for grove shade (needs a bake: conflicts with "rebuild, don't hand-edit"). | Planned. |
 | 6 | **Build on the demo's terrain** (the "reuse the whole scene" option): open the demo scene and build the reserve on it. | **Not supported yet.** The builder expects one Terrain, while Unity's demo is split into tiles. The demo's own tree instances would stand on the new paths, and the painter would repaint its surface. It needs multi-terrain support, clearing tree instances in clearances, and a "keep host surface" option. Worth doing only if stage 3's screenshots show the harvested assets aren't enough. |
-| 7 | A **hand-authored reserve terrain** (Terrain Tools) shipped as CC0 heightmap data, so vistas no longer depend on noise. | Planned (AGENTS.md §8, item 8). |
+| 7 | A **hand-authored reserve terrain** (Terrain Tools) shipped as CC0 heightmap data, so vistas no longer depend on noise. | Planned ([Roadmap.md](Roadmap.md)). |
 
 ## 5. How to use it (for the playtester)
 

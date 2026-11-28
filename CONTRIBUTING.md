@@ -36,5 +36,6 @@ practical side.
 3. Bump `package.json` and `WildLensVersion.Package`; bump `WildLensVersion.Environment` if builder output changed;
    update `WildLensVersion.Features`, `RecentChanges`, `ReleaseName`, `ReleaseDate` (the trailhead board shows them).
 4. `ArtLibrary.ImportVersion` and `Art~/CREDITS.md` if `Art~` changed.
-5. `CHANGELOG.md`, `Documentation~/Systems.md`, and `AGENTS.md` §5–§9 (history, current state, next steps).
+5. `CHANGELOG.md`, `Documentation~/Systems.md`, and `AGENTS.md` §6 (current state), `Documentation~/History.md` (the release and its lessons) and
+   `Documentation~/Roadmap.md` (next steps).
 6. Commit, push; users update via Package Manager and **rebuild the slice**.

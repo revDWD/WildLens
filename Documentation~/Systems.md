@@ -192,6 +192,37 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Trailhead, signs and wildlife packs (1.6.0)
+
+* **Reserve Board** (`Editor/PropBuilder.cs`, `BuildKiosk`): one roofed, three-sided kiosk at loop distance 7 m,
+  facing the spawn. Faces stand on an equilateral triangle (side 2.8 m, inradius 0.81 m); corner posts (named `Post`,
+  grounded) carry a three-sided pitched roof (`ProceduralMeshes.Cone(3)`, radius = circumradius + 0.9 m, so the eaves
+  stand ~0.45 m past each face). **Face A** (to the visitor): header plank and the live `ReserveInfoBoard`. **Face B**:
+  PLEASE with three pictogram lines (2.4 cm character size, ~10 cm capitals). **Face C** (whichever back face looks
+  towards the bike bay): RESERVE ROAD, ride slowly / park at pull-offs / walk the last stretch, and the trail
+  register box. Replaces the separate guidelines post, register post and the road's trailhead plank.
+* **Bike bay** (`BuildBikeBay`): the bike at loop distance 12 m, 3.2 m outside the trail edge, angled 0.6 out towards
+  the trail, with a hitching rail and a `ReserveParking` pad ("Trailhead"). `BikeParking` (where the road starts) is
+  the bay.
+* **Sign sizes:** `SignKit.LineSize` 0.019 (~8 cm capitals; was 0.015), sign pictograms 0.16 m on a 0.19 m step,
+  sign boards 0.66 m tall with a line. LOOKOUT markers fit their title to 0.55 m. Interpretive panels: face 1.5 ×
+  0.88 m, body text column 0.98 m at up to 0.016 character size, **three short lines of ≤ 21 characters** (so the body
+  stays at ~5 cm capitals instead of being fitted down to 3.5 cm).
+* **Reserve board text:** conditions line 34 px with best-fit down to 26 (never spills off the header); distances 34
+  px; footer "Walk quietly · wildlife keeps hours" at 32 px (riding advice moved to face C).
+* **Seat logs** (`GroundingPass.SeatLogs`): any renderer named `Seat Log` (not on a deck) is tilted along its length
+  to follow the ground (clamped to 12°) and bedded 6 cm in. Logged with the posts and legs count.
+* **Wildlife Pack Setup** (`Editor/WildlifePackSetup.cs`, menu WildLens ▸ Wildlife Pack Setup): scans `Assets/`
+  (outside `Assets/WildLens`) for GameObjects with a `SkinnedMeshRenderer` and at least one clip (own clips, the
+  Animator controller's, the skinned mesh's source model, and `Name@Clip`/`Name_Clip` files beside it). Matches by
+  name words (camel-case and underscores split; words ≤ 4 letters must be whole words or plurals, longer ones may sit
+  inside a word; the folder name is tried too) against `Names`: exact words, then stand-ins. Rows sort exact before
+  stand-in, then by recognised clip count. Size defaults from `AnimalPrefabFactory.DefaultSize`; birds are scaled by
+  beak-to-tail length (+Z bounds), mammals by their largest side.
+* **AnimalPrefabFactory** (`Editor/AnimalPrefabFactory.cs`): the shared classify → controller → prefab code (moved
+  from Animal Model Setup). `Tint` copies a model's materials to `Assets/WildLens/Animals/{id}_Tint{n}.mat`, ordered
+  by triangle coverage, coloured primary / secondary / accent from the species asset (`_BaseColor` and `_Color`).
+
 ## Willow Falls, hidden places, macro, bike, grounding (1.5.0)
 * **Falls plan** (`Editor/FallsBuilder.cs`, `PlanFalls` inside `PlanCreek` after `ComputeBed`): over creek samples
   n/6 … n−26 (not within pond radius ×1.4 + 40 m, not inside the loop), the largest `bed[i+1] − bed[i+20]`; needs ≥ 2.2 m.
@@ -410,8 +441,8 @@ Plan, asset list and instructions: `EnvironmentMigration.md`.
   tucks the legs under the body instead of swinging them out.
 * **Photography feel**: hints vanish in camera mode, focus lock snaps the marks and dot, prints have a drop
   shadow and settle with a slight tilt.
-* **Animal Model Setup** (`Editor/AnimalModelSetup.cs`, menu WildLens ▸ Animal Model Setup): turns a bought animated
-  model into a species prefab: classifies clips by name, builds an Animator Controller (Speed blend tree; any-state
+* **Animal Model Setup** (`Editor/AnimalModelSetup.cs`, menu WildLens ▸ Animal Model Setup; the code is in
+  `AnimalPrefabFactory` since 1.6): turns an animated model into a species prefab: classifies clips by name, builds an Animator Controller (Speed blend tree; any-state
   transitions on Activity), scales the model to real size, root motion off, assigns `species.prefab`.
 
 ## Data migrations

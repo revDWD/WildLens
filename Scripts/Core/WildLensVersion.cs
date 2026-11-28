@@ -7,8 +7,8 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.5.0";
-        public const string ReleaseName = "Falls & Field Notes";
+        public const string Package = "1.6.0";
+        public const string ReleaseName = "Trailhead & Wildlife Packs";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
@@ -25,8 +25,9 @@ namespace WildLens.Core
         /// 15: sign lettering un-mirrored, landforms v2 (regenerated own terrain), forest floor only under trees, lower ovate
         /// crowns, weather, Creek Ford, kingfisher and sandpiper (1.4).
         /// 16: Willow Falls, hidden places, macro subjects, grounded posts, pond reflections that follow the sky, Trail
-        /// 125-style bike, eastern phoebe (1.5).</summary>
-        public const int Environment = 16;
+        /// 125-style bike, eastern phoebe (1.5).
+        /// 17: three-sided Reserve Board and trailhead bike bay, larger sign lines and panels, bedded log seats (1.6).</summary>
+        public const int Environment = 17;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
@@ -46,6 +47,7 @@ namespace WildLens.Core
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.6  Trailhead: one Reserve Board, a bike bay, bigger sign text, room for real animals",
             "1.5  Falls & field notes: Willow Falls, hidden places, a macro lens, a new trail bike",
             "1.4  Changing skies: weather, hills and ridges, the Creek Ford, signs you can read",
             "1.3  Trailhead: signs you can read, real wood, a flowing creek, fuller trees",
