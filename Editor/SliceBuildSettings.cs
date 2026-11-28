@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace WildLens.EditorTools
@@ -116,6 +117,10 @@ namespace WildLens.EditorTools
                  "matching animated model found in the project (the animal itself, else a stand-in, tinted). Untick to only " +
                  "use WildLens ▸ Wildlife Pack Setup by hand.")]
         public bool autoWildlifeFromPacks = true;
+        [Tooltip("Species kept as placeholder bodies: automatic set-up never gives these a model. The Placeholder button in " +
+                 "WildLens > Wildlife Pack Setup adds a species here; setting a model for it (the window or Animal Model Setup) removes it. " +
+                 "Settings made before 1.7.1 load with this empty.")]
+        public List<string> keepPlaceholder = new List<string>();
         [Tooltip("On rebuild, while the Environment Kit is empty, scan the project for free nature packs (trees, shrubs, rocks, " +
                  "ground and grass) and use them. A kit that already has contents is left as it is.")]
         public bool autoEnvironmentKit = true;

@@ -73,6 +73,7 @@ namespace WildLens.EditorTools
                 Undo.RecordObject(_species, "Revert species prefab");
                 _species.prefab = null;
                 EditorUtility.SetDirty(_species);
+                WildlifePackSetup.SetKeepPlaceholder(_species.speciesId, true); // sticks: automatic set-up leaves it alone
             }
             if (!string.IsNullOrEmpty(_log)) EditorGUILayout.HelpBox(_log, MessageType.None);
             EditorGUILayout.EndScrollView();

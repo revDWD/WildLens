@@ -25,6 +25,8 @@ namespace WildLens.EditorTools
         private const int RowCap = 400;
         private const int ClipCap = 40;
         private const int ClipboardLimit = 60000;
+        private const int OtherCap = 150;
+        private const int OtherPerPack = 30;
 
         private enum Cat { Species, OtherAnimal, Macro, Vehicle, Scenery, UncategorisedAnimated, OtherStatic }
 
@@ -49,7 +51,7 @@ namespace WildLens.EditorTools
             E("dove", "Meadow edge: ground-feeding dove (new species)", true, false, "dove", "pigeon"),
             E("hummingbird", "Meadow flowers: hummingbird (new species or macro-scale subject)", true, false, "hummingbird"),
             E("bat", "Dusk sky over Cattail Pond (new species, dusk rhythm)", true, false, "bat"),
-            E("bear", "Old-growth grove: rare large mammal (new species)", false, false, "bear"),
+            E("bear", "A bear that is not the black bear (polar, panda, toy…): not a reserve species", false, false, "bear"),
             E("beaver", "Willow Creek and the pond: lodge builder (new species; groundhog stand-in)", false, false, "beaver"),
             E("otter", "Willow Creek and the falls pool (new species)", false, false, "otter"),
             E("woodland mammal", "Woodland edge / creek bank mammal (new species)", false, false, "skunk", "badger", "porcupine", "mink", "weasel"),
@@ -62,14 +64,15 @@ namespace WildLens.EditorTools
             E("crustacean", "Creek shallows (macro-scale subject)", false, false, "crayfish", "crab"),
             E("hedgehog", "Not native to North America (stand-in only)", false, false, "hedgehog"),
             E("mole", "Meadow soil: rarely seen (new species)", false, false, "mole"),
-            E("domestic", "Domestic animal, not a reserve species (possible stand-in, e.g. dog for coyote)", false, false, "horse", "cow", "sheep", "goat", "pig", "cat", "dog"),
-            E("exotic", "not a Willow Creek animal", false, true, "lion", "tiger", "elephant", "zebra", "giraffe", "monkey", "penguin", "kangaroo", "crocodile", "shark", "dinosaur", "dragon="),
+            E("pet cat", "Domestic cat, not a reserve species (the bobcat would be the reserve's cat)", false, false, "cat", "kitty", "kitties", "kitten"),
+            E("domestic", "Domestic animal, not a reserve species (possible stand-in, e.g. dog for the fox)", false, false, "horse", "cow", "sheep", "goat", "pig", "dog"),
+            E("exotic", "not a Willow Creek animal", false, true, "lion", "tiger", "elephant", "zebra", "giraffe", "monkey", "penguin", "pinguin", "kangaroo", "crocodile", "shark", "dinosaur", "dragon="),
         };
 
         // (c) Macro subjects. Fungi first, so "Fly Agaric" is a mushroom, not a fly.
         private static readonly Entry[] MacroSubjects =
         {
-            E("Fungi", "fungus", false, false, "mushroom", "fungus", "fungi", "toadstool", "agaric", "bolete", "chanterelle", "puffball"),
+            E("Fungi", "fungus", false, false, "mushroom", "shroom", "fungus", "fungi", "toadstool", "agaric", "bolete", "chanterelle", "puffball"),
             E("Plants", "wildflower", false, false, "flower", "wildflower", "blossom", "daisy", "dandelion", "clover", "lupine", "aster=", "buttercup", "poppy",
                 "violet", "trillium", "bluebell", "thistle", "goldenrod", "milkweed", "cattail", "lily", "lilies", "orchid", "tulip", "sunflower"),
             E("Animals", "insect or small animal", false, false, "butterfly", "moth", "dragonfly", "damselfly", "bumblebee", "honeybee", "bee", "wasp", "hornet", "beetle",
@@ -87,6 +90,9 @@ namespace WildLens.EditorTools
         // Folders whose names say "animals live here": models under them are always opened, whatever they are called.
         private static readonly string[] AnimalContainerWords =
             { "animal", "animals", "creature", "creatures", "wildlife", "bird", "birds", "insect", "insects", "character", "characters", "fauna", "pet", "pets", "critter", "critters" };
+
+        // A model with no mesh and one of these words is a rig, a spawner or a demo scene, not an animal ("_livingBirdsController").
+        private static readonly string[] NoiseWords = { "controller", "manager", "spawner", "system", "demo" };
 
         // (d) Vehicles: strong words only. "bike" and "trail" alone are weak (see IsVehicle).
         private static readonly string[] StrongVehicle =
@@ -129,6 +135,9 @@ namespace WildLens.EditorTools
             // vehicles
             public int wheelNodes; public bool steerNode; public float length; public List<string> pivots = new List<string>();
             public bool owned, unopened;
+            public bool byFolder;                          // macro or vehicle recognised only by a folder above the model
+            public bool hidden, animFile;                  // left out of the animal tables (rigs, demos); an animation-only file
+            public List<string> nodeNames = new List<string>(); // vehicles: up to 12 child node names
             public int ClipCount => clips.Count;
         }
 
@@ -350,7 +359,7 @@ namespace WildLens.EditorTools
             info.materials = mats.Count;
             info.shaders.AddRange(shaderNames);
             var issues = new SortedSet<string>();
-            foreach (var sn in shaderNames) { string issue = PipelineIssue(sn, hasRp, hdrp); if (issue != null) issues.Add(issue); }
+            foreach (var sn in shaderNames) { string issue = AnimalPrefabFactory.PipelineIssue(sn, hasRp, hdrp); if (issue != null) issues.Add(issue); }
             info.pipelineIssues.AddRange(issues);
 
             // Rig and clips.
@@ -376,6 +385,11 @@ namespace WildLens.EditorTools
         {
             var nameWords = Words(info.name);
             var folderWords = Words(info.folder);
+            var ancestorWords = AncestorWords(info.path); // every folder above the model: macro subjects and vehicles may be named by any of them
+
+            // Rigs, spawners and demo scenes beside a pack's animals, and animation-only files (no mesh in a folder of animations).
+            if (!info.hasRenderers && Has(nameWords, NoiseWords)) { info.cat = Cat.OtherStatic; info.hidden = true; return; }
+            if (!info.hasRenderers && FolderSaysAnimations(info.folder)) { info.cat = Cat.OtherStatic; info.hidden = true; info.animFile = true; return; }
 
             // A compound macro name ("DragonFly", "Dragon_Fly", "Lightning Bug") is an insect before anything else: the species
             // and census checks would read the "dragon" in it.
@@ -398,8 +412,8 @@ namespace WildLens.EditorTools
                 info.species.Sort((a, b) => a.kind != b.kind ? b.kind.CompareTo(a.kind) : a.rank != b.rank ? a.rank.CompareTo(b.rank) : string.CompareOrdinal(a.id, b.id));
 
                 // (b) other animals, (c) macro subjects: name words first, then the folder's.
-                info.census = FindEntry(OtherAnimals, nameWords, folderWords, out info.censusWord);
-                info.macro = FindEntry(MacroSubjects, nameWords, folderWords, out info.macroWord);
+                info.census = FindEntry(OtherAnimals, nameWords, folderWords, out info.censusWord, out _);
+                info.macro = FindEntry(MacroSubjects, nameWords, ancestorWords, out info.macroWord, out info.byFolder);
             }
 
             // (e) scenery words in the model's own name.
@@ -431,22 +445,41 @@ namespace WildLens.EditorTools
             }
             if (info.census != null) { info.cat = Cat.OtherAnimal; info.isBird = info.census.bird; return; }
             if (info.macro != null) { info.cat = Cat.Macro; return; }
-            if (IsVehicle(info, go, nameWords, folderWords)) { info.cat = Cat.Vehicle; return; }
+            if (IsVehicle(info, go, nameWords, ancestorWords)) { info.cat = Cat.Vehicle; return; }
             if (scenery == "") scenery = SceneryKind(folderWords);
             if (scenery != "" && !info.animated) { info.cat = Cat.Scenery; info.sceneryKind = scenery; return; }
             info.cat = info.animated ? Cat.UncategorisedAnimated : Cat.OtherStatic;
         }
 
-        private static Entry FindEntry(Entry[] table, List<string> nameWords, List<string> folderWords, out string word)
+        private static Entry FindEntry(Entry[] table, List<string> nameWords, List<string> folderWords, out string word, out bool byFolder)
         {
+            byFolder = false;
             foreach (var words in new[] { nameWords, folderWords })
+            {
                 foreach (var e in table)
                 {
                     int i = HasIndex(words, e.keys);
                     if (i >= 0) { word = e.keys[i].TrimEnd('='); return e; }
                 }
+                byFolder = true; // the name said nothing: whatever the folders say is "by folder"
+            }
+            byFolder = false;
             word = null;
             return null;
+        }
+
+        /// <summary>The words of every folder above the asset (below Assets), each with its squashed whole: "SinuousShrooms" gives sinuous, shrooms, sinuousshrooms.</summary>
+        private static List<string> AncestorWords(string path)
+        {
+            var all = new List<string>();
+            foreach (var folder in MacroPackSetup.Ancestors(path)) all.AddRange(Words(folder));
+            return all;
+        }
+
+        private static bool FolderSaysAnimations(string folder)
+        {
+            foreach (var t in AnimalPrefabFactory.Tokens(folder)) if (t.StartsWith("anim", System.StringComparison.Ordinal)) return true;
+            return false;
         }
 
         private static string SceneryKind(List<string> words)
@@ -460,24 +493,29 @@ namespace WildLens.EditorTools
 
         private static bool IsVehicle(Info info, GameObject go, List<string> nameWords, List<string> folderWords)
         {
-            bool strong = Has(nameWords, StrongVehicle) || Has(folderWords, StrongVehicle);
+            bool byName = Has(nameWords, StrongVehicle);
+            bool strong = byName || Has(folderWords, StrongVehicle); // any folder above the model ("MotorcyclePack_/…") can name it
             bool bike = Has(nameWords, new[] { "bike" });
             Transform[] nodes = null;
             if (!strong && bike)
             {
                 // "Bike" alone is weak: it needs a qualifier ("DirtBike", "Trail_Bike") or real wheel nodes.
                 strong = Has(nameWords, BikeQualifiers);
-                if (!strong) { nodes = go.GetComponentsInChildren<Transform>(true); strong = CountWheels(nodes) >= 2; }
+                byName = strong;
+                if (!strong) { nodes = go.GetComponentsInChildren<Transform>(true); strong = CountWheels(nodes) >= 2; byName = strong; }
             }
             if (!strong) return false;
+            info.byFolder = !byName;
             if (nodes == null) nodes = go.GetComponentsInChildren<Transform>(true);
             info.wheelNodes = CountWheels(nodes);
             var norm = new HashSet<string>();
+            var seenNames = new HashSet<string>();
             foreach (var t in nodes)
             {
                 string n = t.name.ToLowerInvariant();
                 if (n.Contains("handlebar") || n.Contains("handle") || n.Contains("fork") || n.Contains("steer")) info.steerNode = true;
                 norm.Add(Squash(t.name));
+                if (t != go.transform && info.nodeNames.Count < 12 && seenNames.Add(t.name)) info.nodeNames.Add(t.name);
             }
             foreach (var p in BikePivots) if (norm.Contains(Squash(p))) info.pivots.Add(p);
             info.length = Mathf.Max(info.size.x, info.size.z);
@@ -536,6 +574,36 @@ namespace WildLens.EditorTools
             return parts.Count == 0 ? "none" : string.Join(" + ", parts);
         }
 
+        /// <summary>Triangle count and size of a model that was only counted by name, for the "Other static models" list.</summary>
+        private static void QuickGeometry(Info info)
+        {
+            try
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(info.path);
+                if (go == null) return;
+                bool any = false; Bounds bounds = new Bounds();
+                foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r == null) continue;
+                    Mesh mesh = r is SkinnedMeshRenderer smr ? smr.sharedMesh : (r is MeshRenderer ? r.GetComponent<MeshFilter>()?.sharedMesh : null);
+                    if (mesh == null) continue;
+                    info.hasRenderers = true;
+                    for (int k = 0; k < mesh.subMeshCount; k++)
+                        if (mesh.GetTopology(k) == MeshTopology.Triangles) info.tris += mesh.GetIndexCount(k) / 3;
+                    var b = r.bounds;
+                    if (b.size.sqrMagnitude < 1e-12f) b = MeshBoundsInWorld(mesh, r.transform);
+                    if (!any) { bounds = b; any = true; } else bounds.Encapsulate(b);
+                }
+                if (any)
+                {
+                    info.size = bounds.size;
+                    float maxSide = Mathf.Max(info.size.x, Mathf.Max(info.size.y, info.size.z));
+                    info.sizeOdd = maxSide > 60f || maxSide < 0.02f;
+                }
+            }
+            catch (System.Exception) { /* a model that will not load stays "-" */ }
+        }
+
         private static Bounds MeshBoundsInWorld(Mesh mesh, Transform t)
         {
             var b = mesh.bounds;
@@ -547,21 +615,6 @@ namespace WildLens.EditorTools
                 result.Encapsulate(m.MultiplyPoint3x4(corner));
             }
             return result;
-        }
-
-        /// <summary>Why a shader will not render correctly in this project's pipeline, or null.</summary>
-        private static string PipelineIssue(string shader, bool hasRp, bool hdrp)
-        {
-            if (string.IsNullOrEmpty(shader) || shader == "(missing shader)" || shader == "Hidden/InternalErrorShader") return "missing shader";
-            if (shader == "(no material)") return null;
-            if (!hdrp && (shader.Contains("HDRP") || shader.Contains("HDRenderPipeline"))) return "HDRP shader";
-            if (hasRp)
-            {
-                if (shader == "Standard" || shader.StartsWith("Standard (") || shader.StartsWith("Legacy Shaders/") || shader.StartsWith("Mobile/") || shader.StartsWith("Nature/"))
-                    return "built-in shader (pink in URP)";
-            }
-            else if (shader.Contains("Universal Render Pipeline")) return "URP shader (pink in Built-in)";
-            return null;
         }
 
         // --- report ----------------------------------------------------------------------------------------------
@@ -631,7 +684,10 @@ namespace WildLens.EditorTools
             var vehicles = infos.FindAll(i => i.cat == Cat.Vehicle);
             var scenery = infos.FindAll(i => i.cat == Cat.Scenery);
             var uncat = infos.FindAll(i => i.cat == Cat.UncategorisedAnimated);
-            int otherStatic = infos.FindAll(i => i.cat == Cat.OtherStatic).Count;
+            var otherStaticList = infos.FindAll(i => i.cat == Cat.OtherStatic && !i.hidden);
+            int otherStatic = otherStaticList.Count;
+            var animFiles = infos.FindAll(i => i.animFile);
+            int hiddenOther = infos.FindAll(i => i.hidden && !i.animFile).Count;
             var animals = new List<Info>(species); animals.AddRange(others);
             animals.Sort((a, b) =>
             {
@@ -660,7 +716,10 @@ namespace WildLens.EditorTools
             sum.Append($"| (d) Vehicles | {vehicles.Count} |\n");
             sum.Append($"| (e) Scenery noticed (counts only) | {scenery.Count} |\n");
             sum.Append($"| (f) Animated models nothing recognised | {uncat.Count} |\n");
-            sum.Append($"| Other static models | {otherStatic} |\n\n");
+            sum.Append($"| Other static models (listed below) | {otherStatic} |\n");
+            if (animFiles.Count > 0 || hiddenOther > 0)
+                sum.Append($"| Animation-only files and rigs/demos left out of the animal tables | {animFiles.Count + hiddenOther} |\n");
+            sum.Append('\n');
 
             var packs = new SortedDictionary<string, List<Info>>(System.StringComparer.Ordinal);
             foreach (var i in infos) { if (!packs.TryGetValue(i.pack, out var l)) packs[i.pack] = l = new List<Info>(); l.Add(i); }
@@ -697,6 +756,16 @@ namespace WildLens.EditorTools
                     if (++n > RowCap) { master.Append($"\n+{others.Count - RowCap} more\n"); break; }
                     master.Append($"| {Esc(i.path)} | {i.censusWord} | {Esc(i.census.role)} | {(i.census.exotic ? "not a Willow Creek animal" : i.census.bird ? "bird (fly roles)" : "")} |\n");
                 }
+                master.Append('\n');
+            }
+
+            // Animation-only files (no mesh, in a folder of animations) are one line per folder, not one row each.
+            if (animFiles.Count > 0)
+            {
+                var perFolder = new SortedDictionary<string, int>(System.StringComparer.Ordinal);
+                foreach (var f in animFiles) { string d = (Path.GetDirectoryName(f.path) ?? "").Replace('\\', '/'); perFolder.TryGetValue(d, out int c); perFolder[d] = c + 1; }
+                master.Append("Animation-only files (no mesh), not listed one by one:\n\n");
+                foreach (var kv in perFolder) master.Append($"- {kv.Value} animation files in `{Esc(kv.Key)}`\n");
                 master.Append('\n');
             }
 
@@ -784,7 +853,7 @@ namespace WildLens.EditorTools
                 foreach (var i in macros)
                 {
                     if (++n > RowCap) { rest2.Append($"\n+{macros.Count - RowCap} more\n"); break; }
-                    rest2.Append($"| {i.macro.group} | {Esc(i.path)} | {Esc(i.pack)} | {i.macroWord} | {i.tris} | {Size(i)} | {Yes(i.skinned)} | {i.ClipCount} | {Esc(PipelineCell(i))} |\n");
+                    rest2.Append($"| {i.macro.group} | {Esc(i.path)}{(i.byFolder ? " (by folder)" : "")} | {Esc(i.pack)} | {i.macroWord}{(i.byFolder ? " (by folder)" : "")} | {i.tris} | {Size(i)} | {Yes(i.skinned)} | {i.ClipCount} | {Esc(PipelineCell(i))} |\n");
                 }
                 rest2.Append('\n');
             }
@@ -797,12 +866,12 @@ namespace WildLens.EditorTools
             else
             {
                 rest2.Append("The bike drop-in wants child pivots named: " + string.Join(", ", BikePivots) + ".\n\n");
-                rest2.Append("| Asset | Pack | Tris | Size (m) | Length (m) | Wheel nodes | Handlebar/fork node | Drop-in pivots found | Pipeline OK |\n|---|---|---|---|---|---|---|---|---|\n");
+                rest2.Append("| Asset | Pack | Tris | Size (m) | Length (m) | Wheel nodes | Handlebar/fork node | Drop-in pivots found | Child nodes (up to 12) | Pipeline OK |\n|---|---|---|---|---|---|---|---|---|---|\n");
                 int n = 0;
                 foreach (var i in vehicles)
                 {
                     if (++n > RowCap) { rest2.Append($"\n+{vehicles.Count - RowCap} more\n"); break; }
-                    rest2.Append($"| {Esc(i.path)} | {Esc(i.pack)} | {i.tris} | {Size(i)} | {Num(i.length)} | {i.wheelNodes} | {Yes(i.steerNode)} | {i.pivots.Count}/{BikePivots.Length}{(i.pivots.Count > 0 ? " (" + string.Join(", ", i.pivots) + ")" : "")} | {Esc(PipelineCell(i))} |\n");
+                    rest2.Append($"| {Esc(i.path)}{(i.byFolder ? " (by folder)" : "")} | {Esc(i.pack)} | {i.tris} | {Size(i)} | {Num(i.length)} | {i.wheelNodes} | {Yes(i.steerNode)} | {i.pivots.Count}/{BikePivots.Length}{(i.pivots.Count > 0 ? " (" + string.Join(", ", i.pivots) + ")" : "")} | {Esc(i.nodeNames.Count == 0 ? "-" : string.Join(", ", i.nodeNames))} | {Esc(PipelineCell(i))} |\n");
                 }
                 rest2.Append('\n');
             }
@@ -846,9 +915,31 @@ namespace WildLens.EditorTools
                 }
             }
 
+            // ---- Other static models: names of everything nothing above recognised, grouped by pack.
+            var otherSb = new StringBuilder();
+            otherSb.Append("## Other static models\n\nModels and prefabs nothing above recognised, listed so unfamiliar packs can be read by name (grouped by pack; " +
+                           $"at most {OtherPerPack} per pack and {OtherCap} in all).\n\n");
+            if (otherStaticList.Count == 0) otherSb.Append("None.\n\n");
+            else
+            {
+                otherStaticList.Sort((a, b) => { int c = string.CompareOrdinal(a.pack, b.pack); return c != 0 ? c : string.CompareOrdinal(a.path, b.path); });
+                otherSb.Append("| Pack | Asset | Tris | Size (m) |\n|---|---|---|---|\n");
+                string lastPack = null; int inPack = 0, listed = 0, skipped = 0;
+                foreach (var i in otherStaticList)
+                {
+                    if (i.pack != lastPack) { if (skipped > 0) { otherSb.Append($"| | +{skipped} more in this pack | | |\n"); skipped = 0; } lastPack = i.pack; inPack = 0; }
+                    if (listed >= OtherCap || inPack >= OtherPerPack) { skipped++; continue; }
+                    if (i.unopened && !i.hasRenderers) QuickGeometry(i); // counted from its name so far: read its size now (only the ones listed)
+                    otherSb.Append($"| {Esc(i.pack)} | {Esc(i.path)} | {(i.hasRenderers ? i.tris.ToString() : "-")} | {Size(i)} |\n");
+                    inPack++; listed++;
+                }
+                if (skipped > 0) otherSb.Append($"| | +{skipped} more in this pack | | |\n");
+                otherSb.Append('\n');
+            }
+
             // The clipboard version: the sections that matter most, in this order, with the long tables trimmed to fit.
-            _shortText = HardCap(ShrinkTables(sum.ToString() + master + cov + macroSb + vehSb + uncatSb, ClipboardLimit - 400), ClipboardLimit);
-            return sum.ToString() + master + cov + macroSb + vehSb + uncatSb + detailSb + scenerySb;
+            _shortText = HardCap(ShrinkTables(sum.ToString() + master + cov + macroSb + vehSb + uncatSb + otherSb, ClipboardLimit - 400), ClipboardLimit);
+            return sum.ToString() + master + cov + macroSb + vehSb + uncatSb + otherSb + detailSb + scenerySb;
         }
 
         private static string HardCap(string text, int limit) =>

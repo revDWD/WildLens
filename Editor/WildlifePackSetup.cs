@@ -29,7 +29,7 @@ namespace WildLens.EditorTools
         public static readonly Dictionary<string, (string[] exact, string[] standIn)> Names = new Dictionary<string, (string[], string[])>
         {
             { "white_tailed_deer", (new[] { "whitetail", "deer", "doe", "stag", "buck", "fawn" }, new[] { "roe", "elk", "reindeer", "caribou", "moose", "antelope", "gazelle", "impala" }) },
-            { "red_fox", (new[] { "fox" }, new[] { "shiba", "fennec", "jackal" }) },
+            { "red_fox", (new[] { "fox" }, new[] { "shiba", "fennec", "jackal", "dog" }) }, // a dog is the last resort: the coyote takes a wolf first
             { "coyote", (new[] { "coyote" }, new[] { "wolf", "dingo", "dhole", "jackal", "husky", "shepherd", "dog" }) },
             { "eastern_cottontail", (new[] { "cottontail", "rabbit", "bunny", "hare" }, new string[0]) },
             { "eastern_gray_squirrel", (new[] { "squirrel", "squirel" }, new[] { "chipmunk" }) },
@@ -43,9 +43,24 @@ namespace WildLens.EditorTools
             { "spotted_sandpiper", (new[] { "sandpiper" }, new[] { "killdeer", "plover", "dunlin", "snipe", "shorebird", "wader", "tern", "seagull", "gull" }) },
             { "northern_cardinal", (new[] { "cardinal", "redbird" }, new[] { "songbird", "finch", "sparrow", "robin", "oriole", "canary", "chickadee", "wren", "tit", "thrush", "warbler", "swallow", "bird" }) },
             { "blue_jay", (new[] { "bluejay", "jay" }, new[] { "bluebird", "songbird", "finch", "sparrow", "robin", "chickadee", "tit", "wren", "thrush", "warbler", "swallow", "bird" }) },
-            { "red_winged_blackbird", (new[] { "blackbird" }, new[] { "grackle", "starling", "crow", "raven", "songbird", "sparrow", "thrush", "bird" }) },
+            // The crow and the sparrow are species of their own now and both are "owned elsewhere"; a small sparrow tinted black reads as a
+            // blackbird better than a crow shrunk to blackbird size, so sparrow ranks ahead of crow here.
+            { "red_winged_blackbird", (new[] { "blackbird" }, new[] { "grackle", "starling", "sparrow", "songbird", "crow", "raven", "thrush", "bird" }) },
             { "belted_kingfisher", (new[] { "kingfisher" }, new[] { "songbird", "sparrow", "bird" }) },
             { "eastern_phoebe", (new[] { "phoebe", "flycatcher" }, new[] { "sparrow", "songbird", "finch", "wren", "chickadee", "bird" }) },
+            // 1.7.1: species of their own (the bird and bear packs were found in the field audit).
+            { "american_crow", (new[] { "crow", "raven" }, new string[0]) },
+            { "american_robin", (new[] { "robin" }, new string[0]) },
+            { "black_capped_chickadee", (new[] { "chickadee", "tit=" }, new string[0]) },
+            { "american_goldfinch", (new[] { "goldfinch", "finch", "canary" }, new string[0]) },
+            { "song_sparrow", (new[] { "sparrow" }, new[] { "wren" }) },
+            { "american_black_bear", (new[] { "blackbear", "bear" }, new string[0]) }, // "bear" is a whole word: never "beard" or "bearing"
+        };
+
+        /// <summary>Words that rule a model out for ONE species only ("polar" is not a black bear, "red panda" is still a raccoon stand-in). "=" means whole word.</summary>
+        public static readonly Dictionary<string, string[]> SpeciesNever = new Dictionary<string, string[]>
+        {
+            { "american_black_bear", new[] { "polar=", "panda=", "teddy=", "koala=" } },
         };
 
         /// <summary>
@@ -64,6 +79,8 @@ namespace WildLens.EditorTools
             "beetle", "moth", "bee", "spider", "bug", "ant", "butterfly", "dragonfly", "damselfly", "firefly", "horsefly", "mantis",
             "snail", "fish", "net", "statue", "toy", "hat", "mask", "costume", "skeleton", "bone", "bones", "skull", "meat", "trophy",
             "rug", "pelt",
+            // Rigs, spawners and demo scenes that sit next to a pack's animals ("_livingBirdsController" is not a bird).
+            "controller", "manager", "spawner", "system", "demo",
         };
 
         /// <summary>Lower-case words of a name: split on non-letters and camel case ("RedFox_Idle01" → red, fox, idle).</summary>
@@ -114,6 +131,7 @@ namespace WildLens.EditorTools
             foreach (var w in words)
                 foreach (var bad in NeverAnimals)
                     if (w == bad || w == bad + "s") return MatchKind.None;
+            if (SpeciesNever.TryGetValue(speciesId, out var never) && Has(words, never)) return MatchKind.None;
             int i = HasIndex(words, n.exact);
             if (i >= 0) { rank = i; return MatchKind.Exact; }
             i = HasIndex(words, n.standIn);
@@ -128,6 +146,9 @@ namespace WildLens.EditorTools
         internal static MatchKind MatchAsset(string assetName, string folderName, string speciesId, out int rank)
         {
             var kind = Match(assetName, speciesId, out rank);
+            // A species' own never-words also count in the folder: a "Bear" in a "PolarBears" folder is no black bear.
+            if (kind != MatchKind.None && !string.IsNullOrEmpty(folderName) && SpeciesNever.TryGetValue(speciesId, out var never) && Has(Words(folderName), never))
+            { rank = int.MaxValue; return MatchKind.None; }
             if (kind != MatchKind.None || string.IsNullOrEmpty(folderName)) return kind;
             var nameWords = Words(assetName);
             if (Has(nameWords, Reserved)) return MatchKind.None;
@@ -138,6 +159,63 @@ namespace WildLens.EditorTools
             if (fromFolder == MatchKind.None) return MatchKind.None;
             rank = 1000 + folderRank; // after every keyword hit in a model's own name
             return MatchKind.StandIn;
+        }
+
+        /// <summary>One model as the ranking sees it (no Unity types, so the ranking can be tested without Unity).</summary>
+        internal struct ModelRef { public string path, name, folder; public int clips; public bool prefab; }
+
+        /// <summary>A model that matched a species, in rank order.</summary>
+        internal struct Ranked { public int model; public MatchKind kind; public int rank; public bool owned, hq; }
+
+        internal static bool HasWord(string name, string word)
+        {
+            foreach (var t in AnimalPrefabFactory.Tokens(name)) if (t == word) return true;
+            return false;
+        }
+
+        /// <summary>For each model path, the species it is the real thing for (so it is not also the first choice as someone's stand-in).</summary>
+        internal static Dictionary<string, List<string>> ExactOwners(IList<ModelRef> models, IList<string> speciesIds)
+        {
+            var owners = new Dictionary<string, List<string>>();
+            foreach (var m in models)
+                foreach (var id in speciesIds)
+                    if (MatchAsset(m.name, m.folder, id, out _) == MatchKind.Exact)
+                    {
+                        if (!owners.TryGetValue(m.path, out var list)) owners[m.path] = list = new List<string>();
+                        list.Add(id);
+                    }
+            return owners;
+        }
+
+        /// <summary>
+        /// The models that match a species, best first: the species itself over a stand-in; a model that is not another species'
+        /// own over one that is; the keyword closest to the species ("wolf" before "dog"); the most recognised clip roles; the
+        /// high-quality variant ("lb_crowHQ" over "lb_crow"); a prefab over a raw model; then by path, so the pick is the same
+        /// on every machine.
+        /// </summary>
+        internal static List<Ranked> RankFor(string speciesId, IList<ModelRef> models, Dictionary<string, List<string>> owners)
+        {
+            var list = new List<Ranked>();
+            for (int i = 0; i < models.Count; i++)
+            {
+                var m = models[i];
+                var kind = MatchAsset(m.name, m.folder, speciesId, out int rank);
+                if (kind == MatchKind.None) continue;
+                bool owned = kind == MatchKind.StandIn && owners != null && owners.TryGetValue(m.path, out var o) && o.Count > 0;
+                list.Add(new Ranked { model = i, kind = kind, rank = rank, owned = owned, hq = HasWord(m.name, "hq") });
+            }
+            list.Sort((a, b) =>
+            {
+                if (a.kind != b.kind) return b.kind.CompareTo(a.kind);
+                if (a.owned != b.owned) return a.owned ? 1 : -1;
+                if (a.rank != b.rank) return a.rank.CompareTo(b.rank);
+                var ma = models[a.model]; var mb = models[b.model];
+                if (ma.clips != mb.clips) return mb.clips.CompareTo(ma.clips);
+                if (a.hq != b.hq) return a.hq ? -1 : 1;
+                if (ma.prefab != mb.prefab) return ma.prefab ? -1 : 1;
+                return string.CompareOrdinal(ma.path, mb.path);
+            });
+            return list;
         }
 
         // <pure-end>
@@ -158,7 +236,7 @@ namespace WildLens.EditorTools
             public SpeciesDefinition species;
             public List<Candidate> candidates = new List<Candidate>();
             public int pick;
-            public bool on, tint;
+            public bool on, tint, kept;
             public float size, yaw;
             public Candidate Picked => pick >= 0 && pick < candidates.Count ? candidates[pick] : null;
         }
@@ -192,7 +270,7 @@ namespace WildLens.EditorTools
             {
                 EditorGUILayout.BeginHorizontal();
                 using (new EditorGUI.DisabledScope(row.candidates.Count == 0))
-                    row.on = EditorGUILayout.ToggleLeft(row.species.displayName + (row.species.prefab != null ? " ✓" : ""), row.on, GUILayout.Width(190));
+                    row.on = EditorGUILayout.ToggleLeft(row.species.displayName + (row.species.prefab != null ? " ✓" : row.kept ? " (kept)" : ""), row.on, GUILayout.Width(190));
                 if (row.candidates.Count == 0)
                     EditorGUILayout.LabelField(row.species.prefab != null ? "model assigned (no new match)" : "no match: placeholder body", EditorStyles.miniLabel);
                 else
@@ -212,6 +290,9 @@ namespace WildLens.EditorTools
                     Undo.RecordObject(row.species, "Revert species prefab");
                     row.species.prefab = null;
                     EditorUtility.SetDirty(row.species);
+                    SetKeepPlaceholder(row.species.speciesId, true); // sticks: automatic set-up skips it from now on
+                    row.kept = true;
+                    row.on = false;
                 }
                 EditorGUILayout.EndHorizontal();
             }
@@ -227,7 +308,7 @@ namespace WildLens.EditorTools
             _rows.Clear();
             var db = AssetDatabase.LoadAssetAtPath<SpeciesDatabase>(WildLensSliceBuilder.DatabasePath) ?? WildLensSliceBuilder.EnsureSpeciesAssets();
             var models = FindAnimatedModels();
-            _rows.AddRange(BuildRows(db, models));
+            _rows.AddRange(BuildRows(db, models, AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath)));
             int matched = 0;
             foreach (var row in _rows) if (row.candidates.Count > 0) matched++;
             _scanned = true;
@@ -242,17 +323,19 @@ namespace WildLens.EditorTools
         public static int AutoSetUp(SpeciesDatabase db)
         {
             if (db == null || Application.isPlaying) return 0;
+            var settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath);
             bool anyMissing = false;
-            foreach (var sp in db.species) if (sp != null && sp.prefab == null) { anyMissing = true; break; }
+            foreach (var sp in db.species)
+                if (sp != null && sp.prefab == null && !IsKeptPlaceholder(settings, sp.speciesId)) { anyMissing = true; break; }
             if (!anyMissing) return 0;
             var models = FindAnimatedModels();
             if (models.Count == 0) return 0;
             var sb = new StringBuilder();
             var unmatched = new List<string>();
             int done = 0;
-            foreach (var row in BuildRows(db, models))
+            foreach (var row in BuildRows(db, models, settings))
             {
-                if (row.species.prefab != null) continue;
+                if (row.species.prefab != null || row.kept) continue; // a model already assigned, or sent back to a placeholder by hand: never touched
                 if (row.Picked == null) { unmatched.Add(row.species.displayName); continue; }
                 try
                 {
@@ -274,49 +357,52 @@ namespace WildLens.EditorTools
             return done;
         }
 
-        private static List<Row> BuildRows(SpeciesDatabase db, List<Model> models)
+        private static List<Row> BuildRows(SpeciesDatabase db, List<Model> models, SliceBuildSettings settings = null)
         {
             var rows = new List<Row>();
-            // Which species each model is the real thing for, so it is not also the first choice as someone's stand-in.
-            var exactFor = new Dictionary<string, List<string>>();
+            var refs = new List<ModelRef>();
             foreach (var m in models)
-            {
-                string folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(m.path));
-                foreach (var species in db.species)
-                    if (species != null && MatchAsset(m.asset.name, folder, species.speciesId, out _) == MatchKind.Exact)
-                    {
-                        if (!exactFor.TryGetValue(m.path, out var list)) exactFor[m.path] = list = new List<string>();
-                        list.Add(species.speciesId);
-                    }
-            }
+                refs.Add(new ModelRef
+                {
+                    path = m.path, name = m.asset.name, clips = m.clipCount, prefab = m.path.EndsWith(".prefab"),
+                    folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(m.path)),
+                });
+            var ids = new List<string>();
+            foreach (var species in db.species) if (species != null) ids.Add(species.speciesId);
+            var owners = ExactOwners(refs, ids);
             foreach (var species in db.species)
             {
                 if (species == null) continue;
                 var row = new Row { species = species, size = AnimalPrefabFactory.DefaultSize(species) };
-                foreach (var m in models)
+                foreach (var r in RankFor(species.speciesId, refs, owners))
                 {
-                    string folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(m.path));
-                    var kind = MatchAsset(m.asset.name, folder, species.speciesId, out int rank);
-                    if (kind == MatchKind.None) continue;
-                    bool owned = kind == MatchKind.StandIn && exactFor.TryGetValue(m.path, out var owners) && owners.Count > 0;
-                    row.candidates.Add(new Candidate { asset = m.asset, path = m.path, kind = kind, rank = rank, ownedElsewhere = owned, clips = m.clips, clipCount = m.clipCount });
+                    var m = models[r.model];
+                    row.candidates.Add(new Candidate { asset = m.asset, path = m.path, kind = r.kind, rank = r.rank, ownedElsewhere = r.owned, clips = m.clips, clipCount = m.clipCount });
                 }
-                // Best first: the species itself over a stand-in; a model that is another species' own over none; the
-                // keyword closest to the species ("wolf" before "dog"); the most recognised clips; then by path, so the
-                // pick is the same on every machine.
-                row.candidates.Sort((a, b) =>
-                {
-                    if (a.kind != b.kind) return b.kind.CompareTo(a.kind);
-                    if (a.ownedElsewhere != b.ownedElsewhere) return a.ownedElsewhere ? 1 : -1;
-                    if (a.rank != b.rank) return a.rank.CompareTo(b.rank);
-                    if (a.clipCount != b.clipCount) return b.clipCount.CompareTo(a.clipCount);
-                    return string.CompareOrdinal(a.path, b.path);
-                });
-                row.on = row.candidates.Count > 0 && species.prefab == null;
+                row.kept = IsKeptPlaceholder(settings, species.speciesId);
+                row.on = row.candidates.Count > 0 && species.prefab == null && !row.kept;
                 row.tint = row.Picked != null && row.Picked.kind == MatchKind.StandIn;
                 rows.Add(row);
             }
             return rows;
+        }
+
+        /// <summary>Whether the species was sent back to its placeholder body by hand (the Placeholder button); automatic set-up leaves it alone.</summary>
+        internal static bool IsKeptPlaceholder(SliceBuildSettings settings, string speciesId) =>
+            settings != null && settings.keepPlaceholder != null && !string.IsNullOrEmpty(speciesId) && settings.keepPlaceholder.Contains(speciesId);
+
+        /// <summary>Adds the species to (or removes it from) the settings' keep-as-placeholder list. Null-safe for settings assets from before 1.7.1.</summary>
+        internal static void SetKeepPlaceholder(string speciesId, bool keep)
+        {
+            if (string.IsNullOrEmpty(speciesId)) return;
+            var settings = keep ? WildLensSliceBuilder.LoadOrCreateSettings() : AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath);
+            if (settings == null) return;
+            if (settings.keepPlaceholder == null) settings.keepPlaceholder = new List<string>();
+            bool has = settings.keepPlaceholder.Contains(speciesId);
+            if (has == keep) return;
+            Undo.RecordObject(settings, keep ? "Keep species as placeholder" : "Use a model for species");
+            if (keep) settings.keepPlaceholder.Add(speciesId); else settings.keepPlaceholder.RemoveAll(x => x == speciesId);
+            EditorUtility.SetDirty(settings);
         }
 
         private struct Model { public GameObject asset; public string path; public List<AnimationClip> clips; public int clipCount; }
@@ -408,30 +494,59 @@ namespace WildLens.EditorTools
     /// </summary>
     public class WildlifePackImportWatcher : AssetPostprocessor
     {
+        // A pack that carries scripts triggers a domain reload right after it imports, which throws away a queued delayCall and
+        // every static field. "An import is pending" therefore lives in SessionState (it survives the reload) and is picked up
+        // again by an [InitializeOnLoadMethod] once the scripts have recompiled (1.7.1).
+        private const string PendingKey = "WildLens.WildlifeImportPending";
         private static bool _queued;
+
+        private static bool Pending
+        {
+            get { try { return SessionState.GetBool(PendingKey, false); } catch (System.Exception) { return false; } }
+            set { try { SessionState.SetBool(PendingKey, value); } catch (System.Exception) { } }
+        }
 
         private static void OnPostprocessAllAssets(string[] imported, string[] deleted, string[] moved, string[] movedFrom)
         {
-            if (_queued || Application.isPlaying) return;
+            if (Application.isPlaying) return;
             foreach (var path in imported)
             {
                 if (path.StartsWith(GeneratedAssets.Root + "/")) continue;
                 string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
                 if (ext != ".fbx" && ext != ".prefab" && ext != ".blend" && ext != ".gltf" && ext != ".glb") continue;
-                _queued = true;
-                EditorApplication.delayCall += Run;
+                Pending = true;
+                Queue();
                 return;
             }
+        }
+
+        [InitializeOnLoadMethod]
+        private static void Resume()
+        {
+            EditorApplication.playModeStateChanged += state => { if (state == PlayModeStateChange.EnteredEditMode && Pending) Queue(); };
+            if (Pending && !EditorApplication.isPlayingOrWillChangePlaymode) Queue();
+        }
+
+        private static void Queue()
+        {
+            if (_queued) return;
+            _queued = true;
+            EditorApplication.delayCall += Run;
         }
 
         private static void Run()
         {
             _queued = false;
-            if (Application.isPlaying || EditorApplication.isCompiling || EditorApplication.isUpdating) { _queued = true; EditorApplication.delayCall += Run; return; }
+            if (!Pending) return;
+            if (Application.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode) return; // picked up again on EnteredEditMode
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating) { Queue(); return; } // a reload may still come: Pending survives it
+            Pending = false; // before the work, so a failure cannot loop
             var settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath);
             if (settings != null && !settings.autoWildlifeFromPacks) return;
             var db = AssetDatabase.LoadAssetAtPath<SpeciesDatabase>(WildLensSliceBuilder.DatabasePath);
-            if (db != null) WildlifePackSetup.AutoSetUp(db); // no database yet: the first build will do it
+            if (db == null) return; // no database yet: the first build will do it
+            try { WildlifePackSetup.AutoSetUp(db); }
+            catch (System.Exception e) { Debug.LogWarning("[WildLens] Wildlife set-up after import failed: " + e.Message); }
         }
     }
 }

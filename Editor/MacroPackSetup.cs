@@ -17,7 +17,8 @@ namespace WildLens.EditorTools
     public static class MacroPackSetup
     {
         // <pure-begin>
-        private enum Kind { None, StandIn, Exact }
+        // ByFolder: only a folder above the file names the subject (lowest rank). Appended after the originals so the order is stable.
+        private enum Kind { None, ByFolder, StandIn, Exact }
 
         /// <summary>Names that are the subject, then names of things that read like it at macro distance.</summary>
         public static readonly Dictionary<string, (string[] exact, string[] standIn)> Names = new Dictionary<string, (string[], string[])>
@@ -37,14 +38,16 @@ namespace WildLens.EditorTools
         };
 
         /// <summary>
-        /// Words that rule a model out for EVERY subject (a bee hive, a potted daisy, a lamp, a toy, a particle effect).
-        /// Compared with whole words only (and the plural), so "Spotted_Daisy" is fine and "Flower_Pot" is not.
+        /// Words that rule a model out for EVERY subject (a bee hive, a potted daisy, a lamp, a toy, a particle effect, and, since
+        /// 1.7.1, the ground, rocks and demo scenes that sit beside a pack's models). Compared with whole words only (and the
+        /// plural), so "Spotted_Daisy" is fine and "Flower_Pot" is not. "cluster" is deliberately allowed.
         /// </summary>
         private static readonly string[] NeverSmallLife =
         {
             "hive", "house", "hut", "home", "box", "nest", "lamp", "light", "lantern", "statue", "toy", "pot", "vase", "bouquet",
             "bed", "bush", "net", "fish", "soup", "sign", "icon", "swarm", "particle", "particles", "vfx", "fx", "ui", "sprite",
             "decal", "card", "tile", "pattern", "print", "cloud", "tree", "costume", "hat", "mask",
+            "ground", "terrain", "demo", "scene", "plane", "floor", "rock", "stump", "log", "grass", "material",
         };
 
         /// <summary>Whole-word match of a name against the shared exclusion list.</summary>
@@ -57,22 +60,79 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>
-        /// What a model's file name (and, as a last resort, its folder's name) says about a subject. The folder can name a
-        /// stand-in at most, never the real thing.
+        /// The folders above an asset, nearest first, below Assets: "Assets/SinuousShrooms/Models/Cap.fbx" → Models, SinuousShrooms.
         /// </summary>
-        private static Kind MatchName(string stem, string dir, string subjectId)
+        internal static string[] Ancestors(string assetPath)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrEmpty(assetPath)) return list.ToArray();
+            var parts = assetPath.Replace('\\', '/').Split('/');
+            for (int i = parts.Length - 2; i >= 1; i--) if (parts[i].Length > 0) list.Add(parts[i]);
+            return list.ToArray();
+        }
+
+        /// <summary>
+        /// What a model's file name (and, as a last resort, ANY folder above it) says about a subject. A folder can name a stand-in at
+        /// most, never the real thing, and ranks below a name-based stand-in. A folder whose own name is an excluded thing
+        /// ("Mushroom_Houses") says nothing.
+        /// </summary>
+        private static Kind MatchName(string stem, string[] ancestors, string subjectId)
+        {
+            var folderWords = new List<List<string>>();
+            if (ancestors != null) foreach (var a in ancestors) folderWords.Add(Words(a));
+            return MatchWords(Words(stem), folderWords, subjectId);
+        }
+
+        private static Kind MatchWords(List<string> words, List<List<string>> ancestorWords, string subjectId)
         {
             if (!Names.TryGetValue(subjectId, out var n)) return Kind.None;
-            var words = Words(stem);
             if (IsExcluded(words)) return Kind.None;
             if (Has(words, n.exact)) return Kind.Exact;
             if (Has(words, n.standIn)) return Kind.StandIn;
-            if (!string.IsNullOrEmpty(dir))
-            {
-                var dirWords = Words(dir);
-                if (Has(dirWords, n.exact) || Has(dirWords, n.standIn)) return Kind.StandIn;
-            }
+            if (ancestorWords != null)
+                foreach (var dirWords in ancestorWords)
+                {
+                    if (IsExcluded(dirWords)) continue;
+                    if (Has(dirWords, n.exact) || Has(dirWords, n.standIn)) return Kind.ByFolder;
+                }
             return Kind.None;
+        }
+
+        // Words in a name that say "not the ordinary one": a broken, giant or tiny variant is a poorer pick than a plain "Mushroom_03".
+        private static readonly string[] OddNameWords =
+            { "big", "large", "huge", "giant", "small", "tiny", "mini", "broken", "dead", "damaged", "old", "lod", "collider", "base", "stem" };
+
+        /// <summary>Lower is simpler: the number of words, and a big penalty for each odd word.</summary>
+        internal static int NameScore(string stem)
+        {
+            var words = Words(stem);
+            int score = 0;
+            foreach (var w in words) { if (w.Length == 0) continue; score++; }
+            if (words.Count > 1) score--; // the squashed whole is not a word
+            foreach (var w in words)
+                foreach (var odd in OddNameWords)
+                    if (w == odd || w == odd + "s") score += 10;
+            return score;
+        }
+
+        /// <summary>
+        /// Among models that tie on kind, animation and prefab-ness: the simplest names (see <see cref="NameScore"/>), then the
+        /// one in the MIDDLE of their sizes (not the smallest scrap or the biggest), ties by path. Returns an index into the lists.
+        /// </summary>
+        internal static int PickMid(IList<float> extents, IList<int> scores, IList<string> paths)
+        {
+            int count = paths.Count;
+            if (count == 0) return -1;
+            int best = int.MaxValue;
+            for (int i = 0; i < count; i++) if (scores[i] < best) best = scores[i];
+            var keep = new List<int>();
+            for (int i = 0; i < count; i++) if (scores[i] == best) keep.Add(i);
+            keep.Sort((a, b) =>
+            {
+                int c = extents[a].CompareTo(extents[b]);
+                return c != 0 ? c : string.CompareOrdinal(paths[a], paths[b]);
+            });
+            return keep[(keep.Count - 1) / 2];
         }
 
         // Copied from WildlifePackSetup (that file is not shared on purpose).
@@ -112,7 +172,9 @@ namespace WildLens.EditorTools
             public GameObject asset;
             public string path;
             public bool isPrefab, animated;
-            public string stem, dir;
+            public string stem;
+            public string[] dirs;
+            public float extent;
         }
 
         [MenuItem("WildLens/Macro Subjects From Packs", priority = 13)]
@@ -167,23 +229,37 @@ namespace WildLens.EditorTools
             int done = 0;
             foreach (var subject in wanted)
             {
-                Candidate best = null;
+                // Exact before name stand-in before folder-only; then animated before static; then prefab before raw model.
+                // Among the models that tie at the top, the simplest names, then the one of middle size (a pack of eleven
+                // different mushrooms gives one that is neither the scrap nor the giant).
                 int bestRank = -1;
-                bool bestExact = false;
+                var top = new List<Candidate>();
+                var kinds = new Dictionary<Candidate, Kind>();
                 foreach (var c in candidates)
                 {
-                    var kind = MatchName(c.stem, c.dir, subject.subjectId);
+                    var kind = MatchName(c.stem, c.dirs, subject.subjectId);
                     if (kind == Kind.None) continue;
-                    // Exact before stand-in; then animated before static; then prefab before raw model; then path order
-                    // (the list is already sorted, and only a strictly better rank replaces the current best).
-                    int rank = (kind == Kind.Exact ? 4 : 0) + (c.animated ? 2 : 0) + (c.isPrefab ? 1 : 0);
-                    if (rank > bestRank) { best = c; bestRank = rank; bestExact = kind == Kind.Exact; }
+                    int rank = (int)kind * 4 + (c.animated ? 2 : 0) + (c.isPrefab ? 1 : 0);
+                    kinds[c] = kind;
+                    if (rank > bestRank) { bestRank = rank; top.Clear(); }
+                    if (rank == bestRank) top.Add(c);
                 }
-                if (best == null) { sb.Append("\n  • ").Append(subject.displayName).Append(": no model found: stays out of the reserve"); continue; }
+                if (top.Count == 0) { sb.Append("\n  • ").Append(subject.displayName).Append(": no model found: stays out of the reserve"); continue; }
+                var extents = new List<float>(); var scores = new List<int>(); var tops = new List<string>();
+                foreach (var c in top) { extents.Add(c.extent); scores.Add(NameScore(c.stem)); tops.Add(c.path); }
+                var best = top[PickMid(extents, scores, tops)];
+                var bestKind = kinds[best];
                 subject.prefab = best.asset;
                 EditorUtility.SetDirty(subject);
                 sb.Append("\n  • ").Append(subject.displayName).Append(": ").Append(best.asset.name)
-                  .Append(bestExact ? "" : " (stand-in)").Append("  ").Append(best.path);
+                  .Append(bestKind == Kind.Exact ? "" : bestKind == Kind.ByFolder ? " (stand-in, from its folder name)" : " (stand-in)").Append("  ").Append(best.path);
+                if (top.Count > 1)
+                {
+                    // A subject holds one model; the others that were as good are listed so a different one can be dragged in by hand.
+                    var others = new List<string>();
+                    foreach (var c in top) if (c != best && others.Count < 6) others.Add(c.asset.name);
+                    sb.Append("\n      equally good, not used (a subject holds one model): ").Append(string.Join(", ", others)).Append(top.Count - 1 > others.Count ? ", …" : "");
+                }
                 done++;
             }
             if (done > 0) AssetDatabase.SaveAssets();
@@ -203,6 +279,7 @@ namespace WildLens.EditorTools
             if (subjectIds == null || subjectIds.Count == 0) return result;
             var seen = new HashSet<string>();
             var paths = new List<string>();
+            var folderWords = new Dictionary<string, List<string>>(); // a folder's words, worked out once however many models sit in it
             foreach (string guid in AssetDatabase.FindAssets("t:GameObject", new[] { "Assets" }))
                 paths.Add(AssetDatabase.GUIDToAssetPath(guid));
             paths.Sort(string.CompareOrdinal); // deterministic whatever order the database answers in
@@ -212,9 +289,15 @@ namespace WildLens.EditorTools
                 if (!seen.Add(path)) continue;
                 string stem = System.IO.Path.GetFileNameWithoutExtension(path);
                 if (IsLodOrCollider(stem)) continue;
-                string dir = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path) ?? "");
+                var words = Words(stem);
+                var ancestors = new List<List<string>>();
+                foreach (var folder in Ancestors(path))
+                {
+                    if (!folderWords.TryGetValue(folder, out var fw)) folderWords[folder] = fw = Words(folder);
+                    ancestors.Add(fw);
+                }
                 foreach (var id in subjectIds)
-                    if (MatchName(stem, dir, id) != Kind.None) { result.Add(path); break; }
+                    if (MatchWords(words, ancestors, id) != Kind.None) { result.Add(path); break; }
             }
             return result;
         }
@@ -228,10 +311,10 @@ namespace WildLens.EditorTools
                 var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (go == null) continue;
                 if (!HasMesh(go)) continue; // an empty prefab, a rig with no body: nothing to look at
-                if (Extent(go) > MaxExtent) continue; // a tree, a building: not small life
+                float size = Extent(go);
+                if (size > MaxExtent) continue; // a tree, a building: not small life
                 string stem = System.IO.Path.GetFileNameWithoutExtension(path);
-                string dir = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path) ?? "");
-                list.Add(new Candidate { asset = go, path = path, isPrefab = path.EndsWith(".prefab"), animated = IsAnimated(go), stem = stem, dir = dir });
+                list.Add(new Candidate { asset = go, path = path, isPrefab = path.EndsWith(".prefab"), animated = IsAnimated(go), stem = stem, dirs = Ancestors(path), extent = size });
             }
             return list;
         }
