@@ -25,7 +25,13 @@ namespace WildLens.UI
         private RawImage _photo;
         private AspectRatioFitter _photoFitter;
         private int _selected;
+        private int _offset;                       // first species shown in the list window
+        private Text _moreAbove, _moreBelow;
         private bool _dirty = true;
+
+        // Row pitch 92 px, row height 84 px, first row top at y = 136 below the book's top edge (book 880 px tall).
+        // The list column ends at 810 px (divider) and the footer starts at 826 px, so 7 rows fit (last row ends at 772 px).
+        private const int VisibleRows = 7;
 
         private WildLensGame Game => WildLensGame.Instance;
 
@@ -63,8 +69,11 @@ namespace WildLens.UI
             int count = Game.Species.Count;
             if (count > 0)
             {
-                if (GameInput.NavigateUpPressed) { _selected = (_selected - 1 + count) % count; _dirty = true; }
-                if (GameInput.NavigateDownPressed) { _selected = (_selected + 1) % count; _dirty = true; }
+                // Wheel: direction only (backends report different scales). Wheel up = previous species.
+                float wheel = GameInput.ScrollRaw;
+                bool wheelUp = wheel > 0.0001f, wheelDown = wheel < -0.0001f;
+                if (GameInput.NavigateUpPressed || wheelUp) { _selected = (_selected - 1 + count) % count; _dirty = true; }
+                if (GameInput.NavigateDownPressed || wheelDown) { _selected = (_selected + 1) % count; _dirty = true; }
             }
             if (_dirty) Refresh();
         }
@@ -86,17 +95,28 @@ namespace WildLens.UI
             _headerStats.text = $"Species {journal.DiscoveredCount} of {journal.TotalSpecies}     Photographs {journal.TotalPhotos}" +
                                 (journal.NotebookCount > 0 ? $"     Field notebook {journal.NotebookCount}" : "");
 
-            for (int i = 0; i < _rowTexts.Count && i < db.Count; i++)
+            // The list is a window of VisibleRows rows that follows the selection.
+            int rows = _rowTexts.Count;
+            if (_selected >= db.Count) _selected = Mathf.Max(0, db.Count - 1);
+            if (_selected < _offset) _offset = _selected;
+            if (_selected >= _offset + rows) _offset = _selected - rows + 1;
+            _offset = Mathf.Clamp(_offset, 0, Mathf.Max(0, db.Count - rows));
+            _moreAbove.enabled = _offset > 0;
+            _moreBelow.enabled = _offset + rows < db.Count;
+
+            for (int slot = 0; slot < rows; slot++)
             {
+                int i = _offset + slot;
+                if (i >= db.Count) { _rowTexts[slot].text = ""; _rowBackgrounds[slot].color = Color.clear; continue; }
                 var s = db.species[i];
                 var rec = s != null ? journal.GetRecord(s.speciesId) : null;
                 string num = (i + 1).ToString("00");
-                _rowTexts[i].text = rec != null
+                _rowTexts[slot].text = rec != null
                     ? $"{num}   <b>{s.displayName}</b>\n<size=18>     {rec.photoCount} photo{(rec.photoCount == 1 ? "" : "s")}</size>"
                     : $"{num}   ???\n<size=18>     not yet observed</size>";
                 if (rec != null && rec.photoCount == 0)
-                    _rowTexts[i].text = $"{num}   <b>{s.displayName}</b>\n<size=18>     observed, no photo yet</size>";
-                _rowBackgrounds[i].color = i == _selected ? UIFactory.PaperDark : new Color(0f, 0f, 0f, 0f);
+                    _rowTexts[slot].text = $"{num}   <b>{s.displayName}</b>\n<size=18>     observed, no photo yet</size>";
+                _rowBackgrounds[slot].color = i == _selected ? UIFactory.PaperDark : new Color(0f, 0f, 0f, 0f);
             }
 
             var species = _selected < db.Count ? db.species[_selected] : null;
@@ -192,7 +212,14 @@ namespace WildLens.UI
             UIFactory.Place(rule.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -110f), new Vector2(1460f, 2f));
 
             // Species list
-            for (int i = 0; i < speciesCount; i++)
+            var faint = new Color(UIFactory.Ink.r, UIFactory.Ink.g, UIFactory.Ink.b, 0.6f);
+            _moreAbove = UIFactory.CreateText("More Above", b, "^  more", 18, faint, TextAnchor.MiddleCenter);
+            UIFactory.Place(_moreAbove.rectTransform, new Vector2(0f, 1f), new Vector2(50f, -112f), new Vector2(420f, 22f));
+            _moreBelow = UIFactory.CreateText("More Below", b, "v  more", 18, faint, TextAnchor.MiddleCenter);
+            UIFactory.Place(_moreBelow.rectTransform, new Vector2(0f, 1f), new Vector2(50f, -776f), new Vector2(420f, 24f));
+            _moreAbove.enabled = _moreBelow.enabled = false;
+
+            for (int i = 0; i < Mathf.Min(speciesCount, VisibleRows); i++)
             {
                 var row = UIFactory.CreateImage("Row " + i, b, Color.clear);
                 UIFactory.Place(row.rectTransform, new Vector2(0f, 1f), new Vector2(50f, -136f - i * 92f), new Vector2(420f, 84f));
