@@ -8,7 +8,7 @@ documents. If you read nothing else, read §1, §5, §14 and §15.
 
 ## 1. Project Overview
 
-**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.6). You walk or
+**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.6.1). You walk or
 ride a small trail bike around a generated reserve (meadow loop, ridge overlook, Cattail Pond, old-growth grove,
 meadow blind, Willow Creek with its ford and falls, Reserve Road, footpaths, hidden places), notice animals,
 approach without spooking them, and photograph them with a telephoto or, since 1.5, a macro lens. The day turns, the
@@ -106,18 +106,18 @@ Left out on purpose. Don't add them unless the director asks:
 
 → The complete list, with what to build instead: [Documentation~/Roadmap.md](Documentation~/Roadmap.md).
 
-## 6. Current Project State (1.6.0, "Trailhead & Wildlife Packs")
+## 6. Current Project State (1.6.1, "Trailhead & Wildlife Packs")
 
 **Working well:** the approach-and-photograph loop; camera feel; legible grading; named places with distinct
 identities and signature details; real elevation; a day cycle and a learnable four-day weather forecast; Willow Creek
 with its ford and falls; hidden places; macro groundwork with a field notebook; eighteen species from data; the Reserve
 Road and footpaths; a Trail 125-style bike with suspension; one sign standard with a lettering probe; a three-sided
-Reserve Board at the trailhead with the bike bay beside it; the Environment Kit and Wildlife Pack Setup for using
-free store assets locally; a compile check that runs without Unity.
+Reserve Board at the trailhead with the bike bay beside it; two CC0 animated animals shipped (wolf as coyote, eagle as
+hawk); the Environment Kit and Wildlife Pack Setup, which now fill themselves from free packs imported locally; a compile check that runs without Unity.
 
 **Weakest, in order** (honest):
-1. **Animals are primitive placeholders.** The tool to replace them from free packs exists (1.6) but has never run in
-   Unity. → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md).
+1. **Most animals are primitive placeholders.** The coyote and hawk have real models (1.6.1), and imported packs fill
+   the rest automatically, but none of this has run in Unity yet. → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md).
 2. **Trees** read as lollipops at distance: leaf cards lit like paper, no LODs or billboards. The Environment Kit can
    swap in Unity's free SpeedTree trees, also **never run in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
 3. **Grass** is flat billboards unless the kit supplies mesh grass.
@@ -185,8 +185,8 @@ free store assets locally; a compile check that runs without Unity.
 
 ## 9. Asset Strategy
 
-- **Committed: CC0 only.** Poly Haven skies, terrain, surfaces, rocks, wood, plants (`Art~`, credited in
-  `Art~/CREDITS.md`). Keep sizes modest (2k): `Art~` ships to every user.
+- **Committed: CC0 only.** Poly Haven skies, terrain, surfaces, rocks, wood, plants; Quaternius animals (`Art~`,
+  credited in `Art~/CREDITS.md`). Keep sizes modest (2k): `Art~` ships to every user.
 - **Store assets, free ones included, are never committed** (the Asset Store EULA forbids redistribution). The user
   imports them locally; WildLens finds and places them: the **Environment Kit** for scenery (by ecological role),
   **Animal Model Setup** and **Wildlife Pack Setup** for animals, a named-pivot model for the bike.

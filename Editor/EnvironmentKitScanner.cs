@@ -82,6 +82,27 @@ namespace WildLens.EditorTools
             return kit;
         }
 
+        /// <summary>
+        /// 1.6: the hands-off route, run by each rebuild while the kit is still empty: scan without dialogs and point the
+        /// settings at the kit if anything usable was found. A kit with contents is never rescanned here, so hand edits stick.
+        /// </summary>
+        public static EnvironmentKit ScanQuietly(SliceBuildSettings settings)
+        {
+            var kit = LoadOrCreateKit();
+            try { Scan(kit, false); }
+            finally { EditorUtility.ClearProgressBar(); }
+            EditorUtility.SetDirty(kit);
+            if (!kit.IsEmpty && settings != null && settings.environmentKit != kit)
+            {
+                settings.environmentKit = kit;
+                EditorUtility.SetDirty(settings);
+            }
+            AssetDatabase.SaveAssets();
+            if (!kit.IsEmpty) Debug.Log("[WildLens] Environment Kit filled automatically from your imported packs: " + kit.Summary() +
+                                        "\n" + kit.scanReport);
+            return kit;
+        }
+
         // ------------------------------------------------------------------ scan
 
         private enum Role { None, Conifer, Broadleaf, Riparian, OldGrowth, Young, Shrub, Fern, Rock, Boulder, Log, Stump, Detail }

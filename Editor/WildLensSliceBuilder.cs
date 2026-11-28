@@ -67,6 +67,13 @@ namespace WildLens.EditorTools
                 Progress("Species data", 0.05f);
                 var database = EnsureSpeciesAssets(s.previewExpansionSpecies);
 
+                // 1.6: free nature packs in the project are used without a scan step (only while the kit is empty).
+                if (s.autoEnvironmentKit && (s.environmentKit == null || s.environmentKit.IsEmpty))
+                {
+                    Progress("Looking for nature packs", 0.08f);
+                    EnvironmentKitScanner.ScanQuietly(s);
+                }
+
                 Progress("Terrain", 0.1f);
                 var terrain = FindOrCreateTerrain(s);
 

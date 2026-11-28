@@ -35,3 +35,14 @@ Processing done when the assets were added: HDRIs analysed for sun direction/col
 (`Sky/*.json`); rock faces (1.2) taken at 1k (JPG diffuse and OpenGL normal), 20k and 30k triangles; foliage alpha maps merged into RGBA diffuse PNGs; JPG OpenGL normal maps used in place of EXR.
 The Foliage textures (0.6.0) were composed from the trees' CC0 leaf/twig atlases; the tree meshes themselves are not
 shipped (2–17 M polygons each).
+
+## Animals (1.6.1)
+
+| File | Source | Author | Licence | Use |
+|---|---|---|---|---|
+| Animals/Wolf.fbx | "Animated Wolf, Eagle, Dog, Cat and Piranha" (OpenGameArt) | Quaternius | CC0 1.0 | Stand-in for the coyote (tinted to coyote colours) |
+| Animals/Eagle.fbx | same pack | Quaternius | CC0 1.0 | Stand-in for the red-tailed hawk (tinted) |
+
+Converted from the original `.blend` files with Blender 4.0: Diffuse materials replaced by Principled with the same
+colours, the armature turned to face Blender's front (−Y, so +Z in Unity), exported to FBX with all actions (Wolf: Idle,
+Walking; Eagle: Flying, Idle). The pack's dog, cat and piranha are not shipped (no species for them).

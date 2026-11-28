@@ -223,6 +223,13 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   through `WildlifePackImportWatcher` (an `AssetPostprocessor`), after any `.fbx/.prefab/.blend/.gltf/.glb` import
   outside `Assets/WildLens`, deferred until the import finishes. It only fills species whose `prefab` is empty, with
   the top row's model, default size and stand-in tint. Setting: `SliceBuildSettings.autoWildlifeFromPacks` (on).
+* **Bundled animals (1.6.1)**: `Art~/Animals/Wolf.fbx`, `Eagle.fbx` (CC0, Quaternius) are copied to
+  `Assets/WildLens/Art/Animals` (`ArtLibrary.AnimalsFolder`) with materials, Generic rig and looping clips (names after
+  the last `|`). `FindAnimatedModels` includes that folder, so they enter matching as stand-ins like any pack.
+* **Automatic Environment Kit (1.6.1)**: at the start of a build, while `settings.environmentKit` is missing or empty and
+  `autoEnvironmentKit` is on, `EnvironmentKitScanner.ScanQuietly` scans without dialogs and assigns the kit.
+* **Posed feet**: the factory samples the idle clip at t = 0 and measures baked skinned meshes for the feet and centre;
+  it multiplies the yaw into the model's own root rotation instead of replacing it (Blender files carry an axis fix).
 * **AnimalPrefabFactory** (`Editor/AnimalPrefabFactory.cs`): the shared classify → controller → prefab code (moved
   from Animal Model Setup). `Tint` copies a model's materials to `Assets/WildLens/Animals/{id}_Tint{n}.mat`, ordered
   by triangle coverage, coloured primary / secondary / accent from the species asset (`_BaseColor` and `_Color`).

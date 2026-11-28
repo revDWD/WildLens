@@ -116,6 +116,9 @@ namespace WildLens.EditorTools
                  "matching animated model found in the project (the animal itself, else a stand-in, tinted). Untick to only " +
                  "use WildLens ▸ Wildlife Pack Setup by hand.")]
         public bool autoWildlifeFromPacks = true;
+        [Tooltip("On rebuild, while the Environment Kit is empty, scan the project for free nature packs (trees, shrubs, rocks, " +
+                 "ground and grass) and use them. A kit that already has contents is left as it is.")]
+        public bool autoEnvironmentKit = true;
 
         [Header("Scene")]
         public bool configureLightingAndFog = true;

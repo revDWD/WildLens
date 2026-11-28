@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.1] Animals and scenery without the scan step
+- **Two animated animals ship with WildLens** (CC0, Quaternius): a **wolf as the coyote** and an **eagle as the
+  red-tailed hawk**, tinted to each species' colours, with idle, walking, flying and perched animation. No download.
+- **Animal packs set themselves up**: importing a pack, or rebuilding, gives every species without a model its best
+  match. Your own packs' real animals win over the bundled stand-ins.
+- **Nature packs set themselves up**: while the Environment Kit is empty, each rebuild scans the project for free
+  nature packs (Unity's Terrain demo trees, shrubs, rocks, ground and grass) and uses them. Builder settings: **Auto
+  Wildlife From Packs**, **Auto Environment Kit**.
+- Animal models keep their own axis fix and stand with their feet measured in the idle pose (not a T-pose or flight pose).
+
 ## [1.6.0] Trailhead & Wildlife Packs
 ### The trailhead
 - **One Reserve Board** replaces the kiosk and the separate guidelines post, trail register post and Reserve Road sign:

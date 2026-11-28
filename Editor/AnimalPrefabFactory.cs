@@ -146,14 +146,17 @@ namespace WildLens.EditorTools
             var model = (GameObject)PrefabUtility.InstantiatePrefab(source);
             if (model == null) model = Object.Instantiate(source);
             model.transform.SetParent(root.transform, false);
-            model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * model.transform.localRotation; // keep the file's own axis fix
 
             var bounds = RendererBounds(model);
             float measured = IsBird(species) ? bounds.size.z : Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
             float scale = measured > 0.0001f ? size / measured : 1f;
             model.transform.localScale = model.transform.localScale * scale;
-            bounds = RendererBounds(model);
-            model.transform.localPosition -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z); // feet on the origin
+            // Feet on the origin, measured in the idle pose (a bind pose may be a T-pose or a bird in flight).
+            var idleClip = Clip(clips, ClipRole.Idle, ClipRole.Look);
+            if (idleClip != null) idleClip.SampleAnimation(model, 0f);
+            bounds = PosedBounds(model, root.transform);
+            model.transform.localPosition -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
 
             var animator = model.GetComponentInChildren<Animator>();
             if (animator == null) animator = model.AddComponent<Animator>();
@@ -173,6 +176,30 @@ namespace WildLens.EditorTools
             AssetDatabase.SaveAssets();
             message = $"{species.displayName}: {prefabPath} (scale {scale:0.###}" + (tinted > 0 ? $", {tinted} materials tinted" : "") + ")";
             return prefab;
+        }
+
+        /// <summary>Bounds of the model as posed now (skinned meshes baked), relative to <paramref name="root"/>.</summary>
+        private static Bounds PosedBounds(GameObject model, Transform root)
+        {
+            bool any = false;
+            var b = new Bounds();
+            void Add(Vector3 world)
+            {
+                Vector3 p = world - root.position;
+                if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
+            }
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                var baked = new Mesh();
+                smr.BakeMesh(baked, true);
+                var m = Matrix4x4.TRS(smr.transform.position, smr.transform.rotation, Vector3.one);
+                foreach (var v in baked.vertices) Add(m.MultiplyPoint3x4(v));
+                Object.DestroyImmediate(baked);
+            }
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
+                if (mf.sharedMesh != null)
+                    foreach (var v in mf.sharedMesh.vertices) Add(mf.transform.TransformPoint(v));
+            return any ? b : RendererBounds(model);
         }
 
         private static Bounds RendererBounds(GameObject go)

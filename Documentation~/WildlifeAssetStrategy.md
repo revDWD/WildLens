@@ -20,6 +20,12 @@ photographic environment.
 What this changes: the old rule "don't mix fidelities" now applies to the **environment** (scenery stays
 photographic and CC0 or kit-sourced). Animals are exempt: they can be stylised and come from several packs.
 
+## Shipped with WildLens (1.6.1)
+
+Two CC0 Quaternius animals are in the package (`Art~/Animals`, credited in `Art~/CREDITS.md`): the **wolf** stands in
+for the coyote and the **eagle** for the red-tailed hawk, tinted to each species. They are used automatically for
+species with no model; a real coyote or hawk from a pack you import wins over them.
+
 ## Automatic: just import the packs (1.6)
 
 Import free animal packs **into the Unity project** (Asset Store: Package Manager ▸ My Assets ▸ Download ▸ Import;

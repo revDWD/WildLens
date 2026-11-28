@@ -243,7 +243,7 @@ namespace WildLens.EditorTools
             foreach (string guid in AssetDatabase.FindAssets("t:GameObject", new[] { "Assets" }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (path.StartsWith(GeneratedAssets.Root + "/") || !seen.Add(path)) continue;
+                if ((path.StartsWith(GeneratedAssets.Root + "/") && !path.StartsWith(ArtLibrary.AnimalsFolder + "/")) || !seen.Add(path)) continue;
                 if (path.Contains("@")) continue; // "Deer@Walk.fbx": an animation file, used as a clip source below
                 var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (go == null || go.GetComponentInChildren<SkinnedMeshRenderer>(true) == null) continue;

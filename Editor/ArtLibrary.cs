@@ -42,8 +42,10 @@ namespace WildLens.EditorTools
     public static class ArtLibrary
     {
         public const string Destination = GeneratedAssets.Root + "/Art";
+        /// <summary>1.6: animated CC0 animals (Quaternius) that Wildlife Pack Setup may use as stand-ins.</summary>
+        public const string AnimalsFolder = Destination + "/Animals";
         private const string PrefabFolder = Destination + "/Prefabs";
-        private const string ImportVersion = "6"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture. 5: overcast sky. 6: macro plants
+        private const string ImportVersion = "7"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture. 5: overcast sky. 6: macro plants. 7: animals
 
         private struct ModelSpec
         {
@@ -147,6 +149,20 @@ namespace WildLens.EditorTools
         private static void ConfigureImporter(string assetPath)
         {
             var importer = AssetImporter.GetAtPath(assetPath);
+            if (importer is ModelImporter animal && assetPath.StartsWith(AnimalsFolder + "/"))
+            {
+                // Animated animals keep their colours and clips; every clip loops (idle, walk, fly cycles).
+                animal.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
+                animal.importAnimation = true;
+                animal.animationType = ModelImporterAnimationType.Generic;
+                animal.importCameras = false;
+                animal.importLights = false;
+                var clips = animal.defaultClipAnimations;
+                foreach (var c in clips) { c.loopTime = true; c.name = c.name.Substring(c.name.LastIndexOf('|') + 1); }
+                animal.clipAnimations = clips;
+                animal.SaveAndReimport();
+                return;
+            }
             if (importer is ModelImporter model)
             {
                 model.materialImportMode = ModelImporterMaterialImportMode.None;
