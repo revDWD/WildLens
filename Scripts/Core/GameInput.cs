@@ -111,6 +111,12 @@ namespace WildLens.Core
         public static bool NavigateUpPressed => Pressed(Key.Forward) || Pressed(Key.Up);
         public static bool NavigateDownPressed => Pressed(Key.Back) || Pressed(Key.Down);
         public static bool ToggleHintsPressed => Pressed(Key.Hints);
+        /// <summary>H: the Field Guide controls card (the old always-on hint block is gone). Same key as <see cref="ToggleHintsPressed"/>.</summary>
+        public static bool ControlsTogglePressed => Pressed(Key.Hints);
+        /// <summary>A (and the left arrow): previous page inside the journal.</summary>
+        public static bool NavigateLeftPressed => Pressed(Key.Left) || Pressed(Key.LeftArrow);
+        /// <summary>D (and the right arrow): next page inside the journal.</summary>
+        public static bool NavigateRightPressed => Pressed(Key.Right) || Pressed(Key.RightArrow);
         /// <summary>
         /// C toggles crouch (primary). Holding Left Ctrl also crouches; handy in builds, but in the Unity Editor
         /// Ctrl combinations can trigger editor shortcuts (Ctrl+P stops Play mode), so C is the advertised key.
@@ -124,7 +130,64 @@ namespace WildLens.Core
         /// <summary>M: macro lens on/off with the camera raised (1.5).</summary>
         public static bool MacroPressed => Pressed(Key.Macro);
 
-        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics, ZoomSelfTest, Interact, Wait, Macro }
+        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics, ZoomSelfTest, Interact, Wait, Macro, LeftArrow, RightArrow }
+
+        /// <summary>
+        /// Short on-screen names of the bindings, for prompts and the controls card. Both backends bind the same keys
+        /// (see <c>Control</c> and <c>Code</c> below), so one table serves both: change a binding there and here together.
+        /// </summary>
+        public static class Labels
+        {
+            public static readonly string Move = "W A S D";
+            public static readonly string Forward = Name(Key.Forward);
+            public static readonly string Back = Name(Key.Back);
+            public static readonly string Left = Name(Key.Left);
+            public static readonly string Right = Name(Key.Right);
+            public static readonly string Sprint = Name(Key.Sprint);
+            public static readonly string Shutter = Name(Key.Shutter);
+            public static readonly string Journal = Name(Key.Journal);
+            public static readonly string JournalAlt = Name(Key.JournalAlt);
+            public static readonly string Cancel = Name(Key.Cancel);
+            public static readonly string Controls = Name(Key.Hints);
+            public static readonly string Crouch = Name(Key.CrouchToggle);
+            public static readonly string ZoomIn = Name(Key.ZoomIn);
+            public static readonly string ZoomOut = Name(Key.ZoomOut);
+            public static readonly string Interact = Name(Key.Interact);
+            public static readonly string Wait = Name(Key.Wait);
+            public static readonly string Macro = Name(Key.Macro);
+            public const string RaiseCamera = "RMB";
+            public const string ShutterClick = "LMB";
+            public const string Scroll = "Scroll";
+        }
+
+        private static string Name(Key key)
+        {
+            switch (key)
+            {
+                case Key.Forward: return "W";
+                case Key.Back: return "S";
+                case Key.Left: return "A";
+                case Key.Right: return "D";
+                case Key.Up: return "Up";
+                case Key.Down: return "Down";
+                case Key.Sprint: return "Shift";
+                case Key.Shutter: return "F";
+                case Key.Journal: return "J";
+                case Key.JournalAlt: return "Tab";
+                case Key.Cancel: return "Esc";
+                case Key.Hints: return "H";
+                case Key.CrouchToggle: return "C";
+                case Key.CrouchHold: return "Ctrl";
+                case Key.ZoomIn: return "E";
+                case Key.ZoomOut: return "Q";
+                case Key.Interact: return "R";
+                case Key.Wait: return "T";
+                case Key.Macro: return "M";
+                case Key.LeftArrow: return "Left";
+                case Key.RightArrow: return "Right";
+                default: return "";
+            }
+        }
 
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
         private static UnityEngine.InputSystem.Controls.KeyControl Control(Keyboard k, Key key)
@@ -152,6 +215,8 @@ namespace WildLens.Core
                 case Key.Interact: return k.rKey;
                 case Key.Wait: return k.tKey;
                 case Key.Macro: return k.mKey;
+                case Key.LeftArrow: return k.leftArrowKey;
+                case Key.RightArrow: return k.rightArrowKey;
                 default: return null;
             }
         }
@@ -209,6 +274,8 @@ namespace WildLens.Core
                 case Key.Interact: return KeyCode.R;
                 case Key.Wait: return KeyCode.T;
                 case Key.Macro: return KeyCode.M;
+                case Key.LeftArrow: return KeyCode.LeftArrow;
+                case Key.RightArrow: return KeyCode.RightArrow;
                 default: return KeyCode.None;
             }
         }

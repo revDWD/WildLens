@@ -9,7 +9,7 @@ namespace WildLens.UI
     /// <summary>
     /// The print that comes out after each photograph.
     ///
-    /// Ordinary shots: a small card slides in at the bottom-right with the picture, species, quality and a hint.
+    /// Ordinary shots: a small card slides in at the bottom-right (56 px margins) with the picture, species, quality and a hint.
     /// Excellent shots are treated as keepers: a larger print rises at the bottom-centre with a warm gold mat,
     /// a field-note caption (species · behaviour · focal length) and stays longer. Every print briefly "develops"
     /// from white, a small moment that makes the capture feel physical. All fades on its own.
@@ -118,7 +118,7 @@ namespace WildLens.UI
             if (keeper)
             {
                 // Larger print, bottom-centre, rising from below.
-                _restPos = new Vector2(0f, 40f);
+                _restPos = new Vector2(0f, UiStyle.Margin + 16f);
                 _offset = new Vector2(0f, -70f);
                 UIFactory.Place(_card, new Vector2(0.5f, 0f), _restPos, new Vector2(560f, 430f));
                 UIFactory.Place(_frame, new Vector2(0.5f, 1f), new Vector2(0f, -16f), new Vector2(528f, 297f));
@@ -129,7 +129,7 @@ namespace WildLens.UI
             }
             else
             {
-                _restPos = new Vector2(-36f, 36f);
+                _restPos = new Vector2(-UiStyle.Margin, UiStyle.Margin);
                 _offset = new Vector2(60f, 0f);
                 UIFactory.Place(_card, new Vector2(1f, 0f), _restPos, new Vector2(352f, 300f));
                 UIFactory.Place(_frame, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(332f, 187f));

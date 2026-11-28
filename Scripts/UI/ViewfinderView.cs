@@ -36,17 +36,26 @@ namespace WildLens.UI
     /// </summary>
     public class ViewfinderView
     {
-        private static readonly Color Line = new Color(1f, 1f, 1f, 0.9f);
-        private static readonly Color Dim = new Color(1f, 1f, 1f, 0.35f);
-        private static readonly Color GoodColor = new Color(0.62f, 1f, 0.55f, 1f);
-        private static readonly Color ExcellentColor = new Color(1f, 0.84f, 0.38f, 1f);
+        // One thin line weight and one warm white throughout; grade colours are quiet (1.9).
+        private static readonly Color Line = UiStyle.WithAlpha(UiStyle.Text, 0.88f);
+        private static readonly Color Dim = UiStyle.WithAlpha(UiStyle.Text, 0.35f);
+        private static readonly Color GoodColor = UiStyle.Good;
+        private static readonly Color ExcellentColor = UiStyle.Excellent;
+        private const float Inset = 64f, CornerLength = 56f, LineThickness = 2f;
+        private const float DataBaseline = 47f;     // bottom of the 30 px data row: its centre sits 62 px above the bottom edge
+        private static readonly string GoodHex = UiStyle.Hex(UiStyle.Good), ExcellentHex = UiStyle.Hex(UiStyle.Excellent);
 
         private readonly CanvasGroup _group;
         private readonly RectTransform _frame;
         private readonly RawImage _vignette;
         private readonly List<Image> _focusMarks = new List<Image>();
         private readonly List<Text> _levelLabels = new List<Text>();
-        private readonly Text _focalText;
+        private readonly Text _focalText, _macroLabel;
+        private int _shownFocal = -1;
+        private bool _shownMacro;
+        private string _shownName;
+        private int _shownGrade = -2;
+        private bool _shownIdentifiable;
         private readonly Text _zoomPop;
         private float _zoomPopAge = float.MaxValue;
         private float _focusPulse;
@@ -75,7 +84,7 @@ namespace WildLens.UI
             _frame = UIFactory.CreateRect("Frame", root);
             UIFactory.Stretch(_frame);
 
-            const float inset = 70f, len = 70f, thick = 3f;
+            const float inset = Inset, len = CornerLength, thick = LineThickness;
             foreach (var c in new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) })
             {
                 Vector2 dir = new Vector2(c.x < 0.5f ? 1f : -1f, c.y < 0.5f ? 1f : -1f);
@@ -83,17 +92,17 @@ namespace WildLens.UI
                 UIFactory.Place(UIFactory.CreateImage("Corner V", _frame, Line).rectTransform, c, dir * inset, new Vector2(thick, len));
             }
 
-            Color guide = new Color(1f, 1f, 1f, 0.12f);
+            Color guide = UiStyle.WithAlpha(UiStyle.Text, 0.10f);
             for (int i = 1; i <= 2; i++)
             {
                 var v = UIFactory.CreateImage("Third V", _frame, guide).rectTransform;
-                v.anchorMin = new Vector2(i / 3f, 0f); v.anchorMax = new Vector2(i / 3f, 1f); v.sizeDelta = new Vector2(1.5f, 0f);
+                v.anchorMin = new Vector2(i / 3f, 0f); v.anchorMax = new Vector2(i / 3f, 1f); v.sizeDelta = new Vector2(1f, 0f);
                 var h = UIFactory.CreateImage("Third H", _frame, guide).rectTransform;
-                h.anchorMin = new Vector2(0f, i / 3f); h.anchorMax = new Vector2(1f, i / 3f); h.sizeDelta = new Vector2(0f, 1.5f);
+                h.anchorMin = new Vector2(0f, i / 3f); h.anchorMax = new Vector2(1f, i / 3f); h.sizeDelta = new Vector2(0f, 1f);
             }
 
             // Centre focus marks
-            const float bw = 40f, bh = 28f, bl = 12f, bt = 2f;
+            const float bw = 40f, bh = 28f, bl = 12f, bt = LineThickness;
             foreach (var s in new[] { new Vector2(-1f, -1f), new Vector2(1f, -1f), new Vector2(-1f, 1f), new Vector2(1f, 1f) })
             {
                 Vector2 corner = new Vector2(s.x * bw, s.y * bh);
@@ -104,35 +113,39 @@ namespace WildLens.UI
                 _focusMarks.Add(h); _focusMarks.Add(v);
             }
 
-            // Zoom row + focal length
-            float spacing = 70f;
+            // Data along the bottom edge, like an EVF: [focus dot  MACRO] ... [1x 2x 4x 8x 16x] ... [focal length  f-number]
+            float spacing = 64f;
             float start = -spacing * (zoomLevels.Count - 1) * 0.5f;
             for (int i = 0; i < zoomLevels.Count; i++)
             {
-                var label = UIFactory.CreateText("Zoom " + zoomLevels[i], _frame, zoomLevels[i].ToString("0.#") + "×", 24, Line, TextAnchor.MiddleCenter);
-                UIFactory.Place(label.rectTransform, new Vector2(0.5f, 0f), new Vector2(start + i * spacing, 104f), new Vector2(68f, 34f));
-                UIFactory.AddShadow(label);
+                var label = UIFactory.CreateText("Zoom " + zoomLevels[i], _frame, zoomLevels[i].ToString("0.#") + "\u00d7", UiStyle.SizeSmall, Line, TextAnchor.MiddleCenter);
+                UIFactory.Place(label.rectTransform, new Vector2(0.5f, 0f), new Vector2(start + i * spacing, DataBaseline), new Vector2(62f, 30f));
+                UiStyle.SoftShadow(label);
                 _levelLabels.Add(label);
             }
-            _focalText = UIFactory.CreateText("Focal Length", _frame, "", 18, new Color(1f, 1f, 1f, 0.7f), TextAnchor.MiddleCenter);
-            UIFactory.Place(_focalText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 76f), new Vector2(260f, 24f));
-            UIFactory.AddShadow(_focalText);
+            _focalText = UIFactory.CreateText("Focal Length", _frame, "", 20, UiStyle.WithAlpha(UiStyle.Text, 0.85f), TextAnchor.MiddleRight);
+            UIFactory.Place(_focalText.rectTransform, new Vector2(1f, 0f), new Vector2(-Inset, DataBaseline), new Vector2(300f, 30f));
+            UiStyle.SoftShadow(_focalText);
 
-            // Focus-confirm indicator, bottom-left of the frame (as in an SLR viewfinder).
+            // Focus-confirm dot at the left of the row (as in an SLR viewfinder), and the lens mode beside it.
             _focusDot = UIFactory.CreateImage("Focus Confirm", _frame, GoodColor);
-            UIFactory.Place(_focusDot.rectTransform, new Vector2(0f, 0f), new Vector2(98f, 98f), new Vector2(12f, 12f));
+            UIFactory.Place(_focusDot.rectTransform, new Vector2(0f, 0f), new Vector2(Inset, DataBaseline + 10f), new Vector2(10f, 10f));
+            _macroLabel = UIFactory.CreateText("Mode", _frame, "MACRO", UiStyle.SizeSmall, Line, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UIFactory.Place(_macroLabel.rectTransform, new Vector2(0f, 0f), new Vector2(Inset + 22f, DataBaseline), new Vector2(160f, 30f));
+            UiStyle.SoftShadow(_macroLabel);
+            _macroLabel.enabled = false;
 
             // Large transient readout when the zoom level changes: makes every step unmistakable.
-            _zoomPop = UIFactory.CreateText("Zoom Pop", _frame, "", 64, Line, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIFactory.Place(_zoomPop.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(300f, 90f));
-            UIFactory.AddShadow(_zoomPop, 2f);
+            _zoomPop = UIFactory.CreateText("Zoom Pop", _frame, "", 56, Line, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIFactory.Place(_zoomPop.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(300f, 80f));
+            UiStyle.SoftShadow(_zoomPop, 0.6f);
             _zoomPop.color = new Color(1f, 1f, 1f, 0f);
 
             // Subject tracking box: a rect whose anchors are set to the subject's viewport rectangle.
             _subjectBox = UIFactory.CreateRect("Subject", _frame);
             _subjectGroup = _subjectBox.gameObject.AddComponent<CanvasGroup>();
             _subjectGroup.alpha = 0f;
-            const float sl = 18f, st = 2.5f;
+            const float sl = 16f, st = LineThickness;
             foreach (var c in new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) })
             {
                 Vector2 dir = new Vector2(c.x < 0.5f ? 1f : -1f, c.y < 0.5f ? 1f : -1f);
@@ -145,11 +158,12 @@ namespace WildLens.UI
                 _subjectMarks.Add(h); _subjectMarks.Add(v);
             }
             _subjectLabel = UIFactory.CreateText("Subject Label", _subjectBox, "", 20, Line, TextAnchor.LowerCenter);
-            UIFactory.Place(_subjectLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 30f), new Vector2(360f, 28f));
+            UIFactory.Place(_subjectLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 30f), new Vector2(480f, 28f));
             _subjectLabel.rectTransform.pivot = new Vector2(0.5f, 0f);
-            UIFactory.AddShadow(_subjectLabel);
-            _progressBack = UIFactory.CreateImage("Observe Back", _subjectBox, new Color(0f, 0f, 0f, 0.45f)).rectTransform;
-            UIFactory.Place(_progressBack, new Vector2(0.5f, 1f), new Vector2(0f, 20f), new Vector2(90f, 4f));
+            _subjectLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+            UiStyle.SoftShadow(_subjectLabel);
+            _progressBack = UIFactory.CreateImage("Observe Back", _subjectBox, new Color(0f, 0f, 0f, 0.4f)).rectTransform;
+            UIFactory.Place(_progressBack, new Vector2(0.5f, 1f), new Vector2(0f, 20f), new Vector2(80f, 3f));
             _progressFill = UIFactory.CreateImage("Observe Fill", _progressBack, Line).rectTransform;
             _progressFill.anchorMin = Vector2.zero; _progressFill.anchorMax = new Vector2(0f, 1f);
             _progressFill.offsetMin = _progressFill.offsetMax = Vector2.zero;
@@ -188,14 +202,22 @@ namespace WildLens.UI
             float markScale = 1f + 0.4f * _focusPulse * _focusPulse; // a crisp snap on lock
             foreach (var m in _focusMarks) m.rectTransform.localScale = new Vector3(markScale, markScale, 1f);
 
+            // In macro the telephoto steps do not apply: the row steps back, and MACRO takes the left of the row.
             for (int i = 0; i < _levelLabels.Count; i++)
             {
-                bool current = i == s.zoomLevel;
-                _levelLabels[i].color = current ? Line : new Color(1f, 1f, 1f, 0.38f);
+                bool current = i == s.zoomLevel && !s.macro;
+                _levelLabels[i].color = s.macro ? UiStyle.WithAlpha(UiStyle.Text, 0.2f) : current ? Line : UiStyle.WithAlpha(UiStyle.Text, 0.38f);
                 _levelLabels[i].fontStyle = current ? FontStyle.Bold : FontStyle.Normal;
-                _levelLabels[i].fontSize = current ? 28 : 22;
+                _levelLabels[i].fontSize = current ? UiStyle.SizeBody : UiStyle.SizeSmall;
             }
-            _focalText.text = s.macro ? "MACRO   " + Mathf.RoundToInt(s.focalLength) + " mm   f/8" : Mathf.RoundToInt(s.focalLength) + " mm   f/4";
+            int mm = Mathf.RoundToInt(s.focalLength);
+            if (mm != _shownFocal || s.macro != _shownMacro)
+            {
+                _shownFocal = mm;
+                _shownMacro = s.macro;
+                _focalText.text = mm + " mm   f/" + (s.macro ? "8" : "4");
+                _macroLabel.enabled = s.macro;
+            }
             _lockBlend = Mathf.MoveTowards(_lockBlend, s.focusLocked ? 1f : 0f, dt * 10f);
             _focusDot.color = new Color(GoodColor.r, GoodColor.g, GoodColor.b, Mathf.Lerp(0.12f, 1f, Mathf.Max(_lockBlend, _focusPulse)));
             _focusDot.rectTransform.localScale = Vector3.one * (1f + 0.9f * _focusPulse);
@@ -233,8 +255,17 @@ namespace WildLens.UI
             foreach (var m in _subjectMarks) m.color = c;
 
             bool known = !string.IsNullOrEmpty(s.subjectName);
-            _subjectLabel.text = known ? s.subjectName : s.subject.identifiable ? "Observing…" : "";
-            _subjectLabel.color = known ? Line : new Color(1f, 1f, 1f, 0.75f);
+            bool ident = s.subject.identifiable;
+            int grade = known && ident ? (int)s.subject.previewQuality : -1;
+            if (!ReferenceEquals(s.subjectName, _shownName) || grade != _shownGrade || ident != _shownIdentifiable)
+            {
+                _shownName = s.subjectName; _shownGrade = grade; _shownIdentifiable = ident;
+                // The grade is a word beside the name, in a restrained colour: the brackets already show it, this reads it.
+                string word = grade < 0 ? "" : "   <color=#" + (grade == (int)PhotoQuality.Excellent ? ExcellentHex : grade == (int)PhotoQuality.Good ? GoodHex : UiStyle.Hex(Line))
+                                                 + ">" + s.subject.previewQuality + "</color>";
+                _subjectLabel.text = known ? s.subjectName + word : ident ? "Observing\u2026" : "";
+            }
+            _subjectLabel.color = known ? Line : UiStyle.WithAlpha(UiStyle.Text, 0.7f);
             bool showProgress = !known && s.subject.identifiable;
             _progressBack.gameObject.SetActive(showProgress);
             if (showProgress) _progressFill.anchorMax = new Vector2(Mathf.Clamp01(s.observationProgress), 1f);

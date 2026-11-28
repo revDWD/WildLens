@@ -12,10 +12,13 @@ namespace WildLens.UI
     /// Owns the HUD canvas and composes its views:
     ///   <see cref="ViewfinderView"/>    camera-mode overlay, zoom, subject tracking and observation progress
     ///   <see cref="ShutterEffectView"/> shutter blackout after each capture
-    ///   <see cref="PhotoPreviewView"/>  preview card with species and quality
-    ///   <see cref="NoticeView"/>        one-line notices (species identified, lens preselected)
-    /// plus the always-on minimum: crosshair (walking only), crouch indicator, journal counters, control hints.
-    /// The whole canvas is hidden for the capture frame so it never appears in photographs.
+    ///   <see cref="PhotoPreviewView"/>  the print that comes out after each photograph
+    ///   <see cref="NoticeView"/>        quiet notices (two at most) and the name of a hidden place
+    ///   <see cref="PromptView"/>        context-sensitive prompts, at most two, that fade when ignored or learnt
+    ///   <see cref="ControlsCardView"/>  the Field Guide controls card (H)
+    /// With the camera lowered and nothing happening the screen is empty apart from a faint centre dot (1.9): no clock, no
+    /// counters, no hint block. Speed shows while riding; "Crouched", "Hidden" and the clock while waiting are small, quiet
+    /// lines at the bottom-left. The whole canvas is hidden for the capture frame so it never appears in photographs.
     /// </summary>
     public class HudController : MonoBehaviour
     {
@@ -23,23 +26,48 @@ namespace WildLens.UI
 
         private Canvas _canvas;
         private Image _crosshair;
-        private Text _statusText, _hintsText, _pausedText, _crouchText, _promptText, _rideText, _hiddenText;
-        private bool _wasConcealed;
-        private float _clockTimer;
-        private string _walkHints;
+        private Text _pausedText, _rideText;
+        private StateLine _hiddenLine, _crouchLine, _clockLine;
+        private readonly StateLine[] _stateLines = new StateLine[3];
+        private bool _wasConcealed, _wasCrouching;
+        private float _crouchShown;
         private bool _riding;
-        private const string RideHints =
-            "<b>W</b> throttle   <b>S</b> brake   <b>A / D</b> steer   <b>R</b> park & step off\n" +
-            "Stop to raise the camera   Engines carry: park short of wildlife   <b>H</b> hide hints";
         private ViewfinderView _viewfinder;
         private ShutterEffectView _shutter;
         private PhotoPreviewView _preview;
         private NoticeView _notice;
+        private PromptView _prompts;
+        private ControlsCardView _card;
         private CameraModeController _mode;
         private ZoomLens _lens;
         private FramingAssistant _framing;
         private ObservationTracker _observation;
         private FocusController _focus;
+        private Camera _cam;
+
+        // Session memory for the prompts (nothing is saved).
+        private bool _prevUiOpen;
+        private float _prevBlend;
+        private float _hudClock;
+        private int _photosThisSession;
+        private float _lastPhotoClock = -1000f;
+        private float _pollTimer;
+        private bool _subjectAhead, _macroNear;
+
+        // Ride readout: rebuilt only when what it shows changes.
+        private int _rideKey = -1;
+        private int _lastSurface = -1;
+        private float _surfaceShownUntil;
+        private string _clockLineText = "";
+        private float _clockTimer;
+
+        private sealed class StateLine
+        {
+            public Text text;
+            public float alpha;
+            public bool want;
+            public float y = float.NaN;
+        }
 
         public void Configure(PhotoCamera camera) => photoCamera = camera;
 
@@ -53,8 +81,9 @@ namespace WildLens.UI
                 _framing = photoCamera.GetComponent<FramingAssistant>();
                 _observation = photoCamera.GetComponent<ObservationTracker>();
                 _focus = photoCamera.GetComponent<FocusController>();
+                _cam = _lens != null ? _lens.Camera : photoCamera.GetComponent<Camera>();
                 if (_focus != null) _focus.FocusLocked += OnFocusLocked;
-                if (_lens != null) _lens.LevelChanged += OnLensLevelChanged;
+                if (_lens != null) { _lens.LevelChanged += OnLensLevelChanged; _lens.MacroChanged += OnMacroChanged; }
                 if (_observation != null) _observation.SpeciesIdentified += OnSpeciesIdentified;
                 photoCamera.CaptureStarting += OnCaptureStarting;
                 photoCamera.CaptureFinished += OnCaptureFinished;
@@ -62,20 +91,17 @@ namespace WildLens.UI
             }
             Build();
 
-            var game = WildLensGame.Instance;
-            if (game != null) game.Journal.Changed += RefreshStatus;
-            RefreshStatus();
             WildLens.Environment.ReserveDestination.Arrived += OnArrived;
             WildLens.Environment.ReserveDiscovery.Found += OnDiscovered;
             if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged += OnPeriodChanged;
             if (WildLens.Environment.WeatherCycle.Instance != null) WildLens.Environment.WeatherCycle.Instance.Changed += OnWeatherChanged;
 
             // A scene built by an older package hides every art improvement since. Say so instead of letting it
-            // pass for the current look (0.6: a stale scene was mistaken for the 0.5 art).
+            // pass for the current look (0.6: a stale scene was mistaken for the 0.5 art). Stays noticeable: amber, priority.
             string stale = WildLens.Environment.SliceInfo.StaleReason();
             if (stale != null && _notice != null)
-                _notice.Show($"<size=22>This scene was {stale}. Rebuild it for the {WildLensVersion.Package} art:\n" +
-                             "<b>WildLens ▸ Vertical Slice Builder ▸ Rebuild</b></size>", 12f);
+                _notice.Show($"This scene was {stale}",
+                             $"Rebuild it for the {WildLensVersion.Package} art:  WildLens \u25b8 Vertical Slice Builder \u25b8 Rebuild", 12f, priority: true, alert: true);
         }
 
         private void OnDestroy()
@@ -86,22 +112,20 @@ namespace WildLens.UI
                 photoCamera.CaptureFinished -= OnCaptureFinished;
                 photoCamera.PhotoTaken -= OnPhotoTaken;
             }
-            if (_lens != null) _lens.LevelChanged -= OnLensLevelChanged;
+            if (_lens != null) { _lens.LevelChanged -= OnLensLevelChanged; _lens.MacroChanged -= OnMacroChanged; }
             if (_observation != null) _observation.SpeciesIdentified -= OnSpeciesIdentified;
             if (_focus != null) _focus.FocusLocked -= OnFocusLocked;
-            var game = WildLensGame.Instance;
-            if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
             WildLens.Environment.ReserveDestination.Arrived -= OnArrived;
             WildLens.Environment.ReserveDiscovery.Found -= OnDiscovered;
             if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged -= OnPeriodChanged;
             if (WildLens.Environment.WeatherCycle.Instance != null) WildLens.Environment.WeatherCycle.Instance.Changed -= OnWeatherChanged;
         }
 
-        /// <summary>A hidden place (1.5): its name, quietly, the first time you walk in. Nothing is counted.</summary>
+        /// <summary>A hidden place (1.5): its name, once, large and calm, centre-top. Nothing is counted.</summary>
         private void OnDiscovered(WildLens.Environment.ReserveDiscovery d)
         {
             if (_notice == null) return;
-            _notice.Show($"<i>{d.title}</i>\n<size=20>{d.note}</size>", 7f);
+            _notice.ShowPlace(d.title, d.note);
         }
 
         private bool _hadRain;
@@ -123,7 +147,7 @@ namespace WildLens.UI
                     _hadRain = false;
                     title = "Clearing"; note = "The rain has passed. Wildlife comes back out into the open."; break;
             }
-            _notice.Show($"<b>{title}</b>\n<size=20>{note}</size>", 6f);
+            _notice.Show(title, note, 6f);
         }
 
         private float _lastPeriodNotice = -100f;
@@ -143,13 +167,13 @@ namespace WildLens.UI
                 case WildLens.Environment.DayPeriod.Dusk: note = "Deer come down to the water. Foxes hunt the meadow edges."; break;
                 default: note = "Night falls over the reserve. Time passes quickly until dawn."; break;
             }
-            _notice.Show($"<b>{WildLens.Environment.DayCycle.PeriodName(p)}</b>\n<size=20>{note}</size>", 6f);
+            _notice.Show(WildLens.Environment.DayCycle.PeriodName(p), note, 6f);
         }
 
         private void OnArrived(WildLens.Environment.ReserveDestination d)
         {
             if (_notice == null) return;
-            _notice.Show($"<b>{d.title}</b>\n<size=20>{d.fieldNote}</size>", 6f);
+            _notice.Show(d.title, d.fieldNote, 6f);
         }
 
         private void Build()
@@ -157,44 +181,46 @@ namespace WildLens.UI
             _canvas = UIFactory.CreateCanvas("HUD Canvas", 0, transform);
             var root = (RectTransform)_canvas.transform;
 
-            _crosshair = UIFactory.CreateImage("Crosshair", root, new Color(1f, 1f, 1f, 0.55f));
-            UIFactory.Place(_crosshair.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(5f, 5f));
+            // The one thing always on screen with the camera lowered: a faint centre dot.
+            _crosshair = UIFactory.CreateImage("Crosshair", root, UiStyle.WithAlpha(UiStyle.Text, 0.3f));
+            UIFactory.Place(_crosshair.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(4f, 4f));
 
             _viewfinder = new ViewfinderView(root, _lens != null ? _lens.Levels : new[] { 1f });
 
-            _statusText = UIFactory.CreateText("Status", root, "", 22, new Color(1f, 1f, 1f, 0.85f), TextAnchor.UpperRight);
-            UIFactory.Place(_statusText.rectTransform, new Vector2(1f, 1f), new Vector2(-28f, -24f), new Vector2(760f, 40f));
-            UIFactory.AddShadow(_statusText);
+            // Quiet state lines, bottom-left, stacked upward from the margin (only the ones that apply take a place).
+            _hiddenLine = MakeStateLine(root, "Hidden", "Hidden", 0.6f);
+            _crouchLine = MakeStateLine(root, "Crouched", "Crouched", 0.7f);
+            _clockLine = MakeStateLine(root, "Clock", "", 0.75f);
+            _stateLines[0] = _crouchLine; _stateLines[1] = _hiddenLine; _stateLines[2] = _clockLine;
 
-            _walkHints =
-                "<b>WASD</b> walk   <b>Shift</b> sprint   <b>C</b> crouch   <b>J</b> journal   <b>R</b> ride (at the bike)\n" +
-                "<b>Hold RMB</b> or <b>Scroll</b> camera + zoom   <b>LMB</b> shutter\n" +
-                "Hold an animal in view to identify it   <b>M</b> macro lens   <b>Hold T</b> let time pass   <b>H</b> hide hints";
-            _hintsText = UIFactory.CreateText("Hints", root, _walkHints, 19, new Color(1f, 1f, 1f, 0.75f), TextAnchor.LowerLeft);
-            UIFactory.Place(_hintsText.rectTransform, new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(900f, 90f));
-            UIFactory.AddShadow(_hintsText);
+            // Speed, bottom-right, only while riding.
+            _rideText = UIFactory.CreateText("Ride", root, "", UiStyle.SizeTitle, UiStyle.Text, TextAnchor.LowerRight);
+            UIFactory.Place(_rideText.rectTransform, new Vector2(1f, 0f), new Vector2(-UiStyle.Margin, UiStyle.Margin), new Vector2(420f, 70f));
+            UiStyle.SoftShadow(_rideText);
+            _rideText.enabled = false;
 
-            _crouchText = UIFactory.CreateText("Crouch", root, "CROUCHED", 18, new Color(1f, 1f, 1f, 0.8f), TextAnchor.MiddleCenter);
-            UIFactory.Place(_crouchText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(200f, 26f));
-            UIFactory.AddShadow(_crouchText);
+            _prompts = new PromptView(root);
 
-            _promptText = UIFactory.CreateText("Prompt", root, "", 24, Color.white, TextAnchor.MiddleCenter);
-            UIFactory.Place(_promptText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 120f), new Vector2(600f, 34f));
-            UIFactory.AddShadow(_promptText);
-            _hiddenText = UIFactory.CreateText("Hidden", root, "HIDDEN  <size=15>wildlife can't see you</size>", 18, new Color(0.75f, 1f, 0.75f, 0.85f), TextAnchor.MiddleCenter);
-            UIFactory.Place(_hiddenText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 68f), new Vector2(420f, 26f));
-            UIFactory.AddShadow(_hiddenText);
-            _rideText = UIFactory.CreateText("Ride", root, "", 20, new Color(1f, 1f, 1f, 0.85f), TextAnchor.MiddleCenter);
-            UIFactory.Place(_rideText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(420f, 28f));
-            UIFactory.AddShadow(_rideText);
-
-            _pausedText = UIFactory.CreateText("Paused", root, "Click to resume", 30, Color.white, TextAnchor.MiddleCenter);
-            UIFactory.Place(_pausedText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(600f, 50f));
-            UIFactory.AddShadow(_pausedText);
+            _pausedText = UIFactory.CreateText("Paused", root,
+                "Click to resume\n<size=" + UiStyle.SizeSmall + ">" + PromptView.Prompt(GameInput.Labels.Controls, "Controls") + "</size>",
+                28, UiStyle.Text, TextAnchor.MiddleCenter);
+            UIFactory.Place(_pausedText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(600f, 90f));
+            UiStyle.SoftShadow(_pausedText, 0.7f);
 
             _preview = new PhotoPreviewView(root);
             _notice = new NoticeView(root);
             _shutter = new ShutterEffectView(root); // last: draws over everything
+            _card = new ControlsCardView(transform, WildLensGame.Instance);
+        }
+
+        private StateLine MakeStateLine(RectTransform root, string name, string text, float strength)
+        {
+            var l = new StateLine();
+            l.text = UIFactory.CreateText(name, root, text, UiStyle.SizeBody, UiStyle.WithAlpha(UiStyle.Text, strength), TextAnchor.LowerLeft);
+            UIFactory.Place(l.text.rectTransform, new Vector2(0f, 0f), new Vector2(UiStyle.Margin, UiStyle.Margin), new Vector2(560f, 30f));
+            UiStyle.SoftShadow(l.text);
+            l.text.enabled = false;
+            return l;
         }
 
         private void Update()
@@ -202,62 +228,166 @@ namespace WildLens.UI
             if (_canvas == null) return;
             float dt = Time.unscaledDeltaTime;
             var game = WildLensGame.Instance;
+
+            // The controls card works whether or not the HUD is showing; opening it retires the "H Controls" line.
+            if (_card != null && _card.Update()) _prompts.Retire(PromptId.Intro);
+
             bool uiOpen = game != null && game.IsUiOpen;
+            if (uiOpen && !_prevUiOpen && (_card == null || !_card.IsOpen)) _prompts.Acted(PromptId.Journal); // the journal was opened
+            _prevUiOpen = uiOpen;
             _canvas.gameObject.SetActive(!uiOpen);
             if (uiOpen) return;
 
+            _hudClock += dt;
             float blend = _mode != null ? _mode.Blend : 0f;
+            if (_prevBlend < 0.5f && blend >= 0.5f && !_riding) _prompts.Acted(PromptId.Raise); // the camera went up
+            _prevBlend = blend;
+
             _viewfinder.Update(BuildViewfinderState(blend), dt);
-            _crouchText.enabled = PlayerPresence.IsCrouching;
+            _crosshair.enabled = !_riding;
+            _crosshair.color = UiStyle.WithAlpha(UiStyle.Text, 0.3f * (1f - blend));
+
+            // Quiet state lines
             bool concealed = PlayerPresence.IsConcealed;
-            _hiddenText.enabled = concealed;
-            _hiddenText.color = new Color(0.75f, 1f, 0.75f, 0.85f * (1f - blend * 0.7f));
             if (concealed && !_wasConcealed)
-                _notice.Show("<b>Inside the blind</b>\n<size=20>Wildlife can't see you here. Sit tight at the window; they'll come closer.</size>", 6f);
+                _notice.Show("Inside the blind", "Wildlife can't see you here. Sit tight at the window; they'll come closer.", 6f);
             _wasConcealed = concealed;
-            _crosshair.color = new Color(1f, 1f, 1f, 0.55f * (1f - blend));
-            // Hints and counters step back while the camera is up.
-            _hintsText.color = new Color(1f, 1f, 1f, 0.75f * (1f - blend)); // gone in camera mode: it overlapped the viewfinder corner
-            _statusText.color = new Color(1f, 1f, 1f, 0.85f * (1f - blend * 0.6f));
+            bool crouching = PlayerPresence.IsCrouching;
+            if (crouching && !_wasCrouching) _crouchShown = 2.4f;
+            _wasCrouching = crouching;
+            _crouchShown = Mathf.Max(0f, _crouchShown - dt);
+            var clock = WildLens.Environment.DayCycle.Instance;
+            bool waiting = clock != null && clock.IsWaiting;
+            if (waiting) UpdateClockText(clock, dt);
+            _hiddenLine.want = concealed;
+            _crouchLine.want = crouching && _crouchShown > 0f;
+            _clockLine.want = waiting;
+            UpdateStateLines(dt, blend);
 
             _shutter.Update(dt);
             _preview.Update(dt);
             _notice.Update(dt);
 
-            if (GameInput.ToggleHintsPressed) _hintsText.enabled = !_hintsText.enabled;
-            UpdateBike(blend);
-            _clockTimer -= dt;
-            if (_clockTimer <= 0f) { _clockTimer = 0.5f; RefreshStatus(); }
-            _pausedText.enabled = Cursor.lockState != CursorLockMode.Locked;
+            bool locked = Cursor.lockState == CursorLockMode.Locked;
+            PollNearby(dt);
+            var ctx = new PromptContext
+            {
+                hidden = !locked,
+                riding = _riding,
+                bikeInReach = WildLens.Vehicles.TrailBike.InReach != null,
+                cameraLowered = blend < 0.05f,
+                cameraRaised = blend > 0.85f,
+                raiseBlend = blend,
+                macroMode = _lens != null && _lens.MacroMode,
+                hasSubject = _framing != null && _framing.HasSubject,
+                macroNear = _macroNear,
+                subjectAhead = _subjectAhead || _macroNear,
+                photosThisSession = _photosThisSession,
+                secondsSincePhoto = _hudClock - _lastPhotoClock,
+            };
+            UpdateBike(blend, ref ctx);
+            _prompts.Update(ctx, dt);
+            _pausedText.enabled = !locked;
         }
 
-        private void UpdateBike(float blend)
+        /// <summary>Bottom-left: the lines that apply, stacked up from the margin, fading with the viewfinder.</summary>
+        private void UpdateStateLines(float dt, float blend)
+        {
+            float y = UiStyle.Margin;
+            for (int i = 0; i < _stateLines.Length; i++)
+            {
+                var l = _stateLines[i];
+                l.alpha = Mathf.MoveTowards(l.alpha, l.want ? 1f : 0f, dt / UiStyle.Fade);
+                bool on = l.alpha > 0.001f;
+                if (l.text.enabled != on) l.text.enabled = on;
+                if (!on) continue;
+                var c = l.text.color;
+                l.text.color = new Color(c.r, c.g, c.b, (i == 2 ? 0.75f : i == 1 ? 0.6f : 0.7f) * l.alpha * (1f - blend)); // out of the viewfinder's way
+                if (l.y != y) { l.y = y; l.text.rectTransform.anchoredPosition = new Vector2(UiStyle.Margin, y); }
+                y += 30f;
+            }
+        }
+
+        private void UpdateClockText(WildLens.Environment.DayCycle clock, float dt)
+        {
+            _clockTimer -= dt;
+            if (_clockTimer > 0f && _clockLineText.Length > 0) return;
+            _clockTimer = 0.5f;
+            string t = $"{WildLens.Environment.DayCycle.PeriodName(clock.Period)}  \u00b7  {clock.ClockText}   <i>time passing\u2026</i>";
+            if (t == _clockLineText) return;
+            _clockLineText = t;
+            _clockLine.text.text = t;
+        }
+
+        /// <summary>Four times a second: is an animal worth raising the camera for, is a small subject within 3 m?</summary>
+        private void PollNearby(float dt)
+        {
+            _pollTimer -= dt;
+            if (_pollTimer > 0f) return;
+            _pollTimer = 0.25f;
+            _subjectAhead = _macroNear = false;
+            if (_cam == null) return;
+            Vector3 p = _cam.transform.position, f = _cam.transform.forward;
+
+            var animals = Photographable.Active;
+            for (int i = 0; i < animals.Count && !_subjectAhead; i++)
+            {
+                var a = animals[i];
+                if (a == null) continue;
+                Vector3 to = a.transform.position - p;
+                float d2 = to.sqrMagnitude;
+                if (d2 > 45f * 45f || d2 < 1f) continue;
+                if (Vector3.Dot(to, f) > 0.82f * Mathf.Sqrt(d2)) _subjectAhead = true; // within about 35 degrees of where you look
+            }
+
+            var small = MacroSubject.Active;
+            for (int i = 0; i < small.Count; i++)
+            {
+                var m = small[i];
+                if (m == null || m.subject == null || !m.Visible) continue;
+                if ((m.transform.position - p).sqrMagnitude > 9f) continue;
+                if (m.IsShowing) { _macroNear = true; break; }
+            }
+        }
+
+        private void UpdateBike(float blend, ref PromptContext ctx)
         {
             var bike = WildLens.Vehicles.TrailBike.Ridden;
             bool riding = bike != null;
             if (riding != _riding)
             {
+                if (riding) _prompts.Acted(PromptId.Mount); else _prompts.Acted(PromptId.Park);
                 _riding = riding;
-                _hintsText.text = riding ? RideHints : _walkHints;
+                ctx.riding = riding;
+                _rideKey = -1;
+                _lastSurface = -1;
             }
-            if (riding)
+            if (!riding)
             {
-                float kmh = Mathf.Abs(bike.Speed) * 3.6f;
-                string where = bike.Surface == WildLens.Vehicles.TrailBike.RideSurface.Road ? "Reserve Road"
-                    : bike.Surface == WildLens.Vehicles.TrailBike.RideSurface.Footpath ? "footpath · ride gently" : "across country";
-                _rideText.text = bike.IsParking ? "Parking…" : $"{kmh:0} km/h   <size=16>{where}</size>";
-                _rideText.color = new Color(1f, 1f, 1f, 0.85f * (1f - blend));
-                // 0.8: pull-offs suggest themselves as you roll past.
-                var pull = WildLens.Environment.ReserveParking.At(bike.transform.position);
-                _promptText.text = pull != null && !bike.IsParking && Mathf.Abs(bike.Speed) < 7f
-                    ? $"<b>R</b>  Park here  <size=18>· {pull.title}{(string.IsNullOrEmpty(pull.hint) ? "" : " · " + pull.hint)}</size>" : "";
+                if (_rideText.enabled) _rideText.enabled = false;
+                return;
             }
-            else
+
+            float speed = Mathf.Abs(bike.Speed);
+            int surface = (int)bike.Surface;
+            if (surface != _lastSurface) { _lastSurface = surface; _surfaceShownUntil = _hudClock + 4f; }
+            bool showSurface = _hudClock < _surfaceShownUntil;
+            int kmh = Mathf.RoundToInt(speed * 3.6f);
+            int key = (kmh * 8 + surface * 2 + (showSurface ? 1 : 0)) * 2 + (bike.IsParking ? 1 : 0);
+            if (key != _rideKey)
             {
-                _rideText.text = "";
-                // Hidden while the camera is up: it sat on top of the viewfinder's zoom scale.
-                _promptText.text = WildLens.Vehicles.TrailBike.InReach != null && blend < 0.05f ? "<b>R</b>  Ride the trail bike" : "";
+                _rideKey = key;
+                string where = surface == (int)WildLens.Vehicles.TrailBike.RideSurface.Road ? "Reserve Road"
+                    : surface == (int)WildLens.Vehicles.TrailBike.RideSurface.Footpath ? "Footpath \u00b7 ride gently" : "Across country";
+                _rideText.text = bike.IsParking ? "Parking\u2026" : kmh + " km/h" + (showSurface ? "\n<size=" + UiStyle.SizeSmall + ">" + where + "</size>" : "");
             }
+            _rideText.enabled = true;
+            _rideText.color = UiStyle.WithAlpha(UiStyle.Text, 0.85f * (1f - blend));
+
+            // 0.8: pull-offs suggest themselves as you roll past; a stopped bike offers to park anywhere.
+            var pull = WildLens.Environment.ReserveParking.At(bike.transform.position);
+            ctx.parkPlace = pull != null && !string.IsNullOrEmpty(pull.title) ? pull.title : null;
+            ctx.canPark = !bike.IsParking && ((pull != null && speed < 7f) || speed < 0.6f);
         }
 
         private ViewfinderState BuildViewfinderState(float blend)
@@ -288,13 +418,16 @@ namespace WildLens.UI
         {
             // Zoom input always raises the camera now, so the readout belongs in the viewfinder.
             _viewfinder.ShowZoomPop(_lens.Levels[level]);
+            _prompts?.Acted(PromptId.Zoom);
         }
+
+        private void OnMacroChanged(bool on) { if (on) _prompts?.Acted(PromptId.Macro); }
 
         private void OnFocusLocked() => _viewfinder.PulseFocus();
 
         private void OnSpeciesIdentified(SpeciesDefinition species)
         {
-            _notice.Show($"<size=20>Identified by observation</size>\n<b>{species.displayName}</b>  <size=20><i>{species.scientificName}</i></size>", 3.5f);
+            _notice.Show(species.displayName, $"<i>{species.scientificName}</i>  \u00b7  identified by observation", 4f);
         }
 
         private void OnCaptureStarting() => _canvas.enabled = false;
@@ -308,23 +441,17 @@ namespace WildLens.UI
         private void OnPhotoTaken(PhotoResult result)
         {
             _preview.Show(result);
+            _photosThisSession++;
+            _lastPhotoClock = _hudClock;
+            _prompts.Acted(PromptId.Shutter);
             // Macro (1.5): name the small subject and how the photo did; the print shows as usual.
             if (result.macro != null && result.macro.Count > 0 && _notice != null)
             {
                 var m = result.macro[0];
-                string extra = string.IsNullOrEmpty(m.hint) ? "" : $" · {m.hint}";
-                _notice.Show($"<b>{m.subject.displayName}</b>{(result.macroIsNew ? "  <i>new in your field notebook</i>" : "")}\n" +
-                             $"<size=20>Macro · {m.quality}{extra}</size>", 5f);
+                string extra = string.IsNullOrEmpty(m.hint) ? "" : $" \u00b7 {m.hint}";
+                _notice.Show(m.subject.displayName,
+                             (result.macroIsNew ? "New in your field notebook  \u00b7  " : "") + $"Macro \u00b7 {m.quality}{extra}", 5f);
             }
-        }
-
-        private void RefreshStatus()
-        {
-            var game = WildLensGame.Instance;
-            if (game == null || _statusText == null) return;
-            var clock = WildLens.Environment.DayCycle.Instance;
-            string time = clock != null ? $"{WildLens.Environment.DayCycle.PeriodName(clock.Period)} · {clock.ClockText}{(clock.IsWaiting ? "  <i>time passing…</i>" : "")}      " : "";
-            _statusText.text = $"{time}Species {game.Journal.DiscoveredCount}/{game.Journal.TotalSpecies}    Photos {game.Journal.TotalPhotos}";
         }
     }
 }
