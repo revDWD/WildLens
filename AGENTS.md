@@ -243,14 +243,17 @@ playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turk
 
 ## 9. Asset Strategy
 
-- **Committed: CC0 only.** Poly Haven skies, terrain, surfaces, rocks, wood, plants; Quaternius animals (`Art~`,
-  credited in `Art~/CREDITS.md`). Keep sizes modest (2k): `Art~` ships to every user.
+- **Committed: free, and free to pass on** (director, November 2026: "assets no longer need to be CC0, just free"). Any
+  free licence that allows redistribution is welcome in `Art~`: CC0, and attribution licences such as CC-BY **with the
+  author credited** in `Art~/CREDITS.md`. So far: Poly Haven skies, terrain, surfaces, rocks, wood, plants; Quaternius
+  animals. Keep sizes modest (2k): `Art~` ships to every user.
 - **Store assets, free ones included, are never committed** (the Asset Store EULA forbids redistribution). The user
   imports them locally; WildLens finds and places them: the **Environment Kit** for scenery (by ecological role),
   **Animal Model Setup** and **Wildlife Pack Setup** for animals, a named-pivot model for the bike.
 - **Everything else is generated**: meshes, icons, materials, the terrain's landforms.
-- Not usable: CC-BY or "personal use" models, AI-generator free-plan output (CC-BY), re-uploads of paid packs, HDRP-only
-  environments.
+- Still not committable, because their licences forbid passing the files on: Asset Store packs (free ones included),
+  "personal use only" models, re-uploads of paid packs. The user may import any free asset into their own project.
+  HDRP-only environments remain unusable.
 
 → [VisualRoadmap.md](Documentation~/VisualRoadmap.md), [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
 
