@@ -22,7 +22,7 @@ namespace WildLens.UI
         private static readonly Color Paper = new Color(0.96f, 0.95f, 0.91f, 1f);
         private static readonly Color KeeperMat = new Color(0.93f, 0.84f, 0.6f, 1f);
 
-        private readonly RectTransform _card;
+        private readonly RectTransform _card, _parent;
         private readonly Image _cardImage;
         private readonly CanvasGroup _group;
         private readonly RectTransform _frame;
@@ -36,9 +36,14 @@ namespace WildLens.UI
         private float _restTilt;
         private float _showSeconds;
         private float _age = float.MaxValue;
+        private bool _keeper;
+
+        /// <summary>The keeper print (bottom-centre) is on screen: the prompts stand aside while it is.</summary>
+        public bool KeeperUp => _keeper && _age != float.MaxValue;
 
         public PhotoPreviewView(RectTransform parent)
         {
+            _parent = parent;
             _cardImage = UIFactory.CreateImage("Photo Print", parent, Paper);
             _card = _cardImage.rectTransform;
             _group = _cardImage.gameObject.AddComponent<CanvasGroup>();
@@ -113,14 +118,22 @@ namespace WildLens.UI
 
         private void Layout(bool keeper)
         {
+            _keeper = keeper;
             _stamp.enabled = keeper;
+            _card.localScale = Vector3.one;
             _cardImage.color = keeper ? KeeperMat : Paper;
             if (keeper)
             {
-                // Larger print, bottom-centre, rising from below.
-                _restPos = new Vector2(0f, UiStyle.Margin + 16f);
+                // Larger print, bottom-centre, rising from below. It rests above the viewfinder's data row (which tops out at
+                // 77 px) and is scaled down on short canvases so its top stays 70 px under the frame centre (the lower focus marks
+                // reach about 40 px below it): 16:9 scale 0.86, 21:9 (943 high) 0.70, 4:3 and 16:10 about 0.93 to 1.
+                const float rest = 100f, fullHeight = 430f;
+                _restPos = new Vector2(0f, rest);
+                float canvasH = _parent != null && _parent.rect.height > 100f ? _parent.rect.height : 1080f;
+                float fit = Mathf.Clamp((canvasH * 0.5f - 70f - rest) / fullHeight, 0.6f, 1f);
+                _card.localScale = new Vector3(fit, fit, 1f);
                 _offset = new Vector2(0f, -70f);
-                UIFactory.Place(_card, new Vector2(0.5f, 0f), _restPos, new Vector2(560f, 430f));
+                UIFactory.Place(_card, new Vector2(0.5f, 0f), _restPos, new Vector2(560f, fullHeight));
                 UIFactory.Place(_frame, new Vector2(0.5f, 1f), new Vector2(0f, -16f), new Vector2(528f, 297f));
                 UIFactory.Place(_caption.rectTransform, new Vector2(0f, 0f), new Vector2(20f, 12f), new Vector2(430f, 100f));
                 UIFactory.Place(_stamp.rectTransform, new Vector2(1f, 0f), new Vector2(-18f, 84f), new Vector2(120f, 26f));

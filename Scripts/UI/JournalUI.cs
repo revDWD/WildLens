@@ -49,6 +49,9 @@ namespace WildLens.UI
         // Row pitch 92 px, row height 84 px, first row top at y = 136 below the book's top edge (book 880 px tall).
         // The list column ends at 810 px (divider) and the footer starts at 826 px, so 7 rows fit (last row ends at 772 px).
         private const int VisibleRows = 7;
+        private const int RowNameSize = 26, RowNameMinSize = 16;
+        private const float RowTextWidth = 420f - 16f - 8f - 4f;   // the label's width less its insets, and a little slack
+        private Text _measure;                    // an invisible Text used only to measure a row's name line
 
         private WildLensGame Game => WildLensGame.Instance;
 
@@ -150,10 +153,10 @@ namespace WildLens.UI
                 var rec = s != null ? journal.GetRecord(s.speciesId) : null;
                 string num = (i + 1).ToString("00");
                 _rowTexts[slot].text = rec != null
-                    ? $"{num}   <b>{s.displayName}</b>\n<size=18>     {rec.photoCount} photo{(rec.photoCount == 1 ? "" : "s")}</size>"
+                    ? $"{num}   {FitName(s.displayName, num + "   ")}\n<size=18>     {rec.photoCount} photo{(rec.photoCount == 1 ? "" : "s")}</size>"
                     : $"{num}   ???\n<size=18>     not yet observed</size>";
                 if (rec != null && rec.photoCount == 0)
-                    _rowTexts[slot].text = $"{num}   <b>{s.displayName}</b>\n<size=18>     observed, no photo yet</size>";
+                    _rowTexts[slot].text = $"{num}   {FitName(s.displayName, num + "   ")}\n<size=18>     observed, no photo yet</size>";
                 _rowBackgrounds[slot].color = i == _selected ? UIFactory.PaperDark : new Color(0f, 0f, 0f, 0f);
             }
 
@@ -196,7 +199,9 @@ namespace WildLens.UI
             _notes.Sort((a, b) =>
             {
                 int c = GroupOrder(a.group).CompareTo(GroupOrder(b.group));
-                return c != 0 ? c : string.Compare(a.displayName, b.displayName, StringComparison.Ordinal);
+                if (c != 0) return c;
+                c = string.Compare(a.displayName, b.displayName, StringComparison.Ordinal);
+                return c != 0 ? c : string.Compare(a.subjectId, b.subjectId, StringComparison.Ordinal); // a stable order for equal names
             });
             if (_selectedNote >= _notes.Count) _selectedNote = Mathf.Max(0, _notes.Count - 1);
         }
@@ -232,7 +237,7 @@ namespace WildLens.UI
                 int i = _offsetNote + slot;
                 if (i >= total) { _rowTexts[slot].text = ""; _rowBackgrounds[slot].color = Color.clear; continue; }
                 var n = _notes[i];
-                _rowTexts[slot].text = $"<b>{n.displayName}</b>\n<size=18>{n.group}  \u00b7  {(string.IsNullOrEmpty(n.bestQuality) ? "noted" : n.bestQuality)}</size>";
+                _rowTexts[slot].text = $"{FitName(n.displayName, "")}\n<size=18>{n.group}  \u00b7  {(string.IsNullOrEmpty(n.bestQuality) ? "noted" : n.bestQuality)}</size>";
                 _rowBackgrounds[slot].color = i == _selectedNote ? UIFactory.PaperDark : new Color(0f, 0f, 0f, 0f);
             }
             _moreAbove.enabled = _offsetNote > 0;
@@ -276,6 +281,23 @@ namespace WildLens.UI
             }
             _defaultSubjects.TryGetValue(id, out found);
             return found;
+        }
+
+        /// <summary>
+        /// A row's name on one line: bold at the normal size, or smaller (down to 16 px) when the longest names ("Eastern Red-backed
+        /// Salamander") would not fit the 420 px row. Each row is then name + one small line, never three lines.
+        /// </summary>
+        private string FitName(string name, string prefix)
+        {
+            string shown = string.IsNullOrEmpty(name) ? "" : name;
+            int size = RowNameSize;
+            if (_measure != null)
+            {
+                _measure.text = prefix + "<b>" + shown + "</b>";
+                float w = _measure.preferredWidth;
+                if (w > RowTextWidth) size = Mathf.Clamp(Mathf.FloorToInt(RowNameSize * RowTextWidth / w), RowNameMinSize, RowNameSize);
+            }
+            return size < RowNameSize ? "<size=" + size + "><b>" + shown + "</b></size>" : "<b>" + shown + "</b>";
         }
 
         /// <summary>Keeps the selection inside a window of <paramref name="rows"/> rows.</summary>
@@ -385,9 +407,14 @@ namespace WildLens.UI
                 UIFactory.Place(row.rectTransform, new Vector2(0f, 1f), new Vector2(50f, -136f - i * 92f), new Vector2(420f, 84f));
                 var text = UIFactory.CreateText("Label", row.transform, "", 26, UIFactory.Ink, TextAnchor.MiddleLeft);
                 UIFactory.Stretch(text.rectTransform, 16f, 4f, 8f, 4f);
+                text.horizontalOverflow = HorizontalWrapMode.Overflow;   // a name line never wraps onto a third line
                 _rowBackgrounds.Add(row);
                 _rowTexts.Add(text);
             }
+
+            _measure = UIFactory.CreateText("Measure", b, "", RowNameSize, UIFactory.Ink, TextAnchor.UpperLeft);
+            _measure.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _measure.enabled = false;
 
             var divider = UIFactory.CreateImage("Divider", b, new Color(UIFactory.Ink.r, UIFactory.Ink.g, UIFactory.Ink.b, 0.25f));
             UIFactory.Place(divider.rectTransform, new Vector2(0f, 1f), new Vector2(500f, -130f), new Vector2(2f, 680f));

@@ -586,7 +586,7 @@ namespace WildLens.EditorTools.SmallLife
             float hs = 0.045f;
             V3 hc = haloPart.origin;
             Gm.TexQuad(haloPart, hc + P(-hs, -hs, 0f), hc + P(hs, -hs, 0f), hc + P(hs, hs, 0f), hc + P(-hs, hs, 0f),
-                new V2(0f, 0f), new V2(1f, 0f), new V2(1f, 1f), new V2(0f, 1f), P(0f, 0f, -1f));
+                new V2(0f, 0f), new V2(1f, 0f), new V2(1f, 1f), new V2(0f, 1f), P(0f, 0f, -1f), false);
             m.AddGroup("Focus", V3.Zero);
             return m;
         }

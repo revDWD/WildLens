@@ -32,7 +32,8 @@ namespace WildLens.Photography
         private float _nextPoll;
 
         // "Recently rained": raining now, or within the last three game hours (afterRain subjects: newts, snails). Since 1.9 the memory of
-        // the rain lives in NaturalConditions (which also seeds it from the forecast), shared with every other small-life rule.
+        // the rain lives in WeatherCycle (which seeds it from its own forecast), read here through NaturalConditions like every other
+        // small-life rule. This three-hour window is small life's own (animals use two for the first sun after rain): leave it.
         private const float AfterRainHours = 3f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -93,7 +94,9 @@ namespace WildLens.Photography
         {
             if (focusPoint != null)
             {
-                float s = focusSize > 0f ? focusSize : (subject != null ? subject.size : 0.05f);
+                // A subject that names the part to grade (a fern's crown, a cattail's head) overrides the builder's whole-plant box.
+                float s = subject != null && subject.focusPartSize > 0f ? subject.focusPartSize
+                        : focusSize > 0f ? focusSize : (subject != null ? subject.size : 0.05f);
                 bounds = new Bounds(focusPoint.position, Vector3.one * s);
                 return true;
             }

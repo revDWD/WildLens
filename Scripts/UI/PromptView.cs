@@ -12,6 +12,8 @@ namespace WildLens.UI
     {
         /// <summary>A menu is open or the mouse is free: nothing shows.</summary>
         public bool hidden;
+        /// <summary>The keeper print is up at the bottom-centre: prompts are treated as hidden (timers paused) while it is.</summary>
+        public bool printUp;
         public bool riding;
         public bool bikeInReach;
         /// <summary>Riding, not already parking, and either stopped or inside a pull-off.</summary>
@@ -129,8 +131,11 @@ namespace WildLens.UI
             if (id == PromptId.Intro) _introDone = true;
         }
 
-        public void Update(in PromptContext c, float dt)
+        public void Update(in PromptContext ctx, float dt)
         {
+            // A prompt under the keeper print is not seen, so it must not burn its ignore timer.
+            PromptContext c = ctx;
+            if (c.printUp) c.hidden = true;
             if (!c.hidden) _clock += dt;
 
             // ---- which prompts could show right now
@@ -141,7 +146,7 @@ namespace WildLens.UI
                 Consider(PromptId.Mount, !c.riding && c.bikeInReach && c.cameraLowered, dt);
                 Consider(PromptId.Macro, c.cameraRaised && !c.macroMode && c.macroNear, dt);
                 Consider(PromptId.Shutter, c.cameraRaised && (c.hasSubject || (c.macroMode && c.macroNear)), dt);
-                Consider(PromptId.Zoom, c.cameraRaised, dt);
+                Consider(PromptId.Zoom, c.cameraRaised && !c.macroMode, dt); // the telephoto steps do not apply in macro
                 Consider(PromptId.Raise, !c.riding && c.cameraLowered && c.subjectAhead && _clock > RaiseNotBefore, dt);
                 Consider(PromptId.Journal, !c.riding && c.cameraLowered && c.photosThisSession > 0 && c.secondsSincePhoto > 6f && c.secondsSincePhoto < 600f, dt);
                 bool introWindow = !_introDone && _clock >= IntroFrom && _clock <= IntroTo && c.cameraLowered && !c.riding;

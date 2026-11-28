@@ -75,8 +75,72 @@ namespace WildLens.Environment
         /// <summary>It stopped raining within <paramref name="hours"/> game hours (false while it is still raining).</summary>
         public bool RainEndedWithin(float hours) => !IsRaining && HoursSinceRain <= hours;
 
+        /// <summary>
+        /// The ANIMALS' window for "the first sunshine after rain": two game hours. Small life keeps its own, longer window
+        /// (<c>NaturalConditions.SmallLifeSunAfterRainHours</c>, three hours, for the second wave of butterflies). The two are different
+        /// on purpose and both read this one memory of the rain; do not unify them.
+        /// </summary>
+        public const float AnimalSunAfterRainHours = 2f;
+
         /// <summary>The first sunshine after rain: not raining, it rained within about two hours, and the cloud has broken.</summary>
-        public bool SunAfterRain => RainEndedWithin(2f) && !OvercastSky && Cover < 0.6f;
+        public bool SunAfterRain => RainEndedWithin(AnimalSunAfterRainHours) && !OvercastSky && Cover < 0.6f;
+
+        /// <summary>
+        /// day * 24 + hour when it last rained (the forecast seeds it before the game's first frame; see <see cref="SeedRainMemory"/>);
+        /// a very large negative number when there is no memory of rain. The one memory of the rain: NaturalConditions reads it too.
+        /// </summary>
+        public float LastRainTime => _lastRainTime;
+
+        /// <summary>Whether there is any memory of rain at all.</summary>
+        public bool HasRainMemory => _lastRainTime > Never * 0.5f;
+
+        // The hour each forecast day's rain stops (-1: no rain that day), worked out once from <see cref="Days"/> itself by scanning in
+        // hundredths of an hour: day 3 (index 2) 16.10, day 4 (index 3) 23.99 (the dusk rain runs on to midnight).
+        private static float[] _rainEnds;
+
+        private static float[] RainEnds()
+        {
+            if (_rainEnds != null) return _rainEnds;
+            var ends = new float[Days.Length];
+            for (int d = 0; d < Days.Length; d++)
+            {
+                ends[d] = -1f;
+                for (int i = 0; i < 2400; i++)
+                {
+                    float h = i * 0.01f;
+                    if (At(Days[d], h).y > RainThreshold) ends[d] = h;
+                }
+            }
+            _rainEnds = ends;
+            return ends;
+        }
+
+        /// <summary>
+        /// The memory of rain from before the game began watching, from this cycle's own forecast: the last time it rained according to the
+        /// day before and the hours already passed today (the dusk rain of forecast day 4 runs to midnight, so the morning after is damp;
+        /// the shower of day 3 ended about 16:06). None for the always-fair pattern or a hand-set weather. Called at the start and
+        /// whenever the clock is set back; it changes no weather, only what <see cref="HoursSinceRain"/> reports.
+        /// </summary>
+        private float SeedRainMemory(int day, float hour)
+        {
+            if (pattern == Pattern.AlwaysFair || overrideWeather) return Never;
+            var ends = RainEnds();
+            int today = (firstDay + day) % Days.Length;
+            int yesterday = (today + Days.Length - 1) % Days.Length;
+            float best = Never;
+            float now = day * 24f + hour;
+            if (ends[yesterday] > 0f)
+            {
+                float end = (day - 1) * 24f + ends[yesterday];
+                if (end <= now && end > best) best = end;
+            }
+            if (ends[today] > 0f && hour >= ends[today])
+            {
+                float end = day * 24f + ends[today];
+                if (end <= now && end > best) best = end;
+            }
+            return best;
+        }
 
         /// <summary>A fair spell: not raining, not overcast, and at least an hour since the last rain (warm air rising again, wet leaves drying).</summary>
         public bool IsFair => !IsRaining && !OvercastSky && HoursSinceRain > 1f;
@@ -112,6 +176,8 @@ namespace WildLens.Environment
         private void Start()
         {
             BuildRain();
+            var clock = DayCycle.Instance;
+            _lastRainTime = SeedRainMemory(clock != null ? clock.Day : 0, clock != null ? clock.Hour : 12f);
             Sample(true);
             _started = true;
         }
@@ -133,7 +199,7 @@ namespace WildLens.Environment
 
             // 1.9: remember when it last rained (the clock set back, or a scene reload, forgets it).
             float nowHours = day * 24f + hour;
-            if (nowHours < _lastRainTime) _lastRainTime = Never;
+            if (nowHours < _lastRainTime) _lastRainTime = SeedRainMemory(day, hour);
             if (Rain > RainThreshold) _lastRainTime = nowHours;
 
             var c = Rain > 0.2f ? WeatherCondition.LightRain : Cover > 0.68f ? WeatherCondition.Overcast : Cover > 0.4f ? WeatherCondition.Cloudy : WeatherCondition.Fair;

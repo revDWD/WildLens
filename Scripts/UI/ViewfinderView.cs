@@ -43,6 +43,10 @@ namespace WildLens.UI
         private static readonly Color ExcellentColor = UiStyle.Excellent;
         private const float Inset = 64f, CornerLength = 56f, LineThickness = 2f;
         private const float DataBaseline = 47f;     // bottom of the 30 px data row: its centre sits 62 px above the bottom edge
+        // The row's left and right items start clear of the corner arms (which reach Inset + CornerLength = 120 px in from each side).
+        // Checked at 16:9 (1920 wide), 16:10 (1821), 21:9 (2200) and 4:3 (1663): the centre zoom steps span 318 px around the middle,
+        // so at 1663 they run x 672..991 while MACRO ends near x 318 and the focal text starts near x 1227 (its 300 px box).
+        private const float RowSideInset = Inset + CornerLength + 16f;   // 136 px
         private static readonly string GoodHex = UiStyle.Hex(UiStyle.Good), ExcellentHex = UiStyle.Hex(UiStyle.Excellent);
 
         private readonly CanvasGroup _group;
@@ -124,14 +128,14 @@ namespace WildLens.UI
                 _levelLabels.Add(label);
             }
             _focalText = UIFactory.CreateText("Focal Length", _frame, "", 20, UiStyle.WithAlpha(UiStyle.Text, 0.85f), TextAnchor.MiddleRight);
-            UIFactory.Place(_focalText.rectTransform, new Vector2(1f, 0f), new Vector2(-Inset, DataBaseline), new Vector2(300f, 30f));
+            UIFactory.Place(_focalText.rectTransform, new Vector2(1f, 0f), new Vector2(-RowSideInset, DataBaseline), new Vector2(300f, 30f));
             UiStyle.SoftShadow(_focalText);
 
             // Focus-confirm dot at the left of the row (as in an SLR viewfinder), and the lens mode beside it.
             _focusDot = UIFactory.CreateImage("Focus Confirm", _frame, GoodColor);
-            UIFactory.Place(_focusDot.rectTransform, new Vector2(0f, 0f), new Vector2(Inset, DataBaseline + 10f), new Vector2(10f, 10f));
+            UIFactory.Place(_focusDot.rectTransform, new Vector2(0f, 0f), new Vector2(RowSideInset, DataBaseline + 10f), new Vector2(10f, 10f));
             _macroLabel = UIFactory.CreateText("Mode", _frame, "MACRO", UiStyle.SizeSmall, Line, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIFactory.Place(_macroLabel.rectTransform, new Vector2(0f, 0f), new Vector2(Inset + 22f, DataBaseline), new Vector2(160f, 30f));
+            UIFactory.Place(_macroLabel.rectTransform, new Vector2(0f, 0f), new Vector2(RowSideInset + 22f, DataBaseline), new Vector2(160f, 30f));
             UiStyle.SoftShadow(_macroLabel);
             _macroLabel.enabled = false;
 

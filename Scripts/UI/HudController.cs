@@ -273,6 +273,7 @@ namespace WildLens.UI
             var ctx = new PromptContext
             {
                 hidden = !locked,
+                printUp = _preview != null && _preview.KeeperUp,
                 riding = _riding,
                 bikeInReach = WildLens.Vehicles.TrailBike.InReach != null,
                 cameraLowered = blend < 0.05f,

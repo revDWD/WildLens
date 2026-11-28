@@ -14,10 +14,17 @@ namespace WildLens.EditorTools
     /// </summary>
     public static class SmallLifeModels
     {
-        public const int ModelVersion = 1;
+        /// <summary>
+        /// 2: wings, petals, leaves and blades are two-sided in the mesh itself (a reversed copy with negated normals) and their
+        /// materials keep back-face culling on; version 1 relied on a cull property the Built-in Standard shader lacks.
+        /// </summary>
+        public const int ModelVersion = 2;
         public const string Folder = GeneratedAssets.Folder + "/SmallLife/Models";
 
         private static readonly Dictionary<string, GameObject> Cache = new Dictionary<string, GameObject>();
+        private static int _madeCount;
+        private static double _madeSeconds;
+        private static bool _logQueued;
 
         public static float NativeSize(string key) => SmallLifeShapes.Size(key);
 
@@ -32,7 +39,7 @@ namespace WildLens.EditorTools
                 string folder = $"{Folder}/{key}_v{ModelVersion}";
                 string prefabPath = $"{folder}/SL_{key}.prefab";
                 result = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-                if (result == null) result = Build(key, folder, prefabPath);
+                if (result == null) result = BuildWithProgress(key, folder, prefabPath);
             }
             catch (System.Exception e)
             {
@@ -41,6 +48,38 @@ namespace WildLens.EditorTools
             }
             Cache[key] = result;
             return result;
+        }
+
+        /// <summary>
+        /// The first build makes up to 26 models (meshes, textures, materials) and is not instant: show a progress bar and log one line
+        /// afterwards. No StartAssetEditing batch on purpose: assets created inside one are not imported until it ends, and saving a
+        /// prefab inside one is risky.
+        /// </summary>
+        private static GameObject BuildWithProgress(string key, string folder, string prefabPath)
+        {
+            double t0 = EditorApplication.timeSinceStartup;
+            try
+            {
+                EditorUtility.DisplayProgressBar("WildLens", "Making small life models\u2026", _madeCount / (float)Mathf.Max(1, SmallLifeShapes.Keys.Length));
+                var made = Build(key, folder, prefabPath);
+                if (made != null) _madeCount++;
+                return made;
+            }
+            finally
+            {
+                _madeSeconds += EditorApplication.timeSinceStartup - t0;
+                EditorUtility.ClearProgressBar();
+                if (!_logQueued)
+                {
+                    _logQueued = true;
+                    EditorApplication.delayCall += () =>
+                    {
+                        _logQueued = false;
+                        if (_madeCount > 0) Debug.Log($"[WildLens] Small life: made {_madeCount} generated model(s) in {_madeSeconds:0.0} s.");
+                        _madeCount = 0; _madeSeconds = 0.0;
+                    };
+                }
+            }
         }
 
         private static GameObject Build(string key, string folder, string prefabPath)
@@ -181,7 +220,8 @@ namespace WildLens.EditorTools
                     m = MaterialLibrary.Create(Color.white, mat.smoothness, tex);
                     m.name = mat.name;
                     if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
-                    if (mat.kind == MatKind.PaletteDouble || mat.kind == MatKind.Painted) MaterialLibrary.MakeDoubleSided(m);
+                    // No cull override: leaves, petals and wings carry both faces in the mesh (version 2), so culling stays on and each
+                    // side is lit by its own normal in every pipeline.
                     if (mat.kind == MatKind.Painted)
                     {
                         // Alpha-tested, two-sided (wings): the same settings the project's foliage cards use.

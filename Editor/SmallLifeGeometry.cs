@@ -86,8 +86,8 @@ namespace WildLens.EditorTools.SmallLife
     public enum MatKind
     {
         Palette,        // opaque, colour from a tiny palette texture (one cell per colour)
-        PaletteDouble,  // the same, two-sided (leaves, petals)
-        Painted,        // painted texture with alpha cut-out, two-sided (wings)
+        PaletteDouble,  // the same, for leaves and petals (two-sided in the mesh itself since model version 2)
+        Painted,        // painted texture with alpha cut-out (wings; two-sided in the mesh since model version 2)
         PaintedOpaque,  // painted texture, opaque, one-sided (frog skin, newt skin, shelf fungi)
         Glow,           // palette plus an emission the runtime can pulse (a firefly's lantern)
         Additive,       // unlit additive sprite (a firefly's halo)
@@ -212,6 +212,19 @@ namespace WildLens.EditorTools.SmallLife
             V3 nn = p.n[a] + p.n[b] + p.n[c];
             if (V3.Dot(cr, nn) < 0f) { int tmp = b; b = c; c = tmp; }
             p.t.Add(a); p.t.Add(b); p.t.Add(c);
+        }
+
+        /// <summary>
+        /// Makes everything added since (v0, t0) two-sided in the mesh itself: a reversed copy with negated normals and the same UVs.
+        /// Wings, petals and leaves are single quads and strips; relying on a material's cull mode fails on the Built-in Standard
+        /// shader (no cull property: they vanish from behind) and lights the back face wrongly in URP. With back-face culling left on,
+        /// exactly one of the two coincident faces is drawn from any side, so there is no z-fighting.
+        /// </summary>
+        private static void AddBackFaces(Part p, int v0, int t0)
+        {
+            int vEnd = p.v.Count, tEnd = p.t.Count, off = vEnd - v0;
+            for (int i = v0; i < vEnd; i++) { p.v.Add(p.v[i]); p.n.Add(-p.n[i]); p.uv.Add(p.uv[i]); }
+            for (int k = t0; k < tEnd; k += 3) { p.t.Add(p.t[k] + off); p.t.Add(p.t[k + 2] + off); p.t.Add(p.t[k + 1] + off); }
         }
 
         private static int Vtx(Part p, V3 pos, V3 normal, Col col, float u, float v)
@@ -345,25 +358,29 @@ namespace WildLens.EditorTools.SmallLife
         {
             V3 nn = V3.Cross(b - a, d - a).Normalized;
             if (V3.Dot(nn, faceHint) < 0f) nn = -nn;
+            int v0 = p.v.Count, t0 = p.t.Count;
             int i0 = Vtx(p, a, nn, col, 0f, 0f), i1 = Vtx(p, b, nn, col, 1f, 0f), i2 = Vtx(p, c, nn, col, 1f, 1f), i3 = Vtx(p, d, nn, col, 0f, 1f);
             Tri(p, i0, i1, i2); Tri(p, i0, i2, i3);
+            AddBackFaces(p, v0, t0);
         }
 
         /// <summary>A flat rectangle with its own texture coordinates (wings): corners given (u0,v0), (u1,v0), (u1,v1), (u0,v1).</summary>
-        public static void TexQuad(Part p, V3 a, V3 b, V3 c, V3 d, V2 ua, V2 ub, V2 uc, V2 ud, V3 faceHint)
+        public static void TexQuad(Part p, V3 a, V3 b, V3 c, V3 d, V2 ua, V2 ub, V2 uc, V2 ud, V3 faceHint, bool twoSided = true)
         {
             V3 nn = V3.Cross(b - a, d - a).Normalized;
             if (V3.Dot(nn, faceHint) < 0f) nn = -nn;
+            int v0 = p.v.Count, t0 = p.t.Count;
             int i0 = Vtx(p, a, nn, Col.White, ua.x, ua.y), i1 = Vtx(p, b, nn, Col.White, ub.x, ub.y);
             int i2 = Vtx(p, c, nn, Col.White, uc.x, uc.y), i3 = Vtx(p, d, nn, Col.White, ud.x, ud.y);
             Tri(p, i0, i1, i2); Tri(p, i0, i2, i3);
+            if (twoSided) AddBackFaces(p, v0, t0); // wings: seen from both sides (a firefly's halo is a billboard and is not doubled)
         }
 
         /// <summary>A leaf or blade: a strip along a path, widest in the middle, facing up.</summary>
         public static void Strip(Part p, V3[] pts, float[] halfWidth, V3 widthDir, Col col)
         {
             int K = pts.Length;
-            int b0 = p.v.Count;
+            int b0 = p.v.Count, t0 = p.t.Count;
             for (int k = 0; k < K; k++)
             {
                 V3 t = (k == 0 ? pts[1] - pts[0] : k == K - 1 ? pts[K - 1] - pts[K - 2] : pts[k + 1] - pts[k - 1]).Normalized;
@@ -377,6 +394,7 @@ namespace WildLens.EditorTools.SmallLife
                 int a = b0 + k * 2, b = a + 1, cc = a + 2, d = a + 3;
                 Tri(p, a, b, cc); Tri(p, b, d, cc);
             }
+            AddBackFaces(p, b0, t0); // leaves, petals, blades: both faces in the mesh
         }
 
         /// <summary>A leaf of the usual outline lying along dir, drooping by <paramref name="droop"/> over its length.</summary>

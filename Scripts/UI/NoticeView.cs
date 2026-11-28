@@ -17,6 +17,11 @@ namespace WildLens.UI
         private const float TopY = UiStyle.Margin;          // pill top edge, from the top of the canvas
         private const float Gap = 10f;
         private const float MaxWidth = 1100f;
+        // A notice is a title and one line, never wrapped: it shrinks to fit (22/18, 20/16, 18/14 px) and is clipped by the pill's
+        // width after that. Its height is capped, so the two stacked notices never reach the place title below them.
+        private const float MaxSlotHeight = 100f;
+        private const float StackBottom = TopY + SlotCount * MaxSlotHeight + (SlotCount - 1) * Gap;   // 266 px
+        private const float PlaceTop = StackBottom + 20f;
 
         private sealed class Slot
         {
@@ -51,6 +56,8 @@ namespace WildLens.UI
                 UIFactory.Stretch(s.pill.rectTransform);
                 s.text = UIFactory.CreateText("Text", s.root, "", UiStyle.SizeBody, UiStyle.Text, TextAnchor.MiddleCenter);
                 s.text.lineSpacing = 1.1f;
+                s.text.horizontalOverflow = HorizontalWrapMode.Overflow;
+                s.root.gameObject.AddComponent<RectMask2D>();
                 UiStyle.SoftShadow(s.text);
                 s.root.gameObject.SetActive(false);
                 _slots[i] = s;
@@ -58,7 +65,7 @@ namespace WildLens.UI
 
             // Place name: centre-top, a quarter of the way down, in a calm italic with a short rule beneath.
             var place = UIFactory.CreateRect("Place Name", parent);
-            UIFactory.Place(place, new Vector2(0.5f, 1f), new Vector2(0f, -250f), new Vector2(1200f, 150f));
+            UIFactory.Place(place, new Vector2(0.5f, 1f), new Vector2(0f, -PlaceTop), new Vector2(1200f, 150f));
             _placeGroup = place.gameObject.AddComponent<CanvasGroup>();
             _placeGroup.alpha = 0f;
             _placeName = UIFactory.CreateText("Name", place, "", 58, UiStyle.Text, TextAnchor.UpperCenter, FontStyle.Italic);
@@ -90,17 +97,22 @@ namespace WildLens.UI
                 }
             }
 
-            string body = string.IsNullOrEmpty(title) ? "" : "<b>" + (alert ? "<color=#" + UiStyle.Hex(UiStyle.Alert) + ">" + title + "</color>" : title) + "</b>";
-            if (!string.IsNullOrEmpty(line))
-                body += (body.Length > 0 ? "\n" : "") + "<size=" + UiStyle.SizeSmall + "><color=#" + UiStyle.Hex(UiStyle.Text) + "CC>" + line + "</color></size>";
-            slot.text.text = body;
             slot.pill.color = alert ? UiStyle.PillFillAlert : UiStyle.PillFill;
 
+            // One line each for title and text: step the sizes down until it fits the widest pill, then clip.
+            int[] bodySizes = { UiStyle.SizeBody, UiStyle.SizeBody - 2, UiStyle.SizeBody - 4 };
+            int[] smallSizes = { UiStyle.SizeSmall, UiStyle.SizeSmall - 2, UiStyle.SizeSmall - 4 };
+            for (int k = 0; k < bodySizes.Length; k++)
+            {
+                slot.text.fontSize = bodySizes[k];
+                slot.text.text = Compose(title, line, alert, smallSizes[k]);
+                if (slot.text.preferredWidth + 64f <= MaxWidth) break;
+            }
+
             float width = Mathf.Clamp(slot.text.preferredWidth + 64f, 280f, MaxWidth);
-            UIFactory.Place(slot.text.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(width - 48f, 40f));
             float textHeight = Mathf.Max(30f, slot.text.preferredHeight);
-            slot.text.rectTransform.sizeDelta = new Vector2(width - 48f, textHeight);
-            slot.height = textHeight + 26f;
+            UIFactory.Place(slot.text.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(width - 48f, textHeight));
+            slot.height = Mathf.Min(MaxSlotHeight, textHeight + 26f);
             slot.root.anchorMin = slot.root.anchorMax = new Vector2(0.5f, 1f);
             slot.root.pivot = new Vector2(0.5f, 1f);
             slot.root.sizeDelta = new Vector2(width, slot.height);
@@ -111,6 +123,14 @@ namespace WildLens.UI
             slot.y = float.NaN;
             slot.group.alpha = 0f;
             slot.root.gameObject.SetActive(true);
+        }
+
+        private static string Compose(string title, string line, bool alert, int smallSize)
+        {
+            string body = string.IsNullOrEmpty(title) ? "" : "<b>" + (alert ? "<color=#" + UiStyle.Hex(UiStyle.Alert) + ">" + title + "</color>" : title) + "</b>";
+            if (!string.IsNullOrEmpty(line))
+                body += (body.Length > 0 ? "\n" : "") + "<size=" + smallSize + "><color=#" + UiStyle.Hex(UiStyle.Text) + "CC>" + line + "</color></size>";
+            return body;
         }
 
         /// <summary>A hidden place: its name, once, large and calm, centre-top. No pill, no counter.</summary>

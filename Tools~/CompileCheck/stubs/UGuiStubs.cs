@@ -9,6 +9,7 @@ namespace UnityEngine.UI
     public class BaseMeshEffect : UnityEngine.MonoBehaviour { }
     public class Shadow : BaseMeshEffect { public UnityEngine.Color effectColor { get; set; } public UnityEngine.Vector2 effectDistance { get; set; } }
     public class Outline : Shadow { }
+    public class RectMask2D : UnityEngine.MonoBehaviour { }
     public class CanvasScaler : UnityEngine.MonoBehaviour { public enum ScaleMode { ConstantPixelSize, ScaleWithScreenSize, ConstantPhysicalSize } public ScaleMode uiScaleMode { get; set; } public UnityEngine.Vector2 referenceResolution { get; set; } public float matchWidthOrHeight { get; set; } public float dynamicPixelsPerUnit { get; set; } }
     public class AspectRatioFitter : UnityEngine.MonoBehaviour { public enum AspectMode { None, WidthControlsHeight, HeightControlsWidth, FitInParent, EnvelopeParent } public AspectMode aspectMode { get; set; } public float aspectRatio { get; set; } }
 }

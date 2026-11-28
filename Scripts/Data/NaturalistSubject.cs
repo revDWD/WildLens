@@ -72,6 +72,9 @@ namespace WildLens.Data
         public SubjectBehaviour behaviour = SubjectBehaviour.Still;
         [Tooltip("Frame fill (largest side of the subject / frame) for Good and Excellent.")]
         public Vector2 fillForGrade = new Vector2(0.18f, 0.35f);
+        [Tooltip("1.9: for a tall or large plant, the side in metres of the part that is graded (a frond's crown, a seed head) instead of the whole plant. " +
+                 "0: the focus box is 1.4 times Size, as for everything else.")]
+        [Min(0f)] public float focusPartSize;
 
         [Header("Where and when")]
         [Tooltip("Plain words for the field notebook: 'meadow edges', 'woodland floor', 'creek stones'.")]
@@ -465,7 +468,12 @@ namespace WildLens.Data
                 "A fern of the shade: fronds arch out of the leaf litter, each leaflet cut into smaller lobes. Ferns have no flowers or seeds; they spread " +
                 "by spores. Look in the fern glade and under the old trees.",
                 0.5f, "shady woodland floor", SubjectBehaviour.Still, SubjectHabitat.WoodlandFloor, Light, 0f, 6);
-            s.fillForGrade = new Vector2(0.25f, 0.5f);
+            // A 0.5 m plant graded whole is Excellent from anywhere (its 0.7 m focus box fills the frame, and the fill is capped at 1, out to the
+            // 2.5 m limit: 4 * 0.7 / 2.5 = 1.1), and no threshold can change that. So the grade is taken on one 12 cm patch at the focus point
+            // (the middle of the crown) instead: fill = 0.12 / (0.25 d) = 0.48 / d at the 1.7x step, so Good needs d <= 2.4 m and Excellent
+            // d <= 1.4 m (a metre and a half off the ground-level crown is a crouch and a few steps, as for the other ground subjects).
+            s.focusPartSize = 0.12f;
+            s.fillForGrade = new Vector2(0.20f, 0.35f);
             s.generatedModel = SmallLifeModel.FernScan;
             return s;
         }
@@ -518,6 +526,11 @@ namespace WildLens.Data
                 "The brown sausage is a spike of thousands of tiny female flowers, with a slim pollen-bearing spike above it. Red-winged blackbirds " +
                 "nest among cattails; look along the pond's edge.",
                 0.14f, "the pond's edge", SubjectBehaviour.Still, SubjectHabitat.WaterEdge, Light, 0f, 5);
+            // The default fill (0.18, 0.35) made its 0.196 m box Excellent out to 4 * 0.196 / 0.35 = 2.2 m, nearly the whole 2.5 m range. Graded
+            // on the 10 cm seed head (the model's focus point is at the head): fill = 0.10 / (0.25 d) = 0.4 / d, so with (0.20, 0.32) Good
+            // needs d <= 2.0 m and Excellent d <= 1.25 m (a head about a metre up on a stalk, from the bank).
+            s.focusPartSize = 0.10f;
+            s.fillForGrade = new Vector2(0.20f, 0.32f);
             s.generatedModel = SmallLifeModel.Cattail;
             return s;
         }

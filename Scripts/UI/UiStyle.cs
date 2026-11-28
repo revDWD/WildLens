@@ -89,6 +89,16 @@ namespace WildLens.UI
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => _pill = null;
+        private static void ResetStatics()
+        {
+            // With domain reload off, the hidden texture and sprite would outlive the play session: free them, then forget.
+            if (_pill != null)
+            {
+                var tex = _pill.texture;
+                if (Application.isPlaying) { Object.Destroy(_pill); if (tex != null) Object.Destroy(tex); }
+                else { Object.DestroyImmediate(_pill); if (tex != null) Object.DestroyImmediate(tex); }
+            }
+            _pill = null;
+        }
     }
 }

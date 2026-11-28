@@ -185,7 +185,10 @@ namespace WildLens.Vehicles
 
         private void Ride(float dt)
         {
-            FirstPersonController.UpdateCursorLock();
+            // Mirrors FirstPersonController.Update: not while a menu is open, nor on the frame one closed (the Esc that closed it
+            // would otherwise unlock the cursor again at once).
+            var game = WildLensGame.Instance;
+            if (!UiOpen() && (game == null || game.UiClosedFrame != Time.frameCount)) FirstPersonController.UpdateCursorLock();
             bool control = Cursor.lockState == CursorLockMode.Locked && !UiOpen();
             bool cameraUp = _mode != null && _mode.IsActive;
 

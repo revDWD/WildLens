@@ -25,7 +25,7 @@ namespace WildLens.EditorTools
         {
             { "monarch_butterfly", (new[] { "monarch", "butterfly" }, new string[0]) },
             { "luna_moth", (new[] { "luna", "moth" }, new string[0]) },
-            { "common_whitetail", (new[] { "dragonfly", "damselfly" }, new string[0]) },
+            { "common_whitetail", (new[] { "dragonfly" }, new string[0]) },   // "damselfly" belongs to the jewelwing only
             { "bumble_bee", (new[] { "bumblebee", "bee" }, new[] { "wasp" }) },
             { "ladybird_beetle", (new[] { "ladybug", "ladybird", "ladybeetle" }, new[] { "beetle", "bug" }) },
             { "praying_mantis", (new[] { "mantis" }, new[] { "grasshopper", "cricket", "stickinsect" }) },
@@ -43,9 +43,11 @@ namespace WildLens.EditorTools
             { "honey_bee", (new[] { "honeybee", "apis" }, new string[0]) },
             { "green_frog", (new[] { "greenfrog", "clamitans" }, new string[0]) },
             { "gray_treefrog", (new[] { "treefrog", "grayfrog" }, new string[0]) },
-            { "red_backed_salamander", (new[] { "redbacked", "redback", "plethodon" }, new string[0]) },
+            // "redback" alone is a spider and "redbacked" any red-backed animal: the salamander needs its own word beside it (the squashed
+            // name, so Red_Backed_Salamander and RedBack_Salamander both read). A pack's plain "Salamander" stays with the newt.
+            { "red_backed_salamander", (new[] { "redbackedsalamander", "redbacksalamander", "plethodon" }, new string[0]) },
             { "yellow_fly_agaric", (new[] { "agaric", "amanita", "flyagaric" }, new string[0]) },
-            { "turkey_tail", (new[] { "turkeytail", "trametes" }, new[] { "bracket", "polypore" }) },
+            { "turkey_tail", (new[] { "turkeytail", "trametes" }, new[] { "polypore" }) },
             { "common_milkweed", (new[] { "milkweed", "asclepias" }, new string[0]) },
             { "black_eyed_susan", (new[] { "rudbeckia", "blackeyedsusan", "susan" }, new string[0]) },
             { "common_blue_violet", (new[] { "violet" }, new string[0]) },
@@ -130,15 +132,45 @@ namespace WildLens.EditorTools
         {
             if (!Names.TryGetValue(subjectId, out var n)) return Kind.None;
             if (IsExcluded(words)) return Kind.None;
+            // A tree frog is the gray treefrog's and nobody else's: "Tree_Frog" must not become the leopard or green frog.
+            if (subjectId != "gray_treefrog" && IsTreeFrog(words)) return Kind.None;
             if (Has(words, n.exact)) return Kind.Exact;
             if (Has(words, n.standIn)) return Kind.StandIn;
             if (ancestorWords != null)
                 foreach (var dirWords in ancestorWords)
                 {
                     if (IsExcluded(dirWords)) continue;
+                    if (subjectId != "gray_treefrog" && IsTreeFrog(dirWords)) continue;
                     if (Has(dirWords, n.exact) || Has(dirWords, n.standIn)) return Kind.ByFolder;
                 }
             return Kind.None;
+        }
+
+        /// <summary>"TreeFrog", "Tree_Frog" and "Treefrog" (the words tree and frog together, or the one word treefrog).</summary>
+        private static bool IsTreeFrog(List<string> words)
+        {
+            if (words.Contains("treefrog") || words.Contains("treefrogs")) return true;
+            bool tree = false, frog = false;
+            foreach (var w in words) { if (w == "tree" || w == "trees") tree = true; if (w == "frog" || w == "frogs") frog = true; }
+            return tree && frog;
+        }
+
+        private static readonly string[] TerrainDetailWords = { "terrain", "detail", "details", "texture", "textures", "layer", "layers" };
+
+        /// <summary>
+        /// A moss model must be a real 3-D thing: more than 2 cm tall, and not a terrain-detail or texture asset (a pack's "Moss"
+        /// plane or paint layer is ground, not a subject). Checked against the file name and every folder above it.
+        /// </summary>
+        internal static bool MossModelOk(string[] ancestors, string stem, float height)
+        {
+            if (height <= 0.02f) return false;
+            var all = new List<List<string>> { Words(stem) };
+            if (ancestors != null) foreach (var a in ancestors) all.Add(Words(a));
+            foreach (var ws in all)
+                foreach (var w in ws)
+                    foreach (var bad in TerrainDetailWords)
+                        if (w == bad) return false;
+            return true;
         }
 
         // Words in a name that say "not the ordinary one": a broken, giant or tiny variant is a poorer pick than a plain "Mushroom_03".
@@ -225,7 +257,7 @@ namespace WildLens.EditorTools
             public bool isPrefab, animated;
             public string stem;
             public string[] dirs;
-            public float extent;
+            public float extent, height;
         }
 
         [MenuItem("WildLens/Macro Subjects From Packs", priority = 13)]
@@ -291,6 +323,7 @@ namespace WildLens.EditorTools
                 {
                     var kind = MatchName(c.stem, c.dirs, subject.subjectId);
                     if (kind == Kind.None) continue;
+                    if (subject.subjectId == "haircap_moss" && !MossModelOk(c.dirs, c.stem, c.height)) continue;
                     int rank = (int)kind * 4 + (c.animated ? 2 : 0) + (c.isPrefab ? 1 : 0);
                     kinds[c] = kind;
                     ranks[c] = rank;
@@ -414,7 +447,7 @@ namespace WildLens.EditorTools
                 float size = Extent(go);
                 if (size > MaxExtent) continue; // a tree, a building: not small life
                 string stem = System.IO.Path.GetFileNameWithoutExtension(path);
-                list.Add(new Candidate { asset = go, path = path, isPrefab = path.EndsWith(".prefab"), animated = IsAnimated(go), stem = stem, dirs = Ancestors(path), extent = size });
+                list.Add(new Candidate { asset = go, path = path, isPrefab = path.EndsWith(".prefab"), animated = IsAnimated(go), stem = stem, dirs = Ancestors(path), extent = size, height = Height(go) });
             }
             return list;
         }
@@ -447,6 +480,16 @@ namespace WildLens.EditorTools
             if (s.Contains("collider") || s.Contains("collision")) return true;
             for (int i = 1; i <= 9; i++) if (s.EndsWith("lod" + i) || s.Contains("lod" + i + "_") || s.Contains("_lod" + i)) return true;
             return false;
+        }
+
+        /// <summary>Height (Y size) of the asset's renderers (0 when it has none).</summary>
+        private static float Height(GameObject go)
+        {
+            var rs = go.GetComponentsInChildren<Renderer>(true);
+            if (rs.Length == 0) return 0f;
+            Bounds b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return b.size.y;
         }
 
         /// <summary>Largest dimension of the asset's renderers (0 when it has none).</summary>
