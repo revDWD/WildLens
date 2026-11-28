@@ -68,7 +68,7 @@ namespace WildLens.Wildlife
             bool has = habits != null && habits.enabled;
             int eff = period;
             // A grey day runs the afternoon early: late midday keeps golden-hour hours, golden hour keeps dusk's.
-            if (has && habits.overcastEarly && w.overcast && !w.raining)
+            if (has && habits.overcastEarly && w.overcast)
             {
                 if (period == 3 && w.hour >= 14f) eff = 4;
                 else if (period == 4) eff = 5;
@@ -97,13 +97,15 @@ namespace WildLens.Wildlife
                 else if (place == RhythmPlace.Ridge) place = RhythmPlace.Perch;
             }
 
+            // Never at night (the same test as the after-rain places above); the sun matters only to species that use the bias.
+            bool lively = has && habits.activeAfterRain && !w.raining && period != 0 && w.hoursSinceRain <= habits.AfterRainWindow();
             return new HabitDecision
             {
                 place = place,
                 period = eff,
                 raining = w.raining,
-                activeAfterRain = has && habits.activeAfterRain && !w.raining && w.hoursSinceRain <= habits.AfterRainWindow(),
-                sun = w.sunAfterRain,
+                activeAfterRain = lively,
+                sun = lively && w.sunAfterRain,
             };
         }
 

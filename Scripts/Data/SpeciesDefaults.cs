@@ -672,8 +672,8 @@ namespace WildLens.Data
         {
             if (target == null || source == null) return;
             if (source.weatherHabits != null && source.weatherHabits.enabled) target.weatherHabits = source.weatherHabits.Clone();
-            if (!string.IsNullOrEmpty(source.fieldNotes)) target.fieldNotes = source.fieldNotes;
-            if (RhythmRevisedIn19.Contains(source.speciesId) && source.rhythm != null && source.rhythm.enabled)
+            MigrateNotes(target, source);
+            if (RhythmRevisedIn19.Contains(source.speciesId) && source.rhythm != null && source.rhythm.enabled && RhythmIsPre19Default(target.rhythm, source.speciesId))
                 target.rhythm = new DailyRhythm(source.rhythm.dawn, source.rhythm.morning, source.rhythm.midday, source.rhythm.goldenHour, source.rhythm.dusk, source.rhythm.night);
             if (ColoursRevisedIn19.Contains(source.speciesId))
             {
@@ -682,6 +682,44 @@ namespace WildLens.Data
                 target.accentColor = source.accentColor;
             }
         }
+
+        /// <summary>
+        /// Field notes: an empty note or one still equal to the species' previous default (the default without its 1.9 hint) takes the new
+        /// default; a hand-edited note keeps its text and only gains the hint sentence, if it does not already contain it.
+        /// </summary>
+        private static void MigrateNotes(SpeciesDefinition target, SpeciesDefinition source)
+        {
+            if (string.IsNullOrEmpty(source.fieldNotes)) return;
+            string notes = target.fieldNotes ?? "";
+            if (!_hints.TryGetValue(source.speciesId, out var hints) || hints.Count == 0)
+            {
+                if (notes.Trim().Length == 0) target.fieldNotes = source.fieldNotes;
+                return;
+            }
+            string baseNote = source.fieldNotes;
+            for (int i = hints.Count - 1; i >= 0; i--)
+            {
+                string tail = " " + hints[i];
+                if (baseNote.EndsWith(tail, System.StringComparison.Ordinal)) baseNote = baseNote.Substring(0, baseNote.Length - tail.Length);
+            }
+            baseNote = baseNote.TrimEnd();
+            if (notes.Trim().Length == 0 || notes.Trim() == baseNote.Trim()) { target.fieldNotes = source.fieldNotes; return; }
+            foreach (var h in hints)
+                if (notes.IndexOf(h, System.StringComparison.Ordinal) < 0) notes = notes.TrimEnd() + " " + h;
+            target.fieldNotes = notes;
+        }
+
+        /// <summary>The owl's and the crow's rhythm before 1.9; only a rhythm still equal to it is replaced (a hand-tuned one stays).</summary>
+        private static bool RhythmIsPre19Default(DailyRhythm r, string id)
+        {
+            if (r == null || !r.enabled) return true;
+            RhythmPlace W = RhythmPlace.Woodland, E = RhythmPlace.MeadowEdge, H = RhythmPlace.Home;
+            var old = id == "barred_owl" ? new DailyRhythm(W, W, W, W, E, E) : new DailyRhythm(H, H, H, H, H, H);
+            return r.dawn == old.dawn && r.morning == old.morning && r.midday == old.midday && r.goldenHour == old.goldenHour && r.dusk == old.dusk && r.night == old.night;
+        }
+
+        /// <summary>The hint sentences each species' default notes end with (by species id), so a migration can tell them from the base note.</summary>
+        private static readonly Dictionary<string, List<string>> _hints = new Dictionary<string, List<string>>();
 
         // ------------------------------------------------------------------ 1.9 natural events (weather habits as data)
 
@@ -697,7 +735,12 @@ namespace WildLens.Data
         }
 
         /// <summary>Adds one short natural sentence to the field notes that hints at a habit (a hint, never an instruction).</summary>
-        private static void Hint(SpeciesDefinition s, string sentence) => s.fieldNotes = s.fieldNotes.TrimEnd() + " " + sentence;
+        private static void Hint(SpeciesDefinition s, string sentence)
+        {
+            s.fieldNotes = s.fieldNotes.TrimEnd() + " " + sentence;
+            if (!_hints.TryGetValue(s.speciesId, out var list)) _hints[s.speciesId] = list = new List<string>();
+            if (!list.Contains(sentence)) list.Add(sentence);
+        }
 
         /// <summary>Songbirds sit tight in brush while it rains and come down to bathe at the water's edge after it.</summary>
         private static void Bathes(SpeciesDefinition s, string hint)

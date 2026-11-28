@@ -41,12 +41,18 @@ namespace WildLens.Wildlife
             public int appliedKey = int.MinValue;
             public int appliedPeriod = -1;
             public int pendingKey = int.MinValue;
-            public float due;
+            /// <summary>Clock-neutral seconds still to wait before a pending weather move applies (counts down faster while the game clock is accelerated).</summary>
+            public float remaining;
+            public bool hasHome;
+            public RhythmPlace homePlace;
+            public Vector3 homeTarget;
         }
 
         private WildlifeSpawner _spawner;
         private readonly Dictionary<AnimalAgent, AnimalState> _states = new Dictionary<AnimalAgent, AnimalState>();
         private float _nextPoll;
+        private float _lastPoll = -1f;
+        private float _nextClean;
 
         /// <summary>Raining hard enough to send animals to shelter (1.4).</summary>
         public static bool Raining => WeatherCycle.Instance != null && WeatherCycle.Instance.IsRaining;
@@ -79,11 +85,20 @@ namespace WildLens.Wildlife
             if (_spawner == null || _spawner.Spawned.Count == 0) return;
             if (Time.time < _nextPoll) return;
             _nextPoll = Time.time + 0.25f;
+            // Real seconds since the last poll, scaled by the game clock's speed (DayCycle: waitSpeed while T is held, nightSpeed at night),
+            // so a stagger of a few seconds does not outlast the after-rain stages when time runs fast.
+            float dt = _lastPoll < 0f ? 0f : Mathf.Min(Time.time - _lastPoll, 2f);
+            _lastPoll = Time.time;
+            float speed = clock.Period == DayPeriod.Night ? Mathf.Max(1f, clock.nightSpeed) : clock.IsWaiting ? Mathf.Max(1f, clock.waitSpeed) : 1f;
+            float elapsed = dt * speed;
+            if (Time.time >= _nextClean) { _nextClean = Time.time + 20f; CleanStates(); }
 
             var weather = Snapshot(clock);
             int period = (int)clock.Period;
-            foreach (var a in _spawner.Spawned)
+            var spawned = _spawner.Spawned;
+            for (int i = 0; i < spawned.Count; i++)
             {
+                var a = spawned[i];
                 if (a == null || a.Species == null) continue;
                 if (!_states.TryGetValue(a, out var st)) _states[a] = st = new AnimalState();
                 var species = a.Species;
@@ -96,27 +111,45 @@ namespace WildLens.Wildlife
                 bool immediate = st.appliedKey == int.MinValue || st.appliedPeriod != period;
                 if (!immediate)
                 {
-                    if (st.pendingKey != key) { st.pendingKey = key; st.due = Time.time + Delay(a); }
-                    if (Time.time < st.due) continue;
+                    if (st.pendingKey == int.MinValue) st.remaining = Delay(a, i);
+                    else
+                    {
+                        st.remaining -= elapsed;
+                        // The wanted state changed while a move waits: keep the earlier due time, so a move is applied, never endlessly re-armed.
+                        if (st.pendingKey != key) st.remaining = Mathf.Min(st.remaining, Delay(a, i));
+                    }
+                    st.pendingKey = key;
+                    if (st.remaining > 0f) continue;
                 }
                 st.appliedKey = key;
                 st.appliedPeriod = period;
                 st.pendingKey = int.MinValue;
-                Apply(a, d);
+                Apply(a, d, st, i);
             }
         }
 
-        /// <summary>A stable delay in seconds: the same for a group (its territory and species), a little different for each animal.</summary>
-        private float Delay(AnimalAgent a)
+        /// <summary>Forgets animals that no longer exist (cheap, every twenty seconds).</summary>
+        private void CleanStates()
+        {
+            List<KeyValuePair<AnimalAgent, AnimalState>> live = null;
+            foreach (var kv in _states) if (kv.Key == null) { live = new List<KeyValuePair<AnimalAgent, AnimalState>>(); break; }
+            if (live == null) return;
+            foreach (var kv in _states) if (kv.Key != null) live.Add(kv);
+            _states.Clear();
+            foreach (var kv in live) _states[kv.Key] = kv.Value;
+        }
+
+        /// <summary>A stable delay in seconds: the group's share (territory and species) plus a little of each animal's own (its index in the spawner's list).</summary>
+        private float Delay(AnimalAgent a, int salt)
         {
             Vector3 o = a.OriginHome;
             string id = a.Species.speciesId;
             float group = WeatherHabitRules.Hash01(id, Mathf.FloorToInt(o.x / 12f), Mathf.FloorToInt(o.z / 12f));
-            float self = WeatherHabitRules.Hash01(id, Mathf.RoundToInt(o.x * 10f), Mathf.RoundToInt(o.z * 10f) + 7);
+            float self = WeatherHabitRules.Hash01(id, Mathf.RoundToInt(o.x * 10f) + salt * 7919, Mathf.RoundToInt(o.z * 10f) + 7);
             return Mathf.Max(0f, weatherStagger) * group + self * 3f;
         }
 
-        private void Apply(AnimalAgent a, HabitDecision d)
+        private void Apply(AnimalAgent a, HabitDecision d, AnimalState st, int salt)
         {
             string id = a.Species.speciesId;
             a.ActivityBias = act => WeatherHabitRules.Bias(id, d, act);
@@ -134,14 +167,21 @@ namespace WildLens.Wildlife
                 case RhythmPlace.Roost: target = Roost(a.Species, origin); break;
             }
             // Residents of a place mostly stay put; others commute. A small stable jitter keeps a group from stacking up.
-            float jx = (WeatherHabitRules.Hash01(id, Mathf.RoundToInt(origin.x * 10f), Mathf.RoundToInt(origin.z * 10f) + 1) * 2f - 1f) * 3f;
-            float jz = (WeatherHabitRules.Hash01(id, Mathf.RoundToInt(origin.x * 10f), Mathf.RoundToInt(origin.z * 10f) + 2) * 2f - 1f) * 3f;
-            a.SetHome(TerrainUtil.Ground(target + new Vector3(jx, 0f, jz)));
+            // The per-animal salt keeps animals that share a territory (a whole group has one OriginHome) from landing on one point.
+            int ox = Mathf.RoundToInt(origin.x * 10f) + salt * 7919, oz = Mathf.RoundToInt(origin.z * 10f);
+            float jx = (WeatherHabitRules.Hash01(id, ox, oz + 1) * 2f - 1f) * 3f;
+            float jz = (WeatherHabitRules.Hash01(id, ox, oz + 2) * 2f - 1f) * 3f;
+            Vector3 home = TerrainUtil.Ground(target + new Vector3(jx, 0f, jz));
+            // Same place and same spot as it already has: leave it alone (no yanking circling birds into transit for a no-op).
+            if (st.hasHome && st.homePlace == d.place && (st.homeTarget - home).sqrMagnitude < 0.01f) return;
+            st.hasHome = true; st.homePlace = d.place; st.homeTarget = home;
+            a.SetHome(home);
         }
 
         /// <summary>The place a species gathers at: one of its own residences (the one labelled in its habits, else the first); its own territory if it has none.</summary>
         private static Vector3 Roost(SpeciesDefinition species, Vector3 fallback)
         {
+            // Note: <see cref="maxShift"/> does not apply here. A roost is a named place the species gathers at from anywhere on the reserve.
             string label = species.weatherHabits != null ? species.weatherHabits.roostLabel : "";
             Vector3? first = null;
             foreach (var res in WildlifeResidence.All)

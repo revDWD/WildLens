@@ -558,7 +558,7 @@ namespace WildLens.EditorTools
             }
             if (touched) AssetDatabase.SaveAssets(); // records written without a build (foreign or untraceable prefabs)
             if (refreshedNames.Count > 0)
-                Debug.Log("[WildLens] Wildlife models refreshed for 1.8 (sizes, looping clips, materials): " + string.Join(", ", refreshedNames) + "." +
+                Debug.Log("[WildLens] Wildlife models refreshed (colours, sizes, clips, materials): " + string.Join(", ", refreshedNames) + "." +
                           (failed.Count > 0 ? "\nCould not refresh: " + string.Join("; ", failed) + "." : "") +
                           "\nRebuilt from the same models; a model you set by hand in a setup window is never rebuilt automatically.");
             else if (failed.Count > 0)

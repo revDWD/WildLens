@@ -312,8 +312,8 @@ namespace WildLens.EditorTools
 
         // <pure-end>
 
-        /// <summary>Bump when the factory's output improves enough that prefabs it made before should be rebuilt (1.8: real sizes, looping clips, pack scripts stripped, materials converted).</summary>
-        internal const int FactoryVersion = 2;
+        /// <summary>Bump when the factory's output improves enough that prefabs it made before should be rebuilt (1.8: real sizes, looping clips, pack scripts stripped, materials converted; 3: tinted copies bake the species colours, so changed colours need a rebuild).</summary>
+        internal const int FactoryVersion = 3;
 
         /// <summary>Every clip in the given assets (models, animation FBXs, clips, controllers).</summary>
         public static List<AnimationClip> ClipsIn(IEnumerable<Object> sources)
