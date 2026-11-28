@@ -19,7 +19,8 @@
 - **WildLens ▸ Wildlife Pack Setup**: import any free animal packs (several at once), Scan, and it matches models to
   all 18 species, the real animal first, then a **stand-in** (a wolf as the coyote, an eagle as the hawk, one songbird
   **tinted** into the cardinal, blue jay, blackbird, kingfisher and phoebe), and sets up every ticked species in one go.
-  Species with no match keep their placeholder bodies.
+  Species with no match keep their placeholder bodies. **No scanning needed:** importing a pack, or rebuilding, sets
+  up every species that has no model yet automatically.
 - Animal Model Setup now shares its code with the pack tool (and can tint too); birds scale by beak-to-tail length.
 ### Documentation
 - AGENTS.md is now a navigation guide (overview, philosophy, state, directions, common mistakes, reading order);

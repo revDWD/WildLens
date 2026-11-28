@@ -20,10 +20,18 @@ photographic environment.
 What this changes: the old rule "don't mix fidelities" now applies to the **environment** (scenery stays
 photographic and CC0 or kit-sourced). Animals are exempt: they can be stylised and come from several packs.
 
-## The tool: WildLens ▸ Wildlife Pack Setup (1.6)
+## Automatic: just import the packs (1.6)
 
-Import any free animal packs into your Unity project (several at once is fine), then open **WildLens ▸ Wildlife
-Pack Setup** and press **Scan project**. It:
+Import free animal packs **into the Unity project** (Asset Store: Package Manager ▸ My Assets ▸ Download ▸ Import;
+a zip from itch.io: unzip it and drag the folder into the Project window's Assets). That's all. As soon as an import
+finishes, and again on every rebuild, WildLens gives each species that has no model yet its best match, as below,
+and the Console lists what it did. Species that already have a model are never changed. Untick **Auto Wildlife From
+Packs** in the builder settings to turn this off.
+
+## The window: WildLens ▸ Wildlife Pack Setup (1.6)
+
+To change a choice (another model, a size, a yaw), open **WildLens ▸ Wildlife Pack Setup** and press **Scan
+project**. It:
 
 - finds every animated model (a skinned mesh with at least one clip) outside `Assets/WildLens`;
 - matches each to the species it *is* (Deer → white-tailed deer) or can **stand in** for, by name:

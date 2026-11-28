@@ -111,6 +111,12 @@ namespace WildLens.EditorTools
                  "See Documentation~/WildlifeExpansion.md before adding your own species.")]
         public bool previewExpansionSpecies = false;
 
+        [Header("Wildlife models (1.6)")]
+        [Tooltip("On every rebuild, and whenever animal packs are imported, give each species that has no model yet the best " +
+                 "matching animated model found in the project (the animal itself, else a stand-in, tinted). Untick to only " +
+                 "use WildLens ▸ Wildlife Pack Setup by hand.")]
+        public bool autoWildlifeFromPacks = true;
+
         [Header("Scene")]
         public bool configureLightingAndFog = true;
         [Tooltip("Raise shadow distance/cascades/resolution in the active render pipeline or Quality settings (project-wide).")]

@@ -219,6 +219,10 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   inside a word; the folder name is tried too) against `Names`: exact words, then stand-ins. Rows sort exact before
   stand-in, then by recognised clip count. Size defaults from `AnimalPrefabFactory.DefaultSize`; birds are scaled by
   beak-to-tail length (+Z bounds), mammals by their largest side.
+* **Automatic setup**: `WildlifePackSetup.AutoSetUp` runs at the end of every build (before the player is built) and,
+  through `WildlifePackImportWatcher` (an `AssetPostprocessor`), after any `.fbx/.prefab/.blend/.gltf/.glb` import
+  outside `Assets/WildLens`, deferred until the import finishes. It only fills species whose `prefab` is empty, with
+  the top row's model, default size and stand-in tint. Setting: `SliceBuildSettings.autoWildlifeFromPacks` (on).
 * **AnimalPrefabFactory** (`Editor/AnimalPrefabFactory.cs`): the shared classify → controller → prefab code (moved
   from Animal Model Setup). `Tint` copies a model's materials to `Assets/WildLens/Animals/{id}_Tint{n}.mat`, ordered
   by triangle coverage, coloured primary / secondary / accent from the species asset (`_BaseColor` and `_Color`).

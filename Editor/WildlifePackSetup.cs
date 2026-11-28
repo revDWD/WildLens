@@ -167,7 +167,52 @@ namespace WildLens.EditorTools
             _rows.Clear();
             var db = AssetDatabase.LoadAssetAtPath<SpeciesDatabase>(WildLensSliceBuilder.DatabasePath) ?? WildLensSliceBuilder.EnsureSpeciesAssets();
             var models = FindAnimatedModels();
+            _rows.AddRange(BuildRows(db, models));
             int matched = 0;
+            foreach (var row in _rows) if (row.candidates.Count > 0) matched++;
+            _scanned = true;
+            _log = $"Found {models.Count} animated models; {matched} of {_rows.Count} species have a match.";
+        }
+
+        /// <summary>
+        /// 1.6: the hands-off route. Every species without a model gets its best match (the animal itself, else a stand-in,
+        /// tinted) at its default size. Run by every rebuild and after animal packs are imported; species that already
+        /// have a model are never touched, so hand-made choices in the window stick. Returns how many were set up.
+        /// </summary>
+        public static int AutoSetUp(SpeciesDatabase db)
+        {
+            if (db == null || Application.isPlaying) return 0;
+            bool anyMissing = false;
+            foreach (var sp in db.species) if (sp != null && sp.prefab == null) { anyMissing = true; break; }
+            if (!anyMissing) return 0;
+            var models = FindAnimatedModels();
+            if (models.Count == 0) return 0;
+            var sb = new StringBuilder();
+            int done = 0;
+            foreach (var row in BuildRows(db, models))
+            {
+                if (row.species.prefab != null || row.Picked == null) continue;
+                try
+                {
+                    var c = row.Picked;
+                    AnimalPrefabFactory.Create(row.species, c.asset, AnimalPrefabFactory.Classify(c.clips), row.size, row.yaw, row.tint, out string message);
+                    sb.Append("\n  • ").Append(message).Append(c.kind == MatchKind.StandIn ? $" (stand-in: {c.asset.name})" : "");
+                    done++;
+                }
+                catch (System.Exception e)
+                {
+                    sb.Append("\n  • ").Append(row.species.displayName).Append(" failed: ").Append(e.Message);
+                }
+            }
+            if (done > 0 || sb.Length > 0)
+                Debug.Log($"[WildLens] Wildlife models: {done} species now use animal models from your packs." + sb +
+                          "\nPress Play to see them. To change one, open WildLens ▸ Wildlife Pack Setup.");
+            return done;
+        }
+
+        private static List<Row> BuildRows(SpeciesDatabase db, List<Model> models)
+        {
+            var rows = new List<Row>();
             foreach (var species in db.species)
             {
                 if (species == null) continue;
@@ -183,11 +228,9 @@ namespace WildLens.EditorTools
                 row.candidates.Sort((a, b) => a.kind != b.kind ? b.kind.CompareTo(a.kind) : b.clipCount.CompareTo(a.clipCount));
                 row.on = row.candidates.Count > 0 && species.prefab == null;
                 row.tint = row.Picked != null && row.Picked.kind == MatchKind.StandIn;
-                if (row.candidates.Count > 0) matched++;
-                _rows.Add(row);
+                rows.Add(row);
             }
-            _scanned = true;
-            _log = $"Found {models.Count} animated models; {matched} of {_rows.Count} species have a match.";
+            return rows;
         }
 
         private struct Model { public GameObject asset; public string path; public List<AnimationClip> clips; public int clipCount; }
@@ -246,6 +289,39 @@ namespace WildLens.EditorTools
             AssetDatabase.SaveAssets();
             _log = $"Set up {done} species. Press Play and photograph them; adjust a size or yaw and set up again if one looks wrong.\n" + sb;
             Debug.Log("[WildLens] Wildlife Pack Setup: " + _log);
+        }
+    }
+
+    /// <summary>
+    /// 1.6: importing an animal pack is enough. When models or prefabs arrive outside Assets/WildLens, WildLens waits for
+    /// the import to finish and runs <see cref="WildlifePackSetup.AutoSetUp"/> (if the builder setting is on).
+    /// </summary>
+    public class WildlifePackImportWatcher : AssetPostprocessor
+    {
+        private static bool _queued;
+
+        private static void OnPostprocessAllAssets(string[] imported, string[] deleted, string[] moved, string[] movedFrom)
+        {
+            if (_queued || Application.isPlaying) return;
+            foreach (var path in imported)
+            {
+                if (path.StartsWith(GeneratedAssets.Root + "/")) continue;
+                string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+                if (ext != ".fbx" && ext != ".prefab" && ext != ".blend" && ext != ".gltf" && ext != ".glb") continue;
+                _queued = true;
+                EditorApplication.delayCall += Run;
+                return;
+            }
+        }
+
+        private static void Run()
+        {
+            _queued = false;
+            if (Application.isPlaying || EditorApplication.isCompiling || EditorApplication.isUpdating) { _queued = true; EditorApplication.delayCall += Run; return; }
+            var settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath);
+            if (settings != null && !settings.autoWildlifeFromPacks) return;
+            var db = AssetDatabase.LoadAssetAtPath<SpeciesDatabase>(WildLensSliceBuilder.DatabasePath);
+            if (db != null) WildlifePackSetup.AutoSetUp(db); // no database yet: the first build will do it
         }
     }
 }

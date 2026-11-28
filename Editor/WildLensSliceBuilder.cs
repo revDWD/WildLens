@@ -142,6 +142,9 @@ namespace WildLens.EditorTools
                 if (s.configureRenderQuality) ConfigureRenderQuality();
                 if (s.postProcessing) BuildPostProcessing(root.transform, s);
 
+                // 1.6: animals from any imported packs, no scanning step (species that already have a model are kept).
+                if (s.autoWildlifeFromPacks) WildlifePackSetup.AutoSetUp(database);
+
                 Progress("Player & systems", 0.9f);
                 var player = BuildPlayer(root.transform, trail, s);
                 BuildSystems(root.transform, database, trail, player);
