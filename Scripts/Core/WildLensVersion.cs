@@ -7,8 +7,8 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.6.1";
-        public const string ReleaseName = "Trailhead & Wildlife Packs";
+        public const string Package = "1.7.0";
+        public const string ReleaseName = "Field Audit & Small Life";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
@@ -27,8 +27,10 @@ namespace WildLens.Core
         /// 16: Willow Falls, hidden places, macro subjects, grounded posts, pond reflections that follow the sky, Trail
         /// 125-style bike, eastern phoebe (1.5).
         /// 17: three-sided Reserve Board and trailhead bike bay, larger sign lines and panels, bedded log seats (1.6).
-        /// 18: bundled CC0 animals (wolf as coyote, eagle as hawk), automatic animal and Environment Kit setup (1.6.1).</summary>
-        public const int Environment = 18;
+        /// 18: bundled CC0 animals (wolf as coyote, eagle as hawk), automatic animal and Environment Kit setup (1.6.1).
+        /// 19: small life from the user's packs: butterflies, bees, dragonflies, frogs, newts, snails, fireflies, mushrooms
+        /// and daisies placed in their habitats when a model is found (1.7).</summary>
+        public const int Environment = 19;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
@@ -37,6 +39,7 @@ namespace WildLens.Core
             "Zoom 1\u00d7\u201316\u00d7 & autofocus",
             "Animal awareness",
             "Field journal",
+            "Macro lens & small life",
             "Habitat hotspots",
             "Dawn to dusk, weather & rhythms",
             "Willow Creek & bridges",
@@ -48,6 +51,7 @@ namespace WildLens.Core
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.7  Small life from your packs for the macro lens; an audit of what you imported",
             "1.6  Trailhead: one Reserve Board, a bike bay, bigger sign text, real animal models",
             "1.5  Falls & field notes: Willow Falls, hidden places, a macro lens, a new trail bike",
             "1.4  Changing skies: weather, hills and ridges, the Creek Ford, signs you can read",

@@ -36,26 +36,33 @@ The master table the report produces has these columns, and is judged like this:
 
 Eighteen species are implemented. Two have shipped CC0 models; sixteen are placeholders waiting for a pack model.
 
-| Species | Home | Model today | A pack model called… sets it up automatically |
+| Species | Home | Model today | A pack model called… sets it up automatically (exact names; then stand-ins, closest first) |
 |---|---|---|---|
-| White-tailed deer | meadows, pond at dusk | placeholder | deer, doe, stag, buck, fawn; else elk, roe, antelope, moose |
-| Eastern cottontail | brush, meadow edge | placeholder | rabbit, bunny, hare |
-| Red fox | meadow edge, grove | placeholder | fox; else shiba, jackal, fennec |
-| Coyote | open grass, ridge | **CC0 wolf (shipped)** | coyote; else wolf, jackal, husky, dog |
-| Eastern gray squirrel | mature trees, falls | placeholder | squirrel; else chipmunk |
-| Raccoon | creek, pond at dusk | placeholder | raccoon; else badger, red panda |
+| White-tailed deer | meadows, pond at dusk | placeholder | whitetail, deer, doe, stag, buck, fawn; else roe, elk, reindeer, caribou, moose, antelope, gazelle, impala |
+| Eastern cottontail | brush, meadow edge | placeholder | cottontail, rabbit, bunny, hare |
+| Red fox | meadow edge, grove | placeholder | fox; else shiba, fennec, jackal |
+| Coyote | open grass, ridge | **CC0 wolf (shipped)** | coyote; else wolf, dingo, dhole, jackal, husky, shepherd, dog |
+| Eastern gray squirrel | mature trees, falls | placeholder | squirrel, squirel; else chipmunk |
+| Raccoon | creek, pond at dusk | placeholder | raccoon, racoon; else badger, red panda, coati |
 | Virginia opossum | creek at night | placeholder | opossum, possum; else rat, mouse |
-| Groundhog | meadow edge | placeholder | groundhog, marmot; else beaver, gopher, capybara |
-| Wild turkey | blind meadow | placeholder | turkey; else pheasant, chicken, rooster, grouse |
-| Red-tailed hawk | ridge | **CC0 eagle (shipped)** | hawk; else eagle, falcon, osprey, vulture |
+| Groundhog | meadow edge | placeholder | groundhog, woodchuck, marmot; else beaver, gopher, prairie dog, capybara, hamster, guinea pig |
+| Wild turkey | blind meadow | placeholder | turkey; else pheasant, grouse, partridge, quail, guinea fowl, chicken, rooster, hen, peacock |
+| Red-tailed hawk | ridge | **CC0 eagle (shipped)** | hawk, buteo; else eagle, falcon, buzzard, harrier, osprey, kite, vulture, raptor |
 | Barred owl | Old-Growth Grove | placeholder | owl |
-| Great blue heron | pond, ford | placeholder | heron; else egret, crane, stork, ibis |
-| Spotted sandpiper | ford gravel bar | placeholder | sandpiper; else plover, gull, snipe |
-| Northern cardinal | blind brush | placeholder | cardinal; else any songbird, tinted red |
-| Blue jay | grove | placeholder | jay, bluebird; else any songbird, tinted blue |
-| Red-winged blackbird | pond reeds | placeholder | blackbird; else crow, starling, any songbird |
-| Belted kingfisher | Creek Ford | placeholder | kingfisher; else any songbird |
-| Eastern phoebe | Willow Falls | placeholder | phoebe, flycatcher; else any songbird |
+| Great blue heron | pond, ford | placeholder | heron; else egret, bittern, ibis, spoonbill, pelican, crane, stork, flamingo |
+| Spotted sandpiper | ford gravel bar | placeholder | sandpiper; else killdeer, plover, dunlin, snipe, shorebird, wader, tern, seagull, gull |
+| Northern cardinal | blind brush | placeholder | cardinal, redbird; else songbird, finch, sparrow, robin, oriole, canary, chickadee, wren, tit, thrush, warbler, swallow, bird |
+| Blue jay | grove | placeholder | blue jay, jay; else bluebird, songbird, finch, sparrow, robin, chickadee, tit, wren, thrush, warbler, swallow, bird |
+| Red-winged blackbird | pond reeds | placeholder | blackbird; else grackle, starling, crow, raven, songbird, sparrow, thrush, bird |
+| Belted kingfisher | Creek Ford | placeholder | kingfisher; else songbird, sparrow, bird |
+| Eastern phoebe | Willow Falls | placeholder | phoebe, flycatcher; else sparrow, songbird, finch, wren, chickadee, bird |
+
+Words of four letters or fewer ("fox", "owl", "jay", "bee") must be a whole word in the model's name, so "Foxglove" is not
+a fox; longer ones may sit inside a word. **Reserved:** woodpecker, hummingbird, duck, mallard, goose and swan are held
+for future species, so a model with one of those words in its name is **never** used as a stand-in, not even through a
+folder called "Birds". Crows and ravens do stand in for the blackbird, vultures and eagles for the hawk, and robins for
+the cardinal and jay, until each gets a species of its own. The tables with the ranking rules are in
+[Systems.md](Systems.md) (1.7.0).
 
 ## 2. Recommended species list
 
@@ -75,15 +82,15 @@ these fits the existing ground or flying brain: no new systems. Add one only whe
 
 | Candidate | Pack names that would serve | Where and when | Why it earns a place |
 |---|---|---|---|
-| **American crow** | crow, raven | trailhead, Reserve Road verges, pull-offs; all day | The trailhead and road have no wildlife of their own. A crow on the Reserve Board is life in the first ten seconds |
-| **Eastern chipmunk** | chipmunk | Fern Glade and Hidden Overlook rocks; morning | Both hidden places have hotspots but no residents: a reason to sit there |
-| **Canada goose** | goose | pond bank and pond meadow, grazing; dawn to dusk | A flock on the grass by the water; needs no swimming |
-| **Mallard / wood duck** | duck, mallard | pond bank and ford gravel, loafing | Pond variety. On land only, until a marsh makes swimming worth building |
+| **American crow** | crow, raven (today a stand-in for the blackbird) | trailhead, Reserve Road verges, pull-offs; all day | The trailhead and road have no wildlife of their own. A crow on the Reserve Board is life in the first ten seconds |
+| **Eastern chipmunk** | chipmunk (today a squirrel stand-in) | Fern Glade and Hidden Overlook rocks; morning | Both hidden places have hotspots but no residents: a reason to sit there |
+| **Canada goose** | goose (reserved: never a stand-in) | pond bank and pond meadow, grazing; dawn to dusk | A flock on the grass by the water; needs no swimming |
+| **Mallard / wood duck** | duck, mallard (reserved: never a stand-in) | pond bank and ford gravel, loafing | Pond variety. On land only, until a marsh makes swimming worth building |
 | **Painted turtle** | turtle, tortoise | a basking log at the pond; midday, fair weather only | Fills the pond's quiet midday; slides off (flees) if rushed |
-| **Pileated woodpecker** | woodpecker | Old-Growth Grove snags; morning | The grove's missing voice; needs big dead trees, which the grove has |
-| **Turkey vulture** | vulture, condor | soaring above the ridge at midday | Shares the hawk's brain; gives the telescope something to find |
+| **Pileated woodpecker** | woodpecker (reserved: never a stand-in) | Old-Growth Grove snags; morning | The grove's missing voice; needs big dead trees, which the grove has |
+| **Turkey vulture** | vulture, condor (today a vulture is a hawk stand-in) | soaring above the ridge at midday | Shares the hawk's brain; gives the telescope something to find |
 | **Striped skunk** | skunk | meadow edge at dusk | A second dusk animal on the loop; slow and unbothered |
-| **Mourning dove / American robin** | dove, pigeon, robin | road verges, blind feeder, trailhead grass | Common, close, easy first photographs |
+| **Mourning dove / American robin** | dove, pigeon, robin (a robin is today a songbird stand-in) | road verges, blind feeder, trailhead grass | Common, close, easy first photographs |
 | **Little brown bat** | bat | over the pond at dusk and night | A dusk silhouette against the sky; wait for the night sky work |
 | **Black bear** | bear | far side of the ridge, rare, dawn only | **Director's decision.** Memorable, but changes the reserve's mood: ask first |
 
@@ -111,35 +118,35 @@ Screenshots are the test at every step. An animal that looks wrong at 16× is no
 ## 4. Macro wildlife opportunities
 
 1.7 turns the macro groundwork into a pipeline: a small-life model found in your packs is given to a field-notebook
-subject and placed in its habitat on the next rebuild. Subjects with no model stay out of the reserve; nothing is
+subject and placed in its habitat on the next rebuild (models over 3 m are ignored). Subjects with no model stay out of the reserve; nothing is
 faked. Behaviour is deliberately simple and patience always works.
 
 ### Animals
 | Subject | Pack names | Where | When | Behaviour |
 |---|---|---|---|---|
-| Monarch | butterfly, monarch | on the loop's dandelions | morning to golden hour, not in rain | settles on a flower, flutters to the next |
-| Bumble bee | bee, bumblebee; else wasp | on flowers | daytime, not in rain | works a flower, moves on |
-| Common whitetail (dragonfly) | dragonfly, damselfly | pond, ford, creek banks | daytime, not in rain | holds a perch, darts out, returns to it |
-| Northern leopard frog | frog; else toad | water's edge | any hour, rain or shine | sits; one hop away if you rush it |
-| Carolina mantis | mantis; else grasshopper, cricket | loop verges | morning to dusk | still |
-| Spotted lady beetle | ladybug, ladybird; else beetle | loop verges | daytime | still |
-| Luna moth | moth, luna | on logs in the woods | dusk, night, dawn | still |
-| Eastern newt (red eft) | newt, salamander; else lizard | grove and glade floor | after rain | still |
-| Whitelip snail | snail; else slug | on logs and stumps | after rain | still |
-| Common eastern firefly | firefly | loop verges | dusk and night | glows and drifts |
+| Monarch Butterfly | monarch, butterfly | on the loop's dandelions | morning to golden hour, not in rain | settles on a flower, flutters to the next |
+| Common Eastern Bumble Bee | bumblebee, bee; else wasp | on flowers | daytime, not in rain | works a flower, moves on |
+| Common Whitetail (dragonfly) | dragonfly, damselfly | pond, ford, creek banks | daytime, not in rain | holds a perch, darts out, returns to it |
+| Northern Leopard Frog | frog; else toad | water's edge | any hour, rain or shine | sits; one hop away if you rush it |
+| Carolina Mantis | mantis; else grasshopper, cricket, stick insect | loop verges | morning to dusk | still |
+| Spotted Lady Beetle | ladybug, ladybird, lady beetle; else beetle, bug | loop verges | daytime | still |
+| Luna Moth | luna, moth | on logs in the woods | dusk, night, dawn | still |
+| Eastern Newt (red eft) | newt, salamander, eft; else lizard, gecko | grove and glade floor | after rain | still |
+| Whitelip Snail | snail; else slug | on logs and stumps | after rain | still |
+| Common Eastern Firefly | firefly, lightning bug | loop verges | dusk and night | glows and drifts |
 
 ### Plants
 | Subject | Source | Where |
 |---|---|---|
 | Common dandelion | shipped (CC0 scan) | loop verges |
 | Lesser periwinkle | shipped (CC0 scan) | Fern Glade, grove |
-| Oxeye daisy | pack: daisy; else any flower model | loop verges |
+| Oxeye Daisy | pack: daisy, oxeye; else flower, wildflower (not a pot, vase, bouquet, tree, bush or bed) | loop verges |
 | *Next:* milkweed (the monarch's plant), cattail heads at the pond, trillium in the grove, goldenrod at the blind meadow | pack or CC0 scan | as named |
 
 ### Fungi
 | Subject | Source | Where |
 |---|---|---|
-| Honey mushroom | pack: mushroom, toadstool, fungus | on logs and stumps in the woods |
+| Honey Mushroom | pack: mushroom, toadstool, fungus, fungi, shroom | on logs and stumps in the woods |
 | *Next:* bracket fungus on the Grandmother Oak, a fairy ring in the Fern Glade after rain | pack or CC0 scan (Poly Haven) | as named |
 
 **The pairings are the point:** a monarch *on* a dandelion, a dragonfly *at* the ford where the kingfisher fishes, a
@@ -161,7 +168,7 @@ dual-sport**:
   or a future ranger cabin it says "someone looks after this place". Never drivable.
 
 If one passes: put it under the bike's **Model** child and name its parts `Lean`, `Steer`, `Front Axle`, `Front
-Wheel`, `Swingarm`, `Rear Wheel`, `Kickstand`, `Seat Anchor` ([TrailBike.md](TrailBike.md)). Speed, sound and
+Wheel`, `Swingarm`, `Rear Wheel`, `Kickstand`, `Seat Anchor` ([TrailBike.md](TrailBike.md); a missing `Seat Anchor` is made for you). Speed, sound and
 handling do not change. If none passes, the generated bike stays and its planned looks work (shaped tank and
 fender, real wheels, a dusk headlight) remains the route.
 

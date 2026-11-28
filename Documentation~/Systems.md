@@ -192,6 +192,174 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Asset Audit, species matching and small life (1.7.0)
+
+* **Asset Audit Report** (`Editor/AssetAudit.cs`; menu WildLens ▸ Asset Audit Report, and a button in the builder
+  window). Read-only: it walks every `GameObject` asset under `Assets/` (skipping `Assets/WildLens` except the bundled
+  animals, and `Editor` and `Gizmos` folders; `Name@Clip` files are counted as clip sources, not models), classifies each
+  by its name, then by its folder, and writes `WildLensAssetAudit.md` beside the `Assets` folder and to the clipboard
+  (over 60,000 characters the clipboard gets the summary, master table and species coverage only; the file has all).
+  Categories: (a) reserve species, exact or stand-in; (b) other animals, each with a suggested reserve role and a flag
+  for birds and for animals that are not Willow Creek's (lion, zebra...); (c) macro subjects (fungi, plants, small
+  animals); (d) vehicles; (e) scenery (counts only: trees, rocks, plants, props); (f) animated models nothing
+  recognised. Sections: Summary (pack table), Animals master table (triangles, size, skinned, clip count, roles
+  recognised and missing, shader and pipeline check, which species prefab was built from it), Species coverage (real
+  model, stand-in available, or placeholder, for all eighteen), Per-clip detail, Macro subjects, Vehicles, Animated
+  models nothing recognised, Scenery noticed. A static model with a scenery word and an animal word ("Butterfly Bush")
+  is filed as scenery. Rows are capped at 400 a table, clips at 40 a model.
+* **Vehicles in the audit**: strong words (motorcycle, motorbike, dirtbike, scooter, atv, utv, jeep, truck, car...); the
+  bare word "bike" counts only with a qualifier (trail, dirt, motor, moto, enduro, offroad, cross, mountain, mtb) or two
+  or more wheel nodes. The report gives length, wheel nodes (names with wheel, tire or tyre), whether a steering part
+  (handlebar, fork, steer) exists, and which of the bike's pivot names (`Lean`, `Steer`, `Front Wheel`, `Rear Wheel`,
+  `Front Axle`, `Swingarm`, `Kickstand`, `Seat Anchor`) it already has.
+* **Species name tables** (`WildlifePackSetup.Names`; exact names, then stand-ins **in ranking order**: earlier is
+  closer, so "wolf" beats "dog" for the coyote):
+
+  | Species | Exact | Stand-ins |
+  |---|---|---|
+  | White-tailed deer | whitetail, deer, doe, stag, buck, fawn | roe, elk, reindeer, caribou, moose, antelope, gazelle, impala |
+  | Red fox | fox | shiba, fennec, jackal |
+  | Coyote | coyote | wolf, dingo, dhole, jackal, husky, shepherd, dog |
+  | Eastern cottontail | cottontail, rabbit, bunny, hare |   |
+  | Eastern gray squirrel | squirrel, squirel | chipmunk |
+  | Raccoon | raccoon, racoon | badger, redpanda, coati |
+  | Virginia opossum | opossum, possum | rat, mouse |
+  | Groundhog | groundhog, woodchuck, marmot | beaver, gopher, prairiedog, capybara, hamster, guineapig |
+  | Wild turkey | turkey | pheasant, grouse, partridge, quail, guineafowl, chicken, rooster, hen, peacock |
+  | Red-tailed hawk | hawk, buteo | eagle, falcon, buzzard, harrier, osprey, kite, vulture, raptor |
+  | Barred owl | owl |   |
+  | Great blue heron | heron | egret, bittern, ibis, spoonbill, pelican, crane, stork, flamingo |
+  | Spotted sandpiper | sandpiper | killdeer, plover, dunlin, snipe, shorebird, wader, tern, seagull, gull |
+  | Northern cardinal | cardinal, redbird | songbird, finch, sparrow, robin, oriole, canary, chickadee, wren, tit, thrush, warbler, swallow, bird |
+  | Blue jay | bluejay, jay | bluebird, songbird, finch, sparrow, robin, chickadee, tit, wren, thrush, warbler, swallow, bird |
+  | Red-winged blackbird | blackbird | grackle, starling, crow, raven, songbird, sparrow, thrush, bird |
+  | Belted kingfisher | kingfisher | songbird, sparrow, bird |
+  | Eastern phoebe | phoebe, flycatcher | sparrow, songbird, finch, wren, chickadee, bird |
+
+  A name is split into lower-case words (non-letters and camel case: "RedFox_Idle01" is red, fox, idle) plus the whole
+  name squashed ("WhiteTailDeer" gives whitetaildeer). A keyword of four letters or fewer ("fox", "owl", "jay", "cat")
+  must be a whole word or its plural, so "Foxglove", "Bowl" and "Cattail" do not match; longer ones may sit inside a
+  word ("RedSquirrel01"). A key ending in `=` is always whole-word.
+* **Reserved list** (`WildlifePackSetup.Reserved`): woodpecker, hummingbird, duck, mallard, goose, swan. A model with one
+  of these words in its name matches **no** species, not even as a stand-in, and the folder name is not tried for it
+  ("Birds/Woodpecker" must not become the cardinal). They are kept for future species (see WildlifeCampaign.md).
+* **Match order**: the model's own name first; only when that says nothing, the name of its folder ("Deer/Model01").
+  Candidates for a species sort: the animal itself before a stand-in; a stand-in that is some other species' real model
+  after one that is not ("owned elsewhere"); the keyword nearer the front of the list; more recognised clips; then by
+  path, so every machine picks the same model. A tie is never left to the order Unity lists files in. The Console line
+  after an automatic setup lists the species set up, then **those with no match** (placeholders), then points to the
+  audit.
+* **Clip classification** (`AnimalPrefabFactory.TryClassifyName`): the clip name is split into words (non-letters, digits
+  and camel case: "Armature|Walk_01" is armature, walk). A keyword matches a **whole word**, or the word plus a common
+  suffix (s, es, d, ed, er, ers, ing, ning, ting, ping, ming, ging, ned, ted, ped, loop, cycle, anim), so "Threat" is not
+  `Eat`, "Forest" is not `Lie`, "Trunk" is not `Run`, "Island" is not `Land`. The first role that hits wins, in this
+  order:
+
+  | Role | Words |
+  |---|---|
+  | TakeOff | takeoff, liftoff (matched against the squashed name, so "Take Off" works) |
+  | Land | landing, land |
+  | Glide | glide, gliding, soar |
+  | Fly | fly, flies, flap, flight, hover, wing |
+  | Eat | eat, graze, grazing, feed, drink, sniff, forage, foraging, peck, chew, nibble |
+  | Lie | lie, lying, laying, laydown, rest, sleep, nap |
+  | Sit | sit |
+  | Groom | groom, lick, scratch, shake, shaking, preen |
+  | Look | look, alert, listen, attention, turnhead, headturn, watch, search |
+  | Run | run, gallop, sprint, flee, dash, chase |
+  | Trot | trot, canter, jog |
+  | Walk | walk, hop, jump, move, crawl, amble |
+  | Idle | idle, stand, breath, perch, stay, wait |
+
+  **Ignored clips**: any clip with a word from death, dead, die, dying, attack, attacking, hit, hurt, damage, roar, bite,
+  biting, kill is never mapped (it would put a death pose in an idle slot). With no Idle clip the first clip is used,
+  so the animal is never in a T-pose.
+* **Small-life subjects** (`SubjectDefaults`, data in `Assets/WildLens/Data/Subjects`, created once and then yours to
+  tune). Hours use the DayPeriod order Night, Dawn, Morning, Midday, Golden hour, Dusk. "Daytime" is Morning, Midday and
+  Golden hour. **Rain**: "hides" means not showing while it rains (`Rain` > 0.25); "after rain" means showing only while
+  it rains and for three game hours after.
+
+  | Id | Name | Group | Behaviour | Habitat | Hours | Rain | Size (m) | Count | Hover (m) |
+  |---|---|---|---|---|---|---|---|---|---|
+  | `monarch_butterfly` | Monarch Butterfly | Butterfly | Flits | Flowers | Daytime | hides | 0.09 | 6 | 0 |
+  | `luna_moth` | Luna Moth | Moth | Still | DeadWood | Night, Dawn, Dusk | | 0.10 | 4 | 0 |
+  | `common_whitetail` | Common Whitetail | Dragonfly | Perches | WaterEdge | Daytime | hides | 0.06 | 5 | 0.4 |
+  | `bumble_bee` | Common Eastern Bumble Bee | Bee | Flits | Flowers | Daytime | hides | 0.02 | 6 | 0 |
+  | `ladybird_beetle` | Spotted Lady Beetle | Beetle | Still | MeadowVerge | Daytime | | 0.012 | 6 | 0 |
+  | `praying_mantis` | Carolina Mantis | Mantis | Still | MeadowVerge | Morning to Dusk | | 0.06 | 4 | 0 |
+  | `northern_leopard_frog` | Northern Leopard Frog | Frog | Hops | WaterEdge | all day and night | | 0.08 | 5 | 0 |
+  | `red_spotted_newt` | Eastern Newt (red eft) | Salamander | Still | WoodlandFloor | Daytime | after rain | 0.07 | 4 | 0 |
+  | `woodland_snail` | Whitelip Snail | Snail | Still | DeadWood | Night, Dawn, Morning, Dusk | after rain | 0.03 | 4 | 0 |
+  | `firefly` | Common Eastern Firefly | Firefly | Glows | MeadowVerge | Night, Dusk | | 0.012 | 6 | 0.8 |
+  | `woodland_mushroom` | Honey Mushroom | Fungus | Still | DeadWood | all day and night | | 0.07 | 5 | 0 |
+  | `oxeye_daisy` | Oxeye Daisy | Wildflower | Still | MeadowVerge | Daytime | | 0.05 | 6 | 0 |
+
+  The two bundled plants (`common_dandelion`, `lesser_periwinkle`) are unchanged. `SubjectBehaviour` now has `Flits`,
+  `Perches`, `Hops` and `Glows` implemented (`Still` as before). Bees, beetles and fireflies use a smaller frame-fill
+  grade (Good 0.10, Excellent 0.22; the default is 0.18 and 0.35): a 2 cm bee reaches 0.22 at 0.36 m, and a 1.2 cm beetle
+  at 0.22 m, both beyond the 8 cm minimum focus.
+* **Finding models** (`Editor/MacroPackSetup.cs`; menu WildLens ▸ Macro Subjects From Packs; run on every rebuild when
+  `SliceBuildSettings.autoMacroFromPacks` is on). It looks at every model **and prefab** under `Assets/` outside
+  `Assets/WildLens` and `Editor` folders (static meshes are welcome: a mushroom is not animated), skipping `@` files,
+  names with collider, collision or LOD 1 to 9, and anything larger than 3 m. Only a subject whose `prefab` is empty is
+  touched; the choice is never overwritten. Names (same word rules as the animals; a four-letter key such as "bee" must
+  be a whole word):
+
+  | Subject | Exact | Stand-ins |
+  |---|---|---|
+  | Monarch Butterfly | monarch, butterfly | |
+  | Luna Moth | luna, moth | |
+  | Common Whitetail | dragonfly, damselfly | |
+  | Bumble Bee | bumblebee, bee | wasp |
+  | Lady Beetle | ladybug, ladybird, ladybeetle | beetle, bug |
+  | Mantis | mantis | grasshopper, cricket, stickinsect |
+  | Leopard Frog | frog | toad |
+  | Newt | newt, salamander, eft | lizard, gecko |
+  | Snail | snail | slug |
+  | Firefly | firefly, lightningbug | |
+  | Mushroom | mushroom, toadstool, fungus, fungi, shroom | |
+  | Oxeye Daisy | daisy, oxeye | flower, wildflower (not if the name has pot, vase, bouquet, tree, bush or bed) |
+
+  A folder name ("Frogs/Model_03.fbx") can name a model, but only as a stand-in. **Ranking**: exact 4 points, a prefab 2,
+  animated 1; the highest score wins; a tie goes to the first in path order. Subjects are served in id order. The
+  Console lists each subject with its model, "(stand-in)" where it is one, and "no model found: stays out of the
+  reserve" where not.
+* **Placement** (`Editor/MacroBuilder.cs`, `BuildSmallLife`, after the dandelions and periwinkles). If no bundled plant and
+  no pack subject has a model, nothing is created, as before. Each subject uses **its own** `System.Random` seeded from
+  `seed × 613 + 29` plus a stable hash of its id (not `string.GetHashCode`, which differs between machines), so adding
+  one subject moves no other, and the builder's shared sequence is untouched. Subjects are placed in id order. Where a
+  spot cannot be found the subject quietly falls back, then skips that one. Every ground-level subject adds a 0.7 m
+  keep-out so terrain grass does not grow over it.
+
+  | Habitat | Where | Rules |
+  |---|---|---|
+  | Flowers | the head of an unused dandelion (one subject per flower, 1 cm up, up to 1.5 cm off-centre) | Falls back to MeadowVerge if no dandelion is left |
+  | MeadowVerge | beside the Meadow Loop, 0.7 to 2.6 m beyond the trail's edge, either side | not in a keep-out, forest field ≤ 0.4, slope ≤ 18°, 3 m or more from the creek; 60 tries |
+  | WaterEdge | Cattail Pond's shoreline (0.3 to 1.5 m beyond its own edge, not under water), each creek water spot (ford bar, plunge pool, alcove: inside its radius), and along the creek banks | 1.7 to 3.4 m from the creek line for creek spots, slope ≤ 20°, 1 m or more off any path; 40 tries |
+  | WoodlandFloor | the Fern Glade (1.5 to 5 m from its centre) and the Old-Growth Grove (6 to 18 m); else forest 4 to 12 m off the trail | 1.5 m or more off any path, not in a keep-out, 2.5 m or more from the creek, slope ≤ 30°; 60 tries |
+  | DeadWood | on top of a fallen log or stump the builder placed (a ray onto its collider; else the top centre) | Falls back to WoodlandFloor if there are none |
+
+  Each model is scaled so its largest dimension equals the subject's `size`, turned to a random heading, and set on the
+  surface (plus `hoverHeight`). Pack scripts, joints, colliders, rigid bodies and audio sources are removed. A model with
+  clips but no controller gets a one-state looping controller (idle, fly, flap, hover or wing clip if there is one, else
+  the first), saved in `Assets/WildLens/Generated/SmallLife`; the pack's own import settings are untouched. Each instance
+  gets a `MacroSubject` with a focus point at the centre of its bounds and a focus size of 1.4 × the subject's size.
+* **Movement** (`Scripts/Photography/MacroMotion.cs`, added only to subjects that are not `Still`; purely cosmetic).
+  Nothing moves farther than 25 m from the camera (a once-a-second distance check), or while hidden.
+  **Flits**: sits with a slow 4° wing-settle roll; every 6 to 14 s (the first after 2 to 8 s) it flutters over 1.2 to 2 s
+  on a 0.08 to 0.16 m arc, half the time back to its flower, otherwise to within 0.15 to 0.5 m of it. **Perches**: still,
+  then every 8 to 20 s a loop 1.2 to 2 s long (radius 0.16 to 0.32 m, up to 0.15 m of height) that ends exactly on its
+  perch. **Hops**: still until the camera comes within 0.7 m, then one hop of 0.4 m away from you, 0.1 m high, over
+  0.35 s, keeping its height above the ground; it will not hop again for 6 s. **Glows**: drifts about 0.25 m round its
+  point, and every 2.5 to 5.5 s flashes a soft yellow-green emission for half a second.
+* **Visibility** (`MacroSubject`): `IsShowing` combines the subject's hours, `hidesInRain` and `afterRain`. **Recently
+  rained** (`MacroSubject.RecentlyRained`) is true while `WeatherCycle.Rain` > 0.25 and for **3 game hours** after (the
+  day counter handles midnight; setting the clock back forgets it). Animals from packs hide their renderers when not
+  showing (checked once a second, each with its own phase). **Plants and fungi never vanish** (`hideWhenNotShowing` is off
+  for Wildflower and Fungus groups), including the daisy and mushroom; they stay where they grow. `MacroAnalyzer` still
+  skips any subject that is not showing, so a dandelion closed in rain stays in the grass but cannot be focused on. The
+  macro lens, the analyser and the journal needed no other changes.
+
 ## Trailhead, signs and wildlife packs (1.6.0)
 
 * **Reserve Board** (`Editor/PropBuilder.cs`, `BuildKiosk`): one roofed, three-sided kiosk at loop distance 7 m,

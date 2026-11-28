@@ -22,6 +22,7 @@ worth keeping. The reserve changes from dawn mist to golden hour to dusk, and it
 | [`Documentation~/VisualRoadmap.md`](Documentation~/VisualRoadmap.md) | Art sources, licences, visual weaknesses, Unity 6 notes |
 | [`Documentation~/EnvironmentMigration.md`](Documentation~/EnvironmentMigration.md) | Environment audit, free asset list, migration plan, before/after |
 | [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md) | Animal models: stylised and mixed packs welcome, free sources, Wildlife Pack Setup |
+| [`Documentation~/WildlifeCampaign.md`](Documentation~/WildlifeCampaign.md) | The 1.7 plan: auditing your packs, which species to keep, replace and add, small life, the bike, where each new animal belongs |
 | [`Documentation~/TrailBike.md`](Documentation~/TrailBike.md) | The bike model, free models reviewed, dropping one in, next improvements |
 
 ## Install & run
@@ -109,6 +110,18 @@ database, builder settings) and `Assets/WildLens/Generated/` (meshes, materials,
   Scan project ▸ Set up ticked species** matches models to species (with stand-ins such as a wolf for the coyote) and
   makes their prefabs. **WildLens ▸ Animal Model Setup** does one species by hand. See
   [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md).
+- Not sure what your packs contain? (1.7) **WildLens ▸ Asset Audit Report** lists every model by pack, which reserve
+  species it can be, its animations and any shader problems, saves `WildLensAssetAudit.md` in your project folder and
+  copies it to the clipboard. It changes nothing.
+
+### Small life for the macro lens (1.7)
+Press **M** with the camera raised to photograph small subjects at your feet; the journal keeps a field notebook. Two
+plants (dandelion, lesser periwinkle) ship with WildLens. Twelve more subjects (monarch, luna moth, dragonfly, bumble
+bee, lady beetle, mantis, leopard frog, newt, snail, firefly, mushroom, oxeye daisy) appear **only if a model for them
+is found in your own packs**: **WildLens ▸ Macro Subjects From Packs** finds the models, and every rebuild does it too
+(builder setting *Auto Macro From Packs*). With no such packs the reserve is as before. They sit where they would
+live (verges, flowers, the water's edge, logs, the woodland floor), keep their hours and shelter from rain, and move only
+a little. Details: [`Documentation~/Systems.md`](Documentation~/Systems.md).
 
 ### Using your own scenery assets (Environment Kit, 1.2)
 Import free nature packs into your project (Unity's free **Terrain URP Demo Scene** and **Terrain Sample Asset Pack**

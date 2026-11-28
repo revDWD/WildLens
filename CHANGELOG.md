@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.7.0] Field Audit & Small Life
+### Find out what is in your packs
+- **WildLens ▸ Asset Audit Report** (also a button in the builder window). One click lists every model in your project
+  by pack: which animal it is and which reserve species it can be (the real thing or a stand-in), its triangle count and
+  size, its animation clips and which behaviours they cover (idle, walk, run, eat, look, fly...), and any shader that
+  will show pink in your render pipeline. It also lists small-life models (butterflies, frogs, mushrooms, flowers),
+  vehicles (with whether they have separate wheels and a steering part), and animated models it could not name.
+- It writes `WildLensAssetAudit.md` in your project folder and **copies it to the clipboard**: paste it into the chat and
+  the next steps can be decided from facts, not guesses. It changes nothing in your project.
+### Better automatic animal matching
+- **More stand-in names**, with the closer look-alike preferred (a wolf before a dog for the coyote). Ties are broken
+  the same way on every machine.
+- **Names kept for future species** (woodpecker, hummingbird, duck, mallard, goose, swan) are never used as stand-ins,
+  so a woodpecker cannot become your cardinal.
+- **Clip names are read word by word.** "Threat" is no longer taken for "eat"; death, attack and hurt clips are ignored.
+- The Console line after an automatic setup now also lists the species that found **no match**.
+### Small life from your packs (macro lens, round two: first step)
+- **Twelve new field-notebook subjects**, written as data: monarch butterfly, luna moth, common whitetail (dragonfly),
+  bumble bee, spotted lady beetle, Carolina mantis, northern leopard frog, eastern newt, whitelip snail, common eastern
+  firefly, honey mushroom and oxeye daisy. Each has its own hours, weather and place.
+- **A subject appears in the reserve only if a model for it is found in your packs.** **WildLens ▸ Macro Subjects From
+  Packs** finds the models; every rebuild does it too (builder setting **Auto Macro From Packs**). Nothing is faked: a
+  subject with no model stays out, and with no packs imported the reserve is exactly as in 1.6.1.
+- **Placed where they would be**: butterflies and bees on the loop's dandelions, dragonflies and frogs at the water's
+  edge, mantises, beetles and fireflies on the meadow verges, newts on the woodland floor, snails, moths and mushrooms
+  on logs and stumps.
+- **Simple movement, patience always works**: butterflies and bees sit, then flutter a short way; a dragonfly keeps a
+  perch and darts out and back; a frog sits until you come within 0.7 m, then makes one small hop; fireflies drift and
+  flash.
+- **Hours and weather**: butterflies, bees and dragonflies shelter in rain; newts and snails come out only in rain and
+  for three game hours after; moths and fireflies are out at dusk, night and dawn (fireflies dusk and night). Plants and
+  mushrooms never vanish.
+### Documentation
+- New `Documentation~/WildlifeCampaign.md`: the director's plan for the audit, which species to keep, replace and add,
+  small life, the bike, and where each new animal belongs in the reserve.
+- Environment version 19 (**rebuild the slice**).
+### What to do
+1. Update the package in Package Manager.
+2. Import the animal and nature packs you have (if you have not already), then run **WildLens ▸ Asset Audit Report**
+   and **paste the result into the chat**.
+3. **Rebuild** (WildLens ▸ Vertical Slice Builder ▸ Rebuild Slice In Open Scene). Read the Console: it lists which species
+   found a model and which did not, and which small-life subjects were placed.
+4. Look at and screenshot next: the Console lines (animals and small life), the Meadow Loop verge and the pond edge with
+   the macro lens (M), the Old-Growth Grove's logs, and the notebook count in the journal.
+### Not done, honestly
+- **The imported packs themselves were not inspected** (they live only in your project). Nothing here has run in Unity
+  yet, so expect fixes on first use.
+- No new animal species were added; they wait for the audit.
+
 ## [1.6.1] Animals and scenery without the scan step
 - **Two animated animals ship with WildLens** (CC0, Quaternius): a **wolf as the coyote** and an **eagle as the
   red-tailed hawk**, tinted to each species' colours, with idle, walking, flying and perched animation. No download.

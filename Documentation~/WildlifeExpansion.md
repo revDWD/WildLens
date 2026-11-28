@@ -2,7 +2,9 @@
 
 WildLens 1.0 ships five species and a framework for more. A new species is **data, not code**: a Species Definition
 asset (behaviour, senses, habitat, daily rhythm, generic placeholder body), optionally replaced by a purchased model.
-This document is the plan for growing the reserve's ecosystem without growing its mechanics.
+This document is the plan for growing the reserve's ecosystem without growing its mechanics. The 1.7 candidate list
+(crow, chipmunk, goose, duck, turtle, woodpecker, vulture, skunk, dove and robin, bat, bear), each with its place and hours,
+is in [WildlifeCampaign.md](WildlifeCampaign.md) §2.
 
 ## Principles
 1. **Every species earns its place in the reserve's story.** It should live somewhere specific and be active at a
@@ -42,7 +44,9 @@ their pattern.
 6. Rhythm: enable `Daily Rhythm` and choose a place per period.
 7. Photography: `photoSizeScale` (small animals < 1), `clearPhotoDistance`.
 8. Add it to `SpeciesDatabase` (the journal picks it up automatically), rebuild, play a whole day.
-9. Later: import a free pack and run Wildlife Pack Setup (or Animal Model Setup for one model).
+9. Later: import a free pack and run Wildlife Pack Setup (or Animal Model Setup for one model). **A species also needs
+   an entry in `WildlifePackSetup.Names`** (its exact names and stand-ins) or no pack model will ever be matched to it;
+   check `Reserved` too (woodpecker, hummingbird, duck, mallard, goose and swan are held back for their own species).
 
 ## Planned species (roadmap)
 

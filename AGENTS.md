@@ -8,10 +8,10 @@ documents. If you read nothing else, read §1, §5, §14 and §15.
 
 ## 1. Project Overview
 
-**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.6.1). You walk or
+**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.7.0). You walk or
 ride a small trail bike around a generated reserve (meadow loop, ridge overlook, Cattail Pond, old-growth grove,
 meadow blind, Willow Creek with its ford and falls, Reserve Road, footpaths, hidden places), notice animals,
-approach without spooking them, and photograph them with a telephoto or, since 1.5, a macro lens. The day turns, the
+approach without spooking them, and photograph them with a telephoto or, since 1.5, a macro lens (small life from your packs since 1.7). The day turns, the
 weather follows a four-day forecast, and the wildlife keeps hours. **The place is the product; photography is the
 reason to be there.**
 
@@ -106,27 +106,31 @@ Left out on purpose. Don't add them unless the director asks:
 
 → The complete list, with what to build instead: [Documentation~/Roadmap.md](Documentation~/Roadmap.md).
 
-## 6. Current Project State (1.6.1, "Trailhead & Wildlife Packs")
+## 6. Current Project State (1.7.0, "Field Audit & Small Life")
 
 **Working well:** the approach-and-photograph loop; camera feel; legible grading; named places with distinct
 identities and signature details; real elevation; a day cycle and a learnable four-day weather forecast; Willow Creek
 with its ford and falls; hidden places; macro groundwork with a field notebook; eighteen species from data; the Reserve
 Road and footpaths; a Trail 125-style bike with suspension; one sign standard with a lettering probe; a three-sided
 Reserve Board at the trailhead with the bike bay beside it; two CC0 animated animals shipped (wolf as coyote, eagle as
-hawk); the Environment Kit and Wildlife Pack Setup, which now fill themselves from free packs imported locally; a compile check that runs without Unity.
+hawk); the Environment Kit and Wildlife Pack Setup, which now fill themselves from free packs imported locally; an **Asset Audit Report** that lists what the user's imported packs contain (1.7), wider and deterministic species
+matching, twelve small-life macro subjects that appear when the packs supply models, and a compile check that runs
+without Unity.
 
 **Weakest, in order** (honest):
 1. **Most animals are primitive placeholders.** The coyote and hawk have real models (1.6.1), and imported packs fill
-   the rest automatically, but none of this has run in Unity yet. → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md).
+   the rest automatically, but none of this has run in Unity yet, and **nobody working on the code has seen the user's
+   packs**: run the Asset Audit and read it first (1.7). → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md).
 2. **Trees** read as lollipops at distance: leaf cards lit like paper, no LODs or billboards. The Environment Kit can
    swap in Unity's free SpeedTree trees, also **never run in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
 3. **Grass** is flat billboards unless the kit supplies mesh grass.
 4. **Props are boxes** (with scanned wood). Sign text is unlit TextMesh in the built-in font.
 5. **Sky and water:** three HDRIs re-tinted, no night sky, no moving clouds; rain has no wet surfaces and falls
    through roofs; water has no refraction or foam.
-6. **Macro has two subjects** (plants); insects, frogs and fungi wait for models and the reserved behaviours.
+6. **Macro has two bundled subjects** (plants). Twelve more (insects, frogs, a newt, a snail, a mushroom, a daisy) exist
+   as data and move simply, but each appears only if the user's packs supply a model; no CC0 fallback; never run in Unity.
 7. **Untested at scale on low-end hardware.** Schedules move whole groups at once.
-8. **The authors of 0.7–1.6 never ran Unity.** Everything compiles in five configurations; everything visual was
+8. **The authors of 0.7–1.7 never ran Unity.** Everything compiles in five configurations; everything visual was
    verified only through screenshots. Expect tuning.
 
 → Per-system state and tuning: [Systems.md](Documentation~/Systems.md). Visual weaknesses and fixes:
@@ -138,17 +142,18 @@ hawk); the Environment Kit and Wildlife Pack Setup, which now fill themselves fr
   the reserve. Folders ending `~` (`Art~`, `Documentation~`, `Tools~`) are ignored by Unity.
 - **The builder pipeline** (`Editor/WildLensSliceBuilder.cs`): trail loop → trailhead → reserve plan (sites chosen
   from the terrain, landforms, creek, falls, ford, tracks by A*, pull-offs) → scenery by density zone and kit role →
-  destinations → ecosystem (bridges, creek life, residences, anchors) → discoveries, macro subjects → terrain paint
+  destinations → ecosystem (bridges, creek life, residences, anchors) → discoveries, macro subjects (plants, then small life from packs) → terrain paint
   and grass → wind, light, sky → **grounding pass** → **sign check**.
 - **Runtime:** `WildLensGame` bootstraps; `DayCycle` and `WeatherCycle` drive light and rhythms; `WildlifeSpawner`
   places residents; `AnimalAgent` → `GroundAnimal`/`FlyingAnimal` run behaviour with `WildlifeAwareness`;
   `CameraModeController` → `ZoomLens`/`FocusController` → `PhotoCamera` → `PhotoAnalyzer`/`MacroAnalyzer` →
   `JournalService`; `TrailBike` rides.
 - **Data, not code, for content:** species are `SpeciesDefinition` assets (`SpeciesDefaults`), small subjects are
-  `NaturalistSubject` (`SubjectDefaults`). Enums are serialized as integers: **append, never reorder.** Species
+  `NaturalistSubject` (`SubjectDefaults`, fourteen since 1.7). Enums are serialized as integers: **append, never reorder.** Species
   assets and journal saves are versioned and migrated.
 - **Store assets are found, not shipped:** the Environment Kit (scenery by ecological role), Animal Model Setup and
-  Wildlife Pack Setup (animals) use what the user imported into their own project.
+  Wildlife Pack Setup (animals), Macro Subjects From Packs (small life) and the Asset Audit use what the user imported
+  into their own project.
 
 **Checklist for every change** (details in [CONTRIBUTING.md](CONTRIBUTING.md)):
 - The compile check passes. New file or folder → commit its `.meta`.
@@ -177,6 +182,7 @@ hawk); the Environment Kit and Wildlife Pack Setup, which now fill themselves fr
 | [Documentation~/ReserveExpansion.md](Documentation~/ReserveExpansion.md) | the reserve's design: destinations, tracks, future places |
 | [Documentation~/WildlifeExpansion.md](Documentation~/WildlifeExpansion.md) | the species framework and adding a species |
 | [Documentation~/WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md) | animal models: direction, free sources, Wildlife Pack Setup |
+| [Documentation~/WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) | the 1.7 plan: the pack audit, species to keep, replace and add, small life, the bike, ecology by place |
 | [Documentation~/EnvironmentMigration.md](Documentation~/EnvironmentMigration.md) | the environment audit, free scenery packs, the Environment Kit |
 | [Documentation~/VisualRoadmap.md](Documentation~/VisualRoadmap.md) | art sourcing, licensing, visual weaknesses |
 | [Documentation~/TrailBike.md](Documentation~/TrailBike.md) | the bike model, free models reviewed, dropping one in |
@@ -203,8 +209,10 @@ need to be photorealistic or share one style.** Recognisable silhouette → anim
 species → realism, in that order. A stylised owl is a fine barred owl; one tinted songbird model can be five species.
 Mixed packs are fine; the environment stays photographic.
 
-**Next:** download free packs (Quaternius CC0 first), run **WildLens ▸ Wildlife Pack Setup**, playtest. New species
-still need a place they'd really live, never a count.
+**Next:** run **WildLens ▸ Asset Audit Report** and paste it into the chat (1.7); the plan in
+[WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) is filled in from it. Then let the automatic setup run (or use
+**Wildlife Pack Setup**) and playtest. New species still need a place they'd really live, never a count, and an entry in
+`WildlifePackSetup`'s name table.
 → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md), [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md).
 
 ## 11. Environment Direction
@@ -220,16 +228,17 @@ night sky and wet weather.
 
 Two lenses, one ritual. **Telephoto** (1–16×, FOV 50° → 3.34°) for wildlife at a distance, graded on frame fill,
 focus, behaviour and composition, with live brackets. **Macro** (M, since 1.5) for small life at your feet, graded on
-frame fill, focus within ~12% of distance, and centring, recorded in the journal's field notebook. Keep new modes
+frame fill, focus within ~12% of distance, and centring, recorded in the journal's field notebook; since 1.7 small-life models from the user's packs (insects, frogs, fungi) are
+subjects too. Keep new modes
 *beside* the telephoto pipeline, not inside it. Grades stay words (Poor/Good/Excellent). The journal is the only
 record: no scores, no completion.
 → [Systems.md](Documentation~/Systems.md) (Camera, Photography, Macro).
 
 ## 13. Future Opportunities
 
-In priority order (detail in [Roadmap.md](Documentation~/Roadmap.md)): playtest 1.6 → **animals from free packs** →
-prove the Environment Kit's trees in Unity → animated macro subjects (butterflies, dragonflies, frogs, fireflies,
-mushrooms after rain) → tuning → real prop shapes and lit sign text → bike bodywork → night sky and wet weather →
+In priority order (detail in [Roadmap.md](Documentation~/Roadmap.md)): **run the Asset Audit and paste it** → playtest
+1.6 and 1.7 → **animals from free packs** → prove the Environment Kit's trees in Unity → the rest of macro round two
+(a fallback when no model exists, dragonfly perches, a frog chorus, more plants and fungi) → tuning → real prop shapes and lit sign text → bike bodywork → night sky and wet weather →
 new species with their places → a wetland boardwalk and second blind → a hand-authored CC0 terrain.
 
 ## 14. Common Mistakes
@@ -252,6 +261,8 @@ Each of these has cost at least one milestone. Details and stories in [History.m
 - **The noise "forest field" is not the forest.** Paint and plant from where trees actually stand.
 - **Shipping terrain changes unmeasured.** Prototype landforms outside Unity and measure relief and slope first.
 - **A convention used in one direction only** (centred text hid the sign mirroring for releases).
+- **Guessing an inventory you cannot see.** The user's packs live in their project, not the repository (1.7): build the
+  probe that reports them (the Asset Audit) instead of assuming what they contain.
 - **Building what's already there.** Players asked for species added a release earlier: check before building more.
 - **Applying a rule beyond its reason.** "Don't mix fidelities" was right for scenery and wrong for animals.
 - **Committing store assets** (free ones included), secrets or generated `Assets/` content.
@@ -263,7 +274,7 @@ Each of these has cost at least one milestone. Details and stories in [History.m
 3. [Documentation~/Roadmap.md](Documentation~/Roadmap.md): what's next, and what's off-limits.
 4. [Documentation~/Architecture.md](Documentation~/Architecture.md): find your way around the code.
 5. The topic you're working on:
-   - animals → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md), [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md)
+   - animals → [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md), [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md), [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md)
    - scenery, trees, terrain → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md), [VisualRoadmap.md](Documentation~/VisualRoadmap.md)
    - places → [ReserveExpansion.md](Documentation~/ReserveExpansion.md)
    - any system's behaviour or numbers → [Systems.md](Documentation~/Systems.md)

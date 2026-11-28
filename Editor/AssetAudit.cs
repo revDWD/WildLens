@@ -12,7 +12,7 @@ using static WildLens.EditorTools.WildlifePackSetup;
 namespace WildLens.EditorTools
 {
     /// <summary>
-    /// WildLens ▸ Asset Audit Report (1.6.2): a probe, not a builder. The director cannot see which animal, macro and
+    /// WildLens ▸ Asset Audit Report (1.7): a probe, not a builder. The director cannot see which animal, macro and
     /// vehicle packs were imported, so this walks every model and prefab under Assets/, classifies each by name (then by
     /// the folder it sits in) and writes WildLensAssetAudit.md next to the project's Assets folder (and to the
     /// clipboard) to paste into the chat. It changes nothing in the project. Categories: reserve species (exact or

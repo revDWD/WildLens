@@ -25,7 +25,8 @@ has empty pivots named:
 
 `Lean` (root of everything that leans) → `Steer` (fork and bars; yaws) → `Front Axle` (slides up the fork) →
 `Front Wheel` (spins on X); `Swingarm` (pivots on X) → `Rear Wheel`; `Kickstand`; `Seat Anchor` (rider position,
-outside `Lean`).
+outside `Lean`). `TrailBike` finds each of these by name anywhere under `Model`. Only `Seat Anchor` is made for you:
+if the model has none, one is created under the bike's root, 0.3 m behind its centre.
 
 Missing pivots are skipped (no suspension without `Front Axle`/`Swingarm`; no lean without `Lean`). Keep the model
 under ~2.0 m long, wheels ~0.3 m radius, facing +Z. Store models stay in your own project, never in the package.
@@ -40,3 +41,11 @@ under ~2.0 m long, wheels ~0.3 m radius, facing +Z. Store models stay in your ow
 5. **Mud and wear**: a dirt mask on the lower parts and tyres (from the trail's own colour).
 
 None of these changes speed, handling or anything wildlife hears.
+
+## Finding a candidate (1.7)
+
+**WildLens ▸ Asset Audit Report** lists every vehicle model it finds in your imported packs, with its length, how many
+wheel parts it has, whether it has a separate steering part (handlebars or fork), and which of the pivot names above it
+already uses. The acceptance criteria for a replacement (small, upright, rack, separate wheel and fork objects; leave
+sport bikes and fused meshes; a utility vehicle is scenery, never the bike) are in
+[WildlifeCampaign.md](WildlifeCampaign.md) §5.

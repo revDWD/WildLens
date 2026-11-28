@@ -4,7 +4,7 @@ using UnityEngine;
 namespace WildLens.Data
 {
     /// <summary>
-    /// Tuned default values for the reserve's species (the five originals plus the 1.1 expansion). The editor builder writes these out as assets,
+    /// Tuned default values for the reserve's species (the five originals, the 1.1 expansion, and the 1.4 and 1.5 additions: eighteen in all). The editor builder writes these out as assets,
     /// and the game falls back to them at runtime if no database asset is assigned. Tune the assets, not this file.
     /// </summary>
     public static class SpeciesDefaults

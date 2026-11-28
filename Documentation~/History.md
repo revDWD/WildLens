@@ -135,7 +135,7 @@ present the routes, don't impose one.
   either alone.
 - Keep package size in mind: `Art~` ships to every user. Use 2k skies and ground, and drop unused files.
 
-**1.6.0 Trailhead & Wildlife Packs** (current). The 1.5 playtest found signs readable at last, and four things:
+**1.6.0 Trailhead & Wildlife Packs**. The 1.5 playtest found signs readable at last, and four things:
 the trailhead was a cluster of separate signs and posts, secondary sign text was too small (interpretive panels had
 long lines fitted down to 3.5 cm capitals), a log seat floated at the ford, and the animals were still the weakest
 thing in every photograph. The director then changed the wildlife direction: **stylised and mixed free assets are
@@ -147,3 +147,20 @@ history, architecture and roadmap in their own documents. *Lessons:* consolidati
 four signs said less than one. Text that has to be fitted down to fit is a text problem, not a size problem: shorten
 the words. A style rule that made sense for scenery ("don't mix fidelities") was blocking the biggest improvement
 available for animals; check whether a rule's reason still applies to every place it's used.
+
+**1.7.0 Field Audit & Small Life** (current). 1.6.1 shipped two animals and a way to fill the rest from free packs, but the
+director had imported animal, nature and vehicle packs into the Unity project and nobody working on the code could see
+them: they live only in that project and may never be committed. So 1.7 starts with a probe: **WildLens ▸ Asset Audit
+Report** lists what is there, which reserve species each model can be, its clips and its shader problems, and puts it on the
+clipboard to paste into the chat. The matching was widened and made deterministic (more stand-ins, the closer look-alike
+first, names held for future species never used as stand-ins, ties broken by path), and clip names are read word by word
+so "Threat" is no longer "eat" and death clips are ignored. The macro lens grew its second round, first step: twelve
+small-life subjects (butterfly, moth, dragonfly, bee, beetle, mantis, frog, newt, snail, firefly, mushroom, daisy) as
+data, found in the user's packs, placed in their habitats on their own random sequences, with simple movement and
+hours and weather ("after rain" is three game hours). Nothing is faked: no model, no subject. The director also wrote
+`WildlifeCampaign.md`, the plan the audit's answers will fill in. No new animal species were added: they wait for the
+audit. *Lessons:* **the packs were in the user's project, not the repository. When you cannot see the thing, build the
+probe that reports it (the Asset Audit) instead of guessing an inventory.** Name matching that is too loose is as
+harmful as too tight: "Foxglove" is not a fox, "Threat" is not "eat", and a woodpecker is not a cardinal. Give every
+placement its own seeded random source so adding one subject moves nothing else, and never use `string.GetHashCode` for a
+seed (it differs between machines). None of this has run in Unity yet.

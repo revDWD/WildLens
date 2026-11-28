@@ -1,4 +1,4 @@
-# Wildlife asset strategy (1.6)
+# Wildlife asset strategy (1.6, updated 1.7)
 
 **Direction (from the director, 1.6):** wildlife does **not** need to be photorealistic, and the animals don't all need
 to share a style or come from one pack. A colourful stylised bird can be a blue jay; a stylised owl can be a barred
@@ -19,6 +19,14 @@ photographic environment.
 
 What this changes: the old rule "don't mix fidelities" now applies to the **environment** (scenery stays
 photographic and CC0 or kit-sourced). Animals are exempt: they can be stylised and come from several packs.
+
+## Step zero: run the audit (1.7)
+
+Before choosing packs or models, run **WildLens ▸ Asset Audit Report** (also a button in the builder window). It lists
+every model in your project by pack, which reserve species each can be (the real animal or a stand-in), triangles, size,
+clips and which behaviours they cover, and any shader that needs Unity's material converter. It saves
+`WildLensAssetAudit.md` in the project folder and copies it to the clipboard: paste it into the chat. The 1.7 plan
+([WildlifeCampaign.md](WildlifeCampaign.md)) is decided from that report, not from guesses about what a pack contains.
 
 ## Shipped with WildLens (1.6.1)
 
@@ -42,19 +50,32 @@ project**. It:
 - finds every animated model (a skinned mesh with at least one clip) outside `Assets/WildLens`;
 - matches each to the species it *is* (Deer → white-tailed deer) or can **stand in** for, by name:
 
-  | Species | Stand-ins it will accept |
+  | Species | Stand-ins it will accept (closest first) |
   |---|---|
-  | Coyote | wolf, jackal, husky, dog |
-  | Red-tailed hawk | eagle, falcon, buzzard, kite |
-  | Great blue heron | egret, crane, stork, flamingo |
-  | Wild turkey | pheasant, chicken, hen, peacock |
-  | Spotted sandpiper | plover, shorebird, gull |
-  | Groundhog | beaver, gopher, prairie dog |
-  | Cardinal, blue jay, blackbird, kingfisher, phoebe | any songbird, finch, sparrow, robin, "bird" (one model, tinted per species) |
-  | Deer, fox, squirrel | roe/elk/antelope; shiba/jackal; chipmunk |
+  | Deer | roe, elk, reindeer, caribou, moose, antelope, gazelle, impala |
+  | Fox | shiba, fennec, jackal |
+  | Coyote | wolf, dingo, dhole, jackal, husky, shepherd, dog |
+  | Squirrel | chipmunk |
+  | Raccoon | badger, red panda, coati |
+  | Opossum | rat, mouse |
+  | Groundhog | beaver, gopher, prairie dog, capybara, hamster, guinea pig |
+  | Wild turkey | pheasant, grouse, partridge, quail, guineafowl, chicken, rooster, hen, peacock |
+  | Red-tailed hawk | eagle, falcon, buzzard, harrier, osprey, kite, vulture, raptor |
+  | Great blue heron | egret, bittern, ibis, spoonbill, pelican, crane, stork, flamingo |
+  | Spotted sandpiper | killdeer, plover, dunlin, snipe, shorebird, wader, tern, seagull, gull |
+  | Cardinal | songbird, finch, sparrow, robin, oriole, canary, chickadee, wren, tit, thrush, warbler, swallow, bird (one model, tinted) |
+  | Blue jay | bluebird, then the same songbirds (tinted) |
+  | Red-winged blackbird | grackle, starling, crow, raven, songbird, sparrow, thrush, bird (tinted) |
+  | Kingfisher | songbird, sparrow, bird (tinted) |
+  | Phoebe | sparrow, songbird, finch, wren, chickadee, bird (tinted) |
+  | Rabbit, owl | none: only the animal itself |
 
-- shows one row per species (best match first: the real animal before a stand-in, then the model with the most
-  recognised clips), with a size, a yaw correction and **tint** (on by default for stand-ins);
+  The full tables, the ranking and the word rules are in [Systems.md](Systems.md) (1.7.0). **Reserved names:** woodpecker,
+  hummingbird, duck, mallard, goose and swan are kept for future species, so a model with one of those words in its name
+  is **never** used as a stand-in. A species that is not in `WildlifePackSetup`'s name table is never matched.
+
+- shows one row per species (best match first: the real animal before a stand-in, then the closer look-alike, then the
+  model with the most recognised clips, then path order so the pick is the same on every machine), with a size, a yaw correction and **tint** (on by default for stand-ins);
 - **Set up ticked species** runs the same factory as Animal Model Setup for each row. It classifies clips by name,
   builds the Animator Controller, scales the model to the species' real size (birds by beak-to-tail length), puts its
   feet on the ground and assigns the prefab.

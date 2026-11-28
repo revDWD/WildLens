@@ -38,7 +38,8 @@ Scripts/
                  (AF hunt/lock), LensEffects (URP depth of field), CameraAudio (procedural shutter/AF sounds)
   Photography/   PhotoCamera (capture), PhotoAnalyzer (visibility, frame fill), PhotoQualityEvaluator
                  (Poor/Good/Excellent), FramingAssistant (live brackets), Photographable, PhotoStorage,
-                 MacroSubject + MacroAnalyzer (macro: small subjects, close-range grading)
+                 MacroSubject + MacroAnalyzer (macro: small subjects, close-range grading),
+                 MacroMotion (1.7: flit, perch, hop and glow for small life from packs)
   Observation/   ObservationTracker (hold in view → identified → journal)
   Wildlife/      AnimalAgent → GroundAnimal / FlyingAnimal (behaviour states), Awareness/WildlifeAwareness
                  (Calm/Aware/Alert/Fleeing), WildlifeSpawner, WildlifeWorld (trees, perches, hotspots),
@@ -56,7 +57,7 @@ Scripts/
   UI/            HudController (owns views), ViewfinderView, PhotoPreviewView (prints, keeper), ShutterEffectView,
                  NoticeView, JournalUI, UIFactory
   Data/          SpeciesDefinition (all per-species tuning), SpeciesDefaults, SpeciesDatabase, AnimalActivity,
-                 NaturalistSubject + SubjectDefaults (macro subjects)
+                 NaturalistSubject + SubjectDefaults (macro subjects; fourteen since 1.7)
   Debugging/     CameraDiagnostics (F3 overlay, F4 zoom self-test)
 Editor/
   WildLensSliceBuilder (pipeline), WildLensBuilderWindow, SliceBuildSettings, TrailBuilder, PropBuilder,
@@ -69,12 +70,14 @@ Editor/
   KitPlacement (VegetationBuilder partial: places kit assets, adds colliders/features),
   FordBuilder (VegetationBuilder partial: the Creek Ford), SignKit (sign standard, pictograms, text measuring),
   SignCheck (probe: lettering measured against boards), FallsBuilder (Willow Falls), DiscoveryBuilder (hidden
-  places), MacroBuilder (macro subjects), GroundingPass (posts and legs to the ground)
+  places), MacroBuilder (macro subjects; 1.7 small life from packs), GroundingPass (posts and legs to the ground),
+  AssetAudit (1.7: the report of what is in the user's packs), MacroPackSetup (1.7: small-life models to subjects)
 Art~/            CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
 Documentation~/  Systems.md (systems and tuning), VisualRoadmap.md (assets, licensing, weaknesses),
                  ReserveExpansion.md (reserve design and next steps), WildlifeExpansion.md (species framework & roadmap),
                  EnvironmentMigration.md (environment audit, free assets, migration plan, before/after),
-                 WildlifeAssetStrategy.md (animal model options and the style decision)
+                 WildlifeAssetStrategy.md (animal model options and the style decision),
+                 WildlifeCampaign.md (1.7: audit, species, small life, bike and ecology plan)
 Tools~/          CompileCheck (compile the package without Unity)
 CONTRIBUTING.md  setup, build → playtest loop, release checklist
 ```
@@ -120,3 +123,17 @@ Key flows:
 - `Editor/PropBuilder.cs` `BuildKiosk`/`BuildBikeBay`: the three-sided Reserve Board and the trailhead bike bay
   (replacing the separate guidelines post, register post and Reserve Road plank).
 - `Editor/GroundingPass.cs` `SeatLogs`: log seats follow the slope.
+
+**1.7 additions:**
+- `Editor/AssetAudit.cs`: **WildLens ▸ Asset Audit Report**. Read-only probe: walks every model and prefab under `Assets/`,
+  classifies by name then folder (reserve species via `WildlifePackSetup.MatchAsset`, other animals, macro subjects,
+  vehicles, scenery), reads clips through `AnimalPrefabFactory.TryClassifyName`, and writes `WildLensAssetAudit.md` in
+  the project folder and to the clipboard. Also a button in `WildLensBuilderWindow`.
+- `Editor/WildlifePackSetup.cs`: the name tables sit between `<pure-begin>` and `<pure-end>` markers (no Unity types) so
+  they can be tested outside Unity. A new species needs an entry in `Names` to be matched; `Reserved` lists animals that
+  are never stand-ins. `Editor/AnimalPrefabFactory.cs`: token-aware clip classification, with an ignore list.
+- **Small life (1.7):** `SubjectDefaults` (twelve new `NaturalistSubject` assets, created once in
+  `Assets/WildLens/Data/Subjects`) → `MacroPackSetup.AutoSetUp` (start of the macro step of every build, if
+  `autoMacroFromPacks`) fills each empty `prefab` from the user's packs → `VegetationBuilder.BuildMacroSubjects` places the
+  bundled plants as before, then `BuildSmallLife` (own seeded generators, habitat by habitat) → each instance carries
+  `MacroSubject` (focus, hours and weather via `IsShowing`, `RecentlyRained`) and, if not `Still`, `MacroMotion`.
