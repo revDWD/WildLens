@@ -49,6 +49,8 @@ namespace WildLens.EditorTools
 
         private HiddenPondPlan _hiddenPond;
         private ShelterPlan _shelter;
+        /// <summary>1.10: the foot of the ridge's bedrock outcrops, recorded where they were placed (no random draws): the garter snake's fallback when there is no Rock Shelter.</summary>
+        private readonly List<Vector3> _ridgeOutcropSpots = new List<Vector3>();
 
         // ================================================================== Cascade Overlook
 
@@ -274,6 +276,10 @@ namespace WildLens.EditorTools
             Vector3 far = TerrainUtil.Ground(s.centre - ldir * (HiddenPondRadius(s, s.centre - ldir * s.radius) + 4f));
             Anchor(group, ScheduleRole.Water, far, 12f);
             Residence(group, "Hidden pond", Shore(gentle1, 7f), 5f, "great_blue_heron", "red_winged_blackbird", "raccoon");
+            // 1.10: a pair of mallards on dry bank at the gentle shore (a metre or two from the waterline), and a painted turtle on the bank at the
+            // Sunken Log's shore end (the log reaches in from the bank along ldir). No random draws: both come from the pond's plan.
+            Residence(group, "Hidden pond mallards", Shore(gentle1, 2.2f), 1.2f, "mallard");
+            Residence(group, "Sunken Log", TerrainUtil.Ground(s.centre + ldir * (HiddenPondRadius(s, s.centre + ldir * s.radius) + 0.5f) + Vector3.Cross(Vector3.up, ldir) * 0.5f), 0.4f, "painted_turtle");
             Vector3 bank = TerrainUtil.Ground(s.centre + ldir * (maxR + 4f));
             AddViewpoint(group, "Hidden Pond", bank + Vector3.up * 1.4f, new Vector3(s.centre.x, level + 0.5f, s.centre.z) - ldir * s.radius * 0.5f);
             Discovery(hidden, s.centre, "Hidden Pond", "Still water in a hollow of the woods, far from any path. A heron fishes it; blackbirds call from the reeds.", s.radius + 8f);
@@ -366,6 +372,7 @@ namespace WildLens.EditorTools
             Occupy(p);
 
             // The same bedrock showing on the hillside either side: scanned faces, set into the slope like the outcrops.
+            var outcropSpots = new List<Vector3>();
             for (int i = 0; i < 2 && _artOutcrops.Count > 0; i++)
             {
                 float sgn = i == 0 ? -1f : 1f;
@@ -381,6 +388,7 @@ namespace WildLens.EditorTools
                 if (ef != null) { ef.radius *= k; ef.height *= k; }
                 face.name = "Shelter Outcrop";
                 MakeStatic(face);
+                outcropSpots.Add(q);
             }
 
             // A hint of long-ago use, and nothing more: a ring of stones round a patch of old charcoal.
@@ -424,6 +432,26 @@ namespace WildLens.EditorTools
 
             AddViewpoint(group, "Rock Shelter", p - f * 1.6f + Vector3.up * 1.6f, TerrainUtil.Ground(p + f * 60f) + Vector3.up * 2f);
             Discovery(hidden, p - f * 1.0f, "Rock Shelter", "An overhang in the rock, dry underfoot. Someone sheltered here long ago; the view hasn't changed.", 7f);
+            // 1.10: garter snakes basking on the sunny side. The sun runs through the south (-Z), so the flank whose side vector points furthest south
+            // is warmed first. Each snake sits in front of an outcrop on that side (the warm rock behind it), else beside the crag's mouth on the flank:
+            // always on walkable ground OUTSIDE the crag and the alcove (the rain shelter), on a gentle slope. One snake to a residence, no random draws.
+            float sunSide = r.z <= 0f ? 1f : -1f;
+            var spots = new List<Vector3>();
+            outcropSpots.Sort((a, b) => Vector3.Dot(b - p, r * sunSide).CompareTo(Vector3.Dot(a - p, r * sunSide)));
+            foreach (var o in outcropSpots) spots.Add(TerrainUtil.Ground(o + f * 1.3f));
+            spots.Add(TerrainUtil.Ground(p + r * sunSide * (ShelterPlan.HalfWidth + 1.1f) + f * 0.8f));
+            spots.Add(TerrainUtil.Ground(p - r * sunSide * (ShelterPlan.HalfWidth + 1.1f) + f * 0.8f));
+            var snakes = new List<Vector3>();
+            foreach (var q in spots)
+            {
+                if (snakes.Count >= 2) break;
+                if (s.InCrag(q) || TerrainUtil.SlopeDegrees(q) > 20f) continue;
+                bool near = false;
+                foreach (var o in snakes) if (TerrainUtil.FlatDistance(o, q) < 1.2f) near = true;
+                if (near) continue;
+                snakes.Add(q);
+                Residence(hidden, "Shelter ledge", q, 0.5f, "common_garter_snake");
+            }
             Residence(hidden, "Rock shelter woods", TerrainUtil.Ground(p + f * 14f), 12f, "tufted_titmouse", "eastern_gray_squirrel");
             // The titmouse keeps to the woods all day (its rhythm sends it to the nearest woodland cover): this is that cover.
             Anchor(hidden, ScheduleRole.Woodland, TerrainUtil.Ground(p + f * 14f), 12f);
@@ -609,8 +637,42 @@ namespace WildLens.EditorTools
             AddHotspot(group, "Cabin Clearing Meadow", HotspotType.Meadow, TerrainUtil.Ground(c), 6f);
             Residence(hidden, "Cabin fence", TerrainUtil.Ground(fenceMid), 6f, "eastern_bluebird");
             Residence(hidden, "Cabin clearing", TerrainUtil.Ground(c - across * 5f), 10f, "eastern_cottontail", "groundhog");
+            // 1.10: the striped skunk dens under the old stone (true to life): its Home is inside the foundation walls, and at golden hour and dusk its
+            // MeadowEdge is the nearest Meadow hotspot's edge, which is this clearing's (4.8 m from the middle, on its own side).
+            Residence(hidden, "Cabin den", TerrainUtil.Ground(c + across * 0.4f), 1f, "striped_skunk");
             AddViewpoint(group, "Old Cabin Ruins", TerrainUtil.Ground(c - across * 7.5f - along * 3f) + Vector3.up * 1.6f, c + Vector3.up * 0.8f);
             Discovery(hidden, c, "Old Cabin Ruins", "Fieldstone and a chimney, all that's left of a homestead. The woods are taking it back; a bluebird keeps the fence.", 8f);
+        }
+
+        // ================================================================== 1.10 fallbacks
+
+        /// <summary>
+        /// The garter snake without a Rock Shelter: one or two at the foot of the ridge's bedrock outcrops (recorded while the ridge was built).
+        /// Nothing if the ridge has none.
+        /// </summary>
+        private void BuildSnakeAtRidge(Transform hidden)
+        {
+            int n = 0;
+            foreach (var spot in _ridgeOutcropSpots)
+            {
+                if (n >= 2) break;
+                if (TerrainUtil.SlopeDegrees(spot) > 20f) continue;
+                Residence(hidden, "Ridge outcrop", spot, 0.5f, "common_garter_snake");
+                n++;
+            }
+        }
+
+        /// <summary>
+        /// The striped skunk without an Old Cabin Ruins: one individual at the Wildflower Meadow Blind's brushy edge (where the cottontails live;
+        /// the same edge point, a few metres along it). Nothing if there is no blind.
+        /// </summary>
+        private void BuildSkunkAtMeadowEdge(Transform parent)
+        {
+            var blind = _sites.Find(x => x.kind == DestinationKind.ObservationBlind);
+            if (blind == null) return;
+            Vector3 side = Vector3.Cross(Vector3.up, blind.facing);
+            Vector3 edge = TerrainUtil.Ground(blind.centre + side * blind.radius * 0.75f);
+            Residence(parent, "Meadow-edge den", TerrainUtil.Ground(edge + side * 4f), 3f, "striped_skunk");
         }
 
         // ================================================================== for the terrain painter

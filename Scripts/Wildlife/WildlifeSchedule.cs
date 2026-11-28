@@ -169,9 +169,14 @@ namespace WildLens.Wildlife
             // Residents of a place mostly stay put; others commute. A small stable jitter keeps a group from stacking up.
             // The per-animal salt keeps animals that share a territory (a whole group has one OriginHome) from landing on one point.
             int ox = Mathf.RoundToInt(origin.x * 10f) + salt * 7919, oz = Mathf.RoundToInt(origin.z * 10f);
-            float jx = (WeatherHabitRules.Hash01(id, ox, oz + 1) * 2f - 1f) * 3f;
-            float jz = (WeatherHabitRules.Hash01(id, ox, oz + 2) * 2f - 1f) * 3f;
+            // 1.10: the jitter is 3 m for every species that roams 5 m or more (all that existed before), and shrinks for the very small
+            // ranges of a turtle or a snake, whose home is a log or a rock, not "somewhere near it".
+            float jitter = Mathf.Min(3f, Mathf.Max(0.3f, a.Species.wanderRadius * 0.6f));
+            float jx = (WeatherHabitRules.Hash01(id, ox, oz + 1) * 2f - 1f) * jitter;
+            float jz = (WeatherHabitRules.Hash01(id, ox, oz + 2) * 2f - 1f) * jitter;
             Vector3 home = TerrainUtil.Ground(target + new Vector3(jx, 0f, jz));
+            // A bank dweller is never given a home in the water.
+            if (a.Species.maxStepDown > 0f && home.y < target.y - a.Species.maxStepDown) home = TerrainUtil.Ground(target);
             // Same place and same spot as it already has: leave it alone (no yanking circling birds into transit for a no-op).
             if (st.hasHome && st.homePlace == d.place && (st.homeTarget - home).sqrMagnitude < 0.01f) return;
             st.hasHome = true; st.homePlace = d.place; st.homeTarget = home;

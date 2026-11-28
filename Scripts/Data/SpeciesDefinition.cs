@@ -249,6 +249,8 @@ namespace WildLens.Data
         [Range(0f, 1f)] [Tooltip("Chance that a wander leg is a short run instead of a walk (e.g. deer bounding).")]
         public float runLegChance = 0f;
         public float maxSlope = 35f;
+        [Min(0f)] [Tooltip("Bank dwellers (duck, turtle, snake; 1.10): the animal never steps onto ground more than this many metres below its home, so it stays out of the water. 0 = off (every other species).")]
+        public float maxStepDown = 0f;
 
         [Header("Flight (flying species, 1.1)")]
         [Tooltip("Cruising height above the ground (min, max). Hawks soar at 20-38 m; songbirds flit at 3-8 m.")]

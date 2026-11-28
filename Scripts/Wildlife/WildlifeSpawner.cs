@@ -33,7 +33,17 @@ namespace WildLens.Wildlife
         {
             "american_crow", "american_robin", "black_capped_chickadee", "american_goldfinch", "song_sparrow", "american_black_bear",
             "eastern_bluebird", "tufted_titmouse", "louisiana_waterthrush", // 1.9
+            "mallard", "painted_turtle", "striped_skunk", "common_garter_snake", // 1.10: bank, log, den and rock residents
         };
+
+        /// <summary>
+        /// The 1.10 residents. Besides drawing from their own stream they leave every counter the older residents use untouched: a place that
+        /// holds only these species does not take a place number, and their individuals have a seed counter of their own, so no animal
+        /// that was already there (a crow, a bluebird...) gets a different spot or a different temper because a duck was added.
+        /// </summary>
+        private static readonly HashSet<string> LateStreamSpecies = new HashSet<string> { "mallard", "painted_turtle", "striped_skunk", "common_garter_snake" };
+
+        private int _lateStreamIndex;
 
         private static bool HasOwnStream(SpeciesDefinition s) => s != null && OwnStreamSpecies.Contains(s.speciesId);
 
@@ -115,16 +125,19 @@ namespace WildLens.Wildlife
                 if (res != null && res.species != null)
                     places.Add((res.species, res.transform.position, res.radius, Vector3.zero, 0f));
 
-            int placeNumber = 0;
+            int placeNumber = 0, latePlaceNumber = 0;
+            _lateStreamIndex = 0;
             foreach (var place in places)
             {
-                placeNumber++;
+                bool lateOnly = place.ids.Length > 0;
+                foreach (string lateId in place.ids) if (!LateStreamSpecies.Contains(lateId)) { lateOnly = false; break; }
+                int salt = lateOnly ? 9000 + (++latePlaceNumber) : ++placeNumber;
                 foreach (string id in place.ids)
                 {
                     var species = db.Get(id);
                     if (species == null) continue;
                     bool own = HasOwnStream(species);
-                    var rng = own ? OwnStream(species, placeNumber) : sharedRng;
+                    var rng = own ? OwnStream(species, salt) : sharedRng;
                     Vector3 centre = place.centre;
                     Vector3 home = TerrainUtil.Ground(centre);
                     if (species.habitat != HabitatPreference.Sky)
@@ -149,8 +162,13 @@ namespace WildLens.Wildlife
                         {
                             float a = (float)rng.NextDouble() * Mathf.PI * 2f;
                             pos = TerrainUtil.Ground(home + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (1.5f + (float)rng.NextDouble() * 3f));
+                            // A bank dweller (duck) never starts in the water: pull the spot back toward home until it is on dry ground.
+                            if (species.maxStepDown > 0f)
+                                for (int k = 0; k < 4 && pos.y < home.y - species.maxStepDown; k++) pos = TerrainUtil.Ground(home + (pos - home) * 0.5f);
                         }
-                        Spawn(species, pos, home, own ? seed + (100000 + (++_ownStreamIndex)) * 7919 : seed + (++index) * 7919);
+                        int individualSeed = LateStreamSpecies.Contains(id) ? seed + (200000 + (++_lateStreamIndex)) * 7919
+                                           : own ? seed + (100000 + (++_ownStreamIndex)) * 7919 : seed + (++index) * 7919;
+                        Spawn(species, pos, home, individualSeed);
                     }
                 }
             }

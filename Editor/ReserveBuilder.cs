@@ -739,6 +739,7 @@ namespace WildLens.EditorTools
                 Vector3 p = TerrainUtil.Ground(pos + Quaternion.Euler(0f, (i == 0 ? -1f : 1f) * R(75f, 105f), 0f) * f * R(11f, 17f));
                 if (InKeepOut(p) || PathDistance(p) < 5f || !IsFree(p, 5f)) continue;
                 PlaceOutcrop(group, p, R(0.6f, 0.85f));
+                _ridgeOutcropSpots.Add(TerrainUtil.Ground(p + TerrainUtil.Flat(pos - p).normalized * 1.6f)); // 1.10: kept for the garter snake's fallback (no draw)
             }
             var wind = new GameObject("Ridge Wind");
             wind.transform.SetParent(group, false);
@@ -862,6 +863,67 @@ namespace WildLens.EditorTools
             AddKeepOut(canoePos, 2.6f);
             Mist(group, new Vector3(s.centre.x, level + 0.6f, s.centre.z), new Vector3(maxR * 2f + 6f, 1.4f, maxR * 2f + 6f), 1f);
             AddKeepOut(shore, 4f);
+            BuildPondBank(group, s, f, canoePos);
+        }
+
+        /// <summary>
+        /// 1.10: the pond's bank dwellers: a small half-sunk Basking Log on the sunniest shore with two painted turtles beside it, and a pair or trio
+        /// of mallards loafing on another stretch of bank. Nothing here draws from the random stream (so nothing built after it moves): the bank is
+        /// chosen from the pond's own shape, the log is a plain trunk in a fixed material, and every site is optional (a pond with no gentle bank
+        /// simply has none).
+        /// The sun runs east to west through the south (-Z, DayCycle.SunPosition), so the sunniest bank is the north shore (+Z): it faces the sun and has
+        /// no trees between it and the midday sky. The log is built in WORLD space (the group stands at the pond's centre), like the lily pads since 1.9.
+        /// </summary>
+        private void BuildPondBank(Transform group, Site s, Vector3 f, Vector3 canoePos)
+        {
+            // The gentlest bank, leaning north, clear of the jetty's open water and the canoe.
+            Vector3 logDir = Vector3.zero;
+            float best = float.MaxValue;
+            for (int i = 0; i < 24; i++)
+            {
+                float a = i / 24f * Mathf.PI * 2f;
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                if (Vector3.Dot(dir, -f) > 0.8f) continue;
+                float r = PondRadius(s, s.centre + dir * s.water);
+                Vector3 bank = TerrainUtil.Ground(s.centre + dir * (r + 1.5f));
+                if (TerrainUtil.SlopeDegrees(bank) > 12f || InKeepOut(bank) || TerrainUtil.FlatDistance(bank, canoePos) < 4f) continue;
+                float score = TerrainUtil.SlopeDegrees(bank) * 0.4f + (1f - dir.z) * 6f;
+                if (score < best) { best = score; logDir = dir; }
+            }
+            if (logDir == Vector3.zero) return;
+
+            float rl = PondRadius(s, s.centre + logDir * s.water);
+            Vector3 tangent = Vector3.Cross(Vector3.up, logDir);
+            // The trunk reaches in from the bank: its inland end lies on the shore, its water end on the shallow bed; both ends are on the ground.
+            float rad = 0.13f;
+            Vector3 inland = s.centre + logDir * (rl + 1f), wet = s.centre + logDir * (rl - 0.9f);
+            inland.y = TerrainUtil.SampleHeight(inland) + rad * 0.7f;
+            wet.y = TerrainUtil.SampleHeight(wet) + rad * 0.7f;
+            var log = new GameObject("Basking Log"); // not "Fallen Log"/"Mossy Log": small life and the grounding pass leave it alone
+            log.transform.SetParent(group, false);
+            log.transform.SetPositionAndRotation((inland + wet) * 0.5f, Quaternion.LookRotation((wet - inland).normalized));
+            float len = Vector3.Distance(inland, wet);
+            Material bark = _bark != null && _bark.Length > 0 ? _bark[0] : GeneratedAssets.Material("WoodDark", new Color(0.33f, 0.24f, 0.16f));
+            MeshPart("Trunk", log.transform, _cylinder, bark, Vector3.zero, new Vector3(rad * 2f, len * 0.5f, rad * 2f), Quaternion.Euler(90f, 0f, 0f));
+            var col = log.AddComponent<CapsuleCollider>();
+            col.direction = 2; col.height = len; col.radius = rad;
+            MakeStatic(log); // (no keep-out: it would change what later passes accept, and the pond is cleared round it anyway)
+
+            // Two painted turtles on the bank beside the log's shore end (the Home of their rhythm is exactly here).
+            Residence(group, "Basking Log", TerrainUtil.Ground(s.centre + logDir * (rl + 0.6f) + tangent * 0.9f), 0.4f, "painted_turtle");
+            Residence(group, "Basking Log", TerrainUtil.Ground(s.centre + logDir * (rl + 0.7f) - tangent * 0.9f), 0.4f, "painted_turtle");
+
+            // Mallards on dry bank by the reeds, a stretch round from the log and away from the jetty.
+            foreach (float sign in new[] { 1f, -1f })
+            {
+                Vector3 dir = Quaternion.Euler(0f, 70f * sign, 0f) * logDir;
+                if (Vector3.Dot(dir, -f) > 0.7f) continue;
+                float r = PondRadius(s, s.centre + dir * s.water);
+                Vector3 spot = TerrainUtil.Ground(s.centre + dir * (r + 1.8f));
+                if (TerrainUtil.SlopeDegrees(spot) > 15f || InKeepOut(spot)) continue;
+                Residence(group, "Pond mallards", spot, 1.5f, "mallard");
+                break;
+            }
         }
 
         private void PlantPondReeds(Transform group, List<Vector3> clumps, float level)

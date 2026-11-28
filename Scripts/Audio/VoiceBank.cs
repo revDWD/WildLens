@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-// PURE C# (no UnityEngine). The voices of the reserve as data: one recipe per species (twenty-two of the twenty-seven; the other five are
+// PURE C# (no UnityEngine). The voices of the reserve as data: one recipe per species (twenty-three of the thirty-one; the other eight are
 // silent on purpose), three for small life (frogs). Each is a few lines: the calls as notes (pitch sweep, length, gap, texture) and then
 // when and how far it is heard. Tune a species by editing its entry; nothing else needs to change. Rendering is VoiceSynth, scheduling is
 // VoiceRules, playing is VoiceDirector.
@@ -191,6 +191,20 @@ namespace WildLens.Sound
                 songShare: 0, perMin: .12f, period: P(0, 2, 1, 0.36f, .8f, 1.5f), rain: .1f, after: 1, rest: true, flight: true,
                 answer: .2f, minGap: 40, range: 90, near: 8, vol: .55f));
 
+            // The mallard hen's call: a loud, nasal, descending run of quacks (about 1.7 kHz falling to 0.9 kHz over five notes), each shorter and lower
+            // than the one before. Harsh, so buzzy with a little noise and a fast amplitude flutter. The drake's soft, raspy "raeb" is the single call.
+            Add("mallard", "The hen's call is a loud, descending quack-quack-quack-quack.", V(
+                song: C("quack-quack", 22050, S(
+                    N(1700, 1250, .20f, .10f, buzz: .85f, noise: .25f, noiseBw: .3f, am: 85, amDepth: .35f, atk: .012f, dec: .4f),
+                    N(1600, 1150, .18f, .09f, buzz: .85f, noise: .25f, noiseBw: .3f, am: 85, amDepth: .35f, atk: .012f, dec: .4f),
+                    N(1500, 1050, .16f, .09f, buzz: .85f, noise: .25f, noiseBw: .3f, am: 85, amDepth: .35f, atk: .012f, dec: .4f),
+                    N(1400, 950, .13f, .07f, buzz: .85f, noise: .25f, noiseBw: .3f, am: 85, amDepth: .35f, atk: .012f, dec: .4f),
+                    N(1300, 900, .11f, 0, buzz: .85f, noise: .25f, noiseBw: .3f, am: 85, amDepth: .35f, atk: .012f, dec: .4f))),
+                call: C("raeb", 22050, N(1100, 850, .16f, 0, buzz: .8f, noise: .35f, noiseBw: .3f, am: 70, amDepth: .4f, atk: .012f, dec: .4f)),
+                alarm: C("quacks", 22050, Rep(4, N(1650, 1100, .13f, .06f, buzz: .85f, noise: .3f, noiseBw: .3f, am: 90, amDepth: .4f, atk: .01f, dec: .4f))),
+                songShare: .65f, perMin: 1.0f, period: P(.1f, 1.5f, 1.0f, .4f, 1.0f, 1.4f), rain: .3f, after: 1.6f, rest: true, flight: false,
+                alarmChance: .5f, alarmCd: 40, answer: .5f, minGap: 8, range: 100, near: 8, vol: .6f));
+
             // Mammals: nearly all silent. Their only voices are alarms, given when they first notice you.
             Add("white_tailed_deer", "A startled deer blows a sharp, breathy snort.", V(
                 alarm: C("snort", 22050, S(N(2600, 900, .38f, .17f, noise: 1f, noiseBw: .5f, atk: .02f, dec: 1.5f), N(2200, 900, .26f, 0, noise: 1f, noiseBw: .5f, amp: .7f, atk: .02f, dec: 1.5f))),
@@ -215,6 +229,8 @@ namespace WildLens.Sound
                 alarm: C("whistle", 22050, S(N(2600, 3050, .42f, .12f, vib: 18, vibDepth: .008f, dec: .3f), N(2700, 3000, .2f, 0, dec: .3f))),
                 songShare: 0, perMin: 0, alarmChance: .6f, alarmCd: 40, range: 60, near: 5, vol: .5f));
 
+            // Silent on purpose too: the painted turtle, the striped skunk and the garter snake. Turtles and snakes have no call to speak of (a snake's
+            // hiss is a threat, and a threat has no place in a game with no failure states), and a skunk's sounds are a warning: silence is how you meet them.
             // Silent: the red fox, cottontail, raccoon, opossum and black bear. Their sounds (a fox's scream, a bear's huff) are either
             // startling or impossible to make recognisable from code, and in a quiet game their silence is true to how you meet them.
         }

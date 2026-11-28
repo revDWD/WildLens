@@ -77,6 +77,13 @@ namespace WildLens.EditorTools
         /// </summary>
         public void BuildGeography(Transform reserve)
         {
+            // 1.10: with the ravine and the hidden places both off there is no cabin or shelter: the skunk and the garter snake still have a place.
+            if (reserve != null && _sites.Count > 0 && !_s.hemlockRavine && !_s.moreHiddenPlaces)
+            {
+                BuildSkunkAtMeadowEdge(reserve);
+                BuildSnakeAtRidge(reserve);
+                return;
+            }
             if (reserve == null || _sites.Count == 0 || (!_s.hemlockRavine && !_s.moreHiddenPlaces)) return;
             var shared = _rng;
             _rng = new System.Random(_s.seed * 7919 + 1901); // a private stream: nothing built before or after moves
@@ -133,7 +140,9 @@ namespace WildLens.EditorTools
             if (overlook.HasValue) BuildCascadeOverlook(hidden, overlook.Value);
             if (pond != null) BuildHiddenPond(hidden, pond);
             if (shelter != null) BuildRockShelter(hidden, shelter, notes);
+            else BuildSnakeAtRidge(hidden);
             if (cabin.HasValue) BuildCabinRuins(hidden, cabin.Value);
+            else BuildSkunkAtMeadowEdge(hidden);
 
             string ravineText = ravine
                 ? $"Hemlock Ravine {RunLength():0} m (cascade {(_cascade != null ? _cascade.height : 0f):0.0} m in {(_cascade != null ? _cascade.lips.Length : 0)} drops, up to {_ravineDepth:0.0} m deep, footpath {(_ravinePath != null ? _ravinePath.Length : 0f):0} m{(_runCrossings.Count > 0 ? $", {_runCrossings.Count} footbridge(s) over the run" : "")})"

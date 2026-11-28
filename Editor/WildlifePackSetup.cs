@@ -60,12 +60,19 @@ namespace WildLens.EditorTools
             { "eastern_bluebird", (new[] { "bluebird" }, new[] { "sparrow", "finch", "songbird", "bird" }) },
             { "tufted_titmouse", (new[] { "titmouse" }, new[] { "chickadee", "tit=", "sparrow", "songbird", "bird" }) },
             { "louisiana_waterthrush", (new[] { "waterthrush", "thrush" }, new[] { "sparrow", "wren", "songbird", "bird" }) },
+            // 1.10: four species with models of their own (Art~/Animals: Duck, Turtle, Skunk, Snake are exact matches and keep their own colours).
+            // The longer words that could sit inside another ("snake" in "snakeplant", "skunk" in "skunkcabbage", "turtle" in "turtleneck") are whole-word keys.
+            { "mallard", (new[] { "mallard", "duck" }, new string[0]) }, // "duck" is a short key: whole word only ("duckling", "ducky" are not it)
+            { "painted_turtle", (new[] { "turtle=", "terrapin" }, new[] { "tortoise" }) },
+            { "striped_skunk", (new[] { "skunk=" }, new string[0]) },
+            { "common_garter_snake", (new[] { "gartersnake", "garter=", "snake=" }, new[] { "serpent", "viper" }) },
         };
 
         /// <summary>Words that rule a model out for ONE species only ("polar" is not a black bear, "red panda" is still a raccoon stand-in). "=" means whole word.</summary>
         public static readonly Dictionary<string, string[]> SpeciesNever = new Dictionary<string, string[]>
         {
             { "american_black_bear", new[] { "polar=", "panda=", "teddy=", "koala=" } },
+            { "painted_turtle", new[] { "sea=", "marine=", "ninja=", "leatherback" } }, // a sea turtle's flippers are not a pond turtle's legs
         };
 
         /// <summary>
@@ -126,7 +133,7 @@ namespace WildLens.EditorTools
         /// Animals that are future species of their own: never used as a stand-in, not even through a generic folder name
         /// ("Birds/Woodpecker" must not become the cardinal).
         /// </summary>
-        public static readonly string[] Reserved = { "woodpecker", "hummingbird", "duck", "mallard", "goose", "swan" };
+        public static readonly string[] Reserved = { "woodpecker", "hummingbird", "goose", "swan" }; // 1.10: the duck is the mallard's now
 
         /// <summary>
         /// A model whose own name has one of these words is not an animal here (a beetle is not a stag, a skull is not a deer, a
@@ -138,6 +145,8 @@ namespace WildLens.EditorTools
             "beetle", "moth", "bee", "spider", "bug", "ant", "butterfly", "dragonfly", "damselfly", "firefly", "horsefly", "mantis",
             "snail", "fish", "net", "statue", "toy", "hat", "mask", "costume", "skeleton", "bone", "bones", "skull", "meat", "trophy",
             "rug", "pelt",
+            // 1.10: things named after the new species that are not the animal ("Rubber_Duck", "Snake_Plant", "Snake_Skin", "Skunk_Cabbage").
+            "rubber", "plush", "plant", "skin", "cabbage",
             // Rigs, spawners and demo scenes that sit next to a pack's animals ("_livingBirdsController" is not a bird).
             "controller", "manager", "spawner", "system", "demo",
         };

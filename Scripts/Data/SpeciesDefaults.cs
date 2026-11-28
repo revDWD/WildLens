@@ -5,7 +5,7 @@ using WildLens.Sound;
 namespace WildLens.Data
 {
     /// <summary>
-    /// Tuned default values for the reserve's species (the five originals, the 1.1 expansion, the 1.4 and 1.5 additions, the six residents of the trailhead, glades, meadow and deep woods, and the three birds of the 1.9 places: twenty-seven in all). The editor builder writes these out as assets,
+    /// Tuned default values for the reserve's species (the five originals, the 1.1 expansion, the 1.4 and 1.5 additions, the six residents of the trailhead, glades, meadow and deep woods, the three birds of the 1.9 places, and the four of 1.10's pond banks, rock and clearing: thirty-one in all). The editor builder writes these out as assets,
     /// and the game falls back to them at runtime if no database asset is assigned. Tune the assets, not this file.
     /// </summary>
     public static class SpeciesDefaults
@@ -44,6 +44,8 @@ namespace WildLens.Data
                 Crow(), Robin(), Chickadee(), Goldfinch(), SongSparrow(), BlackBear(),
                 // 1.9: three more neighbours for the new places (residents only: they live where a residence places them).
                 EasternBluebird(), TuftedTitmouse(), LouisianaWaterthrush(),
+                // 1.10: four more, each because a place was waiting (the pond banks, the sunken log, the cabin ruins, the shelter's ledge).
+                Mallard(), PaintedTurtle(), StripedSkunk(), CommonGarterSnake(),
             };
         }
 
@@ -630,6 +632,176 @@ namespace WildLens.Data
             s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
             s.weatherHabits = Habits(RhythmPlace.Home, true, After(RhythmPlace.Water, 2.5f));
             Hint(s, "It is busiest along the creek just after rain.");
+            return s;
+        }
+
+        // ------------------------------------------------------------------ 1.10 residents of the banks, the log, the den and the rock
+        // Residents only (groupCount 0), each living where a WildlifeResidence names it. All four are BANK DWELLERS: they walk, they never swim
+        // or fly, and `maxStepDown` keeps them out of the water. The turtle and the snake are cold-blooded and sit still for minutes, so
+        // their rhythm is Home all day (the log, the rock) and the clock moves them only through their behaviour weights: they rest hardest
+        // at midday (WeatherHabitRules.Bias) and shuffle about at the ends of the day. No hide, dive or swim system exists, by design.
+
+        public static SpeciesDefinition Mallard()
+        {
+            var s = New("mallard", "Mallard", "Anas platyrhynchos",
+                "The commonest dabbling duck: the drake has a glossy green head, a white collar and a chestnut breast on a grey body. Pairs loaf on " +
+                "the bank among the reeds, tip up in the shallows and doze through the middle of the day. Wary but not shy: sit still and they settle.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.GroundBird, length = 0.5f, height = 0.3f, legLength = 0.08f, neckLength = 0.09f,
+                headSize = 0.05f, snoutLength = 0.05f, tailLength = 0.1f, tailThickness = 0.03f,
+                headColor = new Color(0.09f, 0.34f, 0.2f), // the drake's green head
+            };
+            s.primaryColor = new Color(0.5f, 0.48f, 0.44f);   // grey-brown body
+            s.secondaryColor = new Color(0.46f, 0.27f, 0.2f); // chestnut breast
+            s.accentColor = new Color(0.07f, 0.07f, 0.08f);
+            s.habitat = HabitatPreference.OpenMeadow;
+            s.groupCount = 0; s.groupSize = new Vector2Int(2, 3); // a pair or a trio at each pond's bank (residents only)
+            s.spawnDistanceFromTrail = new Vector2(5f, 25f);
+            s.preferredHotspots = HotspotType.Water; s.hotspotAffinity = 1f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.5f; s.runSpeed = 3f; s.turnSpeed = 100f; s.gaitFrequency = 2.4f;
+            s.wanderRadius = 6f; s.behaviorChance = 0.8f; s.runLegChance = 0f; s.maxSlope = 25f;
+            s.maxStepDown = 0.1f; // it loafs and dabbles on the bank; it does not swim
+            // Calmer than the heron (42 / 28 / 16): the duck of a park pond, but still a wild bird.
+            Awareness(s, aware: 30f, alert: 18f, flee: 8f, gain: 1f, decay: 0.2f, patience: 4f, startle: 1.1f);
+            s.fleeDistanceRange = new Vector2(7f, 12f);
+            s.photoSizeScale = 0.65f; s.clearPhotoDistance = 25f; s.observationTime = 1.1f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 5f, 3f, 8f));       // dabbling (the Peck clip)
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 2.5f, 10f, 25f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1.5f, 3f, 7f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 1f, 6f, 14f));
+            // Home is the bank by the reeds (a Water-place rhythm would send it to the far shore, across the pond it cannot cross).
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            s.weatherHabits = Habits(null, true); // rain does not move it; just after rain it dabbles most
+            Hint(s, "It dabbles along the bank in the morning and evening and dozes at midday; rain never troubles it, and afterwards it feeds the most.");
+            return s;
+        }
+
+        public static SpeciesDefinition PaintedTurtle()
+        {
+            var s = New("painted_turtle", "Painted Turtle", "Chrysemys picta",
+                "A small turtle with a smooth dark shell edged in red and a head and neck striped with yellow. Cold-blooded, it climbs out to sun itself " +
+                "beside a log or on the warm bank, often several together, and edges for the water if you hurry. A slow, low approach gets close.",
+                PlaceholderBody.Generic);
+            // The lowest, flattest body the generic quadruped allows (its back is never lower than 8 cm), with the legs hidden under the shell.
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.14f, height = 0.09f, legLength = 0.01f, neckLength = 0.02f,
+                headSize = 0.035f, snoutLength = 0.01f, earSize = 0.001f, tailLength = 0.03f, tailThickness = 0.012f,
+                headColor = new Color(0.3f, 0.34f, 0.14f),
+            };
+            s.primaryColor = new Color(0.14f, 0.17f, 0.08f);   // dark olive shell
+            s.secondaryColor = new Color(0.82f, 0.72f, 0.28f); // the yellow underside
+            s.accentColor = new Color(0.6f, 0.15f, 0.1f);      // red-striped legs and shell edge
+            s.habitat = HabitatPreference.OpenMeadow;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 1); // one to a residence: two beside the Basking Log, one at the Sunken Log
+            s.spawnDistanceFromTrail = new Vector2(2f, 10f);
+            s.preferredHotspots = HotspotType.Water; s.hotspotAffinity = 1f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.15f; s.runSpeed = 0.4f; s.turnSpeed = 60f; s.gaitFrequency = 1f;
+            s.wanderRadius = 1.5f; s.behaviorChance = 0.9f; s.runLegChance = 0f; s.maxSlope = 20f;
+            s.maxStepDown = 0.12f; // wades into the shallows at most
+            // Tiny distances, large startle: it freezes at a walker's pace and bolts for the water at a run, so patience always works.
+            Awareness(s, aware: 9f, alert: 4.5f, flee: 1.8f, gain: 0.9f, decay: 0.3f, patience: 6f, startle: 1.5f);
+            s.fleeDistanceRange = new Vector2(1.5f, 3f);
+            // 0.16 m long: at 16x (frame 0.1037 m wide per metre of distance) it fills 0.16 / (0.1037 d) = 1.54 / d of the frame width; with the scale
+            // 0.45 Excellent needs 0.1125, so it holds to 13.7 m: the 11 m clear distance (outside its 4.5 m alert radius) is the limit that binds.
+            s.photoSizeScale = 0.45f; s.clearPhotoDistance = 11f; s.observationTime = 1.2f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 5f, 20f, 45f));      // basking
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 3f, 15f, 30f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1.2f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 1f, 4f, 8f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.3f, 3f, 6f));
+            // Home is the log's waterline, the whole day: with no dive system the turtle stays visible and simply rests (hardest at midday,
+            // WeatherHabitRules.Bias), and the fair-weather habit below says so in data: grey or wet, its place is still Home.
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            s.weatherHabits = Habits(RhythmPlace.Home, false);
+            s.weatherHabits.fairOnlyPeriods = WeatherHabits.PeriodMask(2, 3, 4);
+            s.weatherHabits.foulPlace = RhythmPlace.Home;
+            Hint(s, "On a sunny midday look for them side by side at the water's edge, beside a half-sunk log.");
+            return s;
+        }
+
+        public static SpeciesDefinition StripedSkunk()
+        {
+            var s = New("striped_skunk", "Striped Skunk", "Mephitis mephitis",
+                "A cat-sized forager in black and white, its bushy tail carried high. Unhurried and unbothered, it grubs for beetles at the edge of the " +
+                "clearing as the light goes and ambles off from anything that troubles it. By day it dens under old stone. Give it room and it gives you a photograph.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.4f, height = 0.26f, legLength = 0.07f, neckLength = 0.04f,
+                headSize = 0.1f, snoutLength = 0.04f, earSize = 0.03f, tailLength = 0.28f, tailThickness = 0.1f,
+            };
+            s.primaryColor = new Color(0.06f, 0.06f, 0.065f);  // black
+            s.secondaryColor = new Color(0.92f, 0.92f, 0.9f);  // the white stripe and blaze
+            s.accentColor = new Color(0.05f, 0.05f, 0.05f);
+            s.habitat = HabitatPreference.ForestEdge;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 1); // exactly one, resident at the Old Cabin Ruins (else the blind meadow's edge)
+            s.spawnDistanceFromTrail = new Vector2(10f, 35f);
+            s.preferredHotspots = HotspotType.Meadow | HotspotType.BrushPile; s.hotspotAffinity = 0.7f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.6f; s.runSpeed = 3f; s.turnSpeed = 90f; s.gaitFrequency = 2.2f;
+            s.wanderRadius = 12f; s.behaviorChance = 0.8f; s.runLegChance = 0f; s.maxSlope = 30f;
+            // Unbothered: a small circle of notice, a long patience, and when pushed it ambles off rather than bolting. It never sprays: no failure states.
+            Awareness(s, aware: 20f, alert: 11f, flee: 4.5f, gain: 0.75f, decay: 0.22f, patience: 7f, startle: 0.7f);
+            s.fleeDistanceRange = new Vector2(5f, 9f);
+            s.photoSizeScale = 0.75f; s.clearPhotoDistance = 20f; s.observationTime = 1.2f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 4.5f, 4f, 9f));     // grubbing
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 3f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1.5f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 2f, 12f, 25f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.7f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 0.5f, 4f, 9f));
+            // Denned by day; out at the meadow's edge from golden hour, through dusk and the night. A grey afternoon brings it out early (overcastEarly);
+            // rain keeps it in its den.
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.MeadowEdge, RhythmPlace.MeadowEdge, RhythmPlace.MeadowEdge);
+            s.weatherHabits = Habits(RhythmPlace.Home, false);
+            s.weatherHabits.overcastEarly = true;
+            Hint(s, "A grey afternoon brings it out early; in rain it keeps to its den.");
+            return s;
+        }
+
+        public static SpeciesDefinition CommonGarterSnake()
+        {
+            var s = New("common_garter_snake", "Common Garter Snake", "Thamnophis sirtalis",
+                "A slim, dark, harmless snake with three pale yellow stripes along its length. It stretches out on warm rock to sun itself through the morning " +
+                "and early afternoon, flicking its tongue, and slides for cover at a hurried step. Come slowly and it lets you look.",
+                PlaceholderBody.Generic);
+            // The longest, lowest generic quadruped: legs are 1 cm stubs (a leg length of 0 would make zero-size meshes) and the body's
+            // minimum thickness (8 cm) is the placeholder's one compromise; the real model is a slim snake.
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 0.6f, height = 0.09f, legLength = 0.01f, neckLength = 0.02f,
+                headSize = 0.04f, snoutLength = 0.012f, earSize = 0.001f, tailLength = 0.2f, tailThickness = 0.03f,
+            };
+            s.primaryColor = new Color(0.12f, 0.13f, 0.08f);   // dark olive-black
+            s.secondaryColor = new Color(0.85f, 0.8f, 0.35f);  // the yellow stripes (belly and snout in the placeholder)
+            s.accentColor = new Color(0.07f, 0.07f, 0.05f);
+            s.habitat = HabitatPreference.OpenMeadow;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 1); // one to a residence: two on the Rock Shelter's flank
+            s.spawnDistanceFromTrail = new Vector2(5f, 30f);
+            s.preferredHotspots = HotspotType.None; s.hotspotAffinity = 0f; // Home only: it lives on its rock
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.5f; s.runSpeed = 2.2f; s.turnSpeed = 140f; s.gaitFrequency = 1.6f;
+            s.wanderRadius = 2.5f; s.behaviorChance = 0.85f; s.runLegChance = 0f; s.maxSlope = 30f;
+            s.maxStepDown = 0.3f;
+            // Quick to slip away from a hurried step (large startle), tolerant of a slow, quiet approach (long patience).
+            Awareness(s, aware: 10f, alert: 5.5f, flee: 2.5f, gain: 1.1f, decay: 0.3f, patience: 6f, startle: 1.5f);
+            s.fleeDistanceRange = new Vector2(3f, 6f);
+            s.photoSizeScale = 0.5f; s.clearPhotoDistance = 14f; s.observationTime = 1.2f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 5f, 20f, 45f));      // basking
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 3f, 15f, 30f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 1.5f, 3f, 6f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sniffing, 1f, 3f, 6f));       // tongue flicking
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            s.weatherHabits = Habits(RhythmPlace.Home, false);
+            s.weatherHabits.fairOnlyPeriods = WeatherHabits.PeriodMask(2, 3, 4);
+            s.weatherHabits.foulPlace = RhythmPlace.Home;
+            Hint(s, "On a fair morning look for it stretched out on the warm rock; a slow approach lets you look.");
             return s;
         }
 

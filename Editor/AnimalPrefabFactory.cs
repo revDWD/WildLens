@@ -286,6 +286,8 @@ namespace WildLens.EditorTools
             { "great_blue_heron", 1.2f }, { "spotted_sandpiper", 0.19f },
             { "eastern_bluebird", 0.18f }, { "tufted_titmouse", 0.16f }, { "louisiana_waterthrush", 0.15f }, // 1.9
             { "american_black_bear", 1.6f }, { "coyote", 1.25f }, { "raccoon", 0.80f }, { "virginia_opossum", 0.75f }, { "groundhog", 0.60f },
+            // 1.10: a duck (beak to tail, a GroundBird, so measured along Z), a painted turtle's shell, a skunk with its tail, a garter snake's length.
+            { "mallard", 0.58f }, { "painted_turtle", 0.16f }, { "striped_skunk", 0.65f }, { "common_garter_snake", 0.70f },
         };
 
         /// <summary>Species whose size is the model's standing height (Y), not its length.</summary>
@@ -1370,7 +1372,8 @@ namespace WildLens.EditorTools
             // Locomotion: idle → walk → trot → run on Speed, thresholds from the species' own speeds.
             var tree = new BlendTree { name = "Locomotion", blendType = BlendTreeType.Simple1D, blendParameter = "Speed", useAutomaticThresholds = false };
             AssetDatabase.AddObjectToAsset(tree, ctrl);
-            float walk = Mathf.Max(0.3f, species.walkSpeed), run = Mathf.Max(walk * 2f, species.runSpeed);
+            // 1.10: the walk clip's threshold is the species' own walk speed (a turtle's 0.15 m/s), never below 0.1; every earlier species walks at 0.4 or more.
+            float walk = Mathf.Max(0.1f, species.walkSpeed), run = Mathf.Max(walk * 2f, species.runSpeed);
             var idle = Pick(ClipRole.Idle, ClipRole.Look);
             if (idle != null) tree.AddChild(idle, 0f);
             var walkClip = Pick(ClipRole.Walk);

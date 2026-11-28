@@ -457,11 +457,14 @@ namespace WildLens.Wildlife
             Vector3 next = pos + Dir(_heading) * (moveSpeed * dt);
             next.y = TerrainUtil.SampleHeight(next);
 
-            if (moveSpeed > 0.01f && TerrainUtil.SlopeDegrees(next) > Species.maxSlope)
+            // 1.10: a bank dweller (duck, turtle, snake) stops at the water's edge: ground well below its home is the pond.
+            bool wet = Species.maxStepDown > 0f && next.y < HomePosition.y - Species.maxStepDown;
+            if (moveSpeed > 0.01f && (wet || TerrainUtil.SlopeDegrees(next) > Species.maxSlope))
             {
                 next = new Vector3(pos.x, TerrainUtil.SampleHeight(pos), pos.z);
                 _speed *= 0.5f;
                 if (_mode == Mode.Moving) _target = PickWanderTarget();
+                else if (_mode == Mode.Fleeing && wet) _target = next; // it has run as far as the bank allows: stop and look back
             }
 
             Velocity = (next - pos) / dt;
@@ -514,6 +517,7 @@ namespace WildLens.Wildlife
         private bool IsWalkable(Vector3 p)
         {
             if (TerrainUtil.SlopeDegrees(p) > Species.maxSlope) return false;
+            if (Species.maxStepDown > 0f && TerrainUtil.SampleHeight(p) < HomePosition.y - Species.maxStepDown) return false; // 1.10: not into the water
             if (World != null && World.TryGetNearestObstacle(p, 3f, out var ob) &&
                 TerrainUtil.FlatDistance(p, ob.basePosition) < ob.radius + 0.4f) return false;
             return true;
