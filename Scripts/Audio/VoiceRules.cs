@@ -65,7 +65,7 @@ namespace WildLens.Sound
         {
             if (raining) return 0f;
             float ramp;
-            if (hour >= 18.75f) ramp = Clamp01((hour - 18.75f) / 1.25f);       // rising through dusk
+            if (hour >= 18.5f) ramp = Clamp01((hour - 18.5f) / 1.0f);         // rising from the start of dusk, full by 19:30
             else if (hour < 5.5f) ramp = Clamp01((5.5f - hour) / 1.0f);        // fading out through dawn
             else ramp = 0f;
             return ramp * (hoursSinceRain < 3f ? 0.35f : 1f);

@@ -17,12 +17,13 @@ namespace WildLens.Data
             return all;
         }
 
-        /// <summary>2.0: gives a species its default voice (VoiceBank) and the one field-guide sentence that describes it, added last so it ends the notes.</summary>
+        /// <summary>
+        /// 2.0: adds the one field-guide sentence that describes a species' voice, added last so it ends the notes. The voice itself is NOT copied onto
+        /// the asset: VoiceBank is the single place voices are tuned, and the VoiceDirector falls back to it for any asset whose own voice is not enabled.
+        /// </summary>
         private static void AddVoice(SpeciesDefinition s)
         {
-            var v = VoiceBank.Copy(s.speciesId);
-            if (v == null) return; // silent species: fox, cottontail, raccoon, opossum, black bear
-            s.voice = v;
+            if (VoiceBank.For(s.speciesId) == null) return; // silent species: fox, cottontail, raccoon, opossum, black bear
             string note = VoiceBank.Note(s.speciesId);
             if (!string.IsNullOrEmpty(note)) Hint(s, note);
         }
@@ -690,10 +691,11 @@ namespace WildLens.Data
         public static void ApplyHabits(SpeciesDefinition target, SpeciesDefinition source)
         {
             if (target == null || source == null) return;
-            if (source.weatherHabits != null && source.weatherHabits.enabled) target.weatherHabits = source.weatherHabits.Clone();
+            // Habits arrive only where the asset has none of its own (a v3 asset gets them; a v4 asset keeps whatever it has been tuned to).
+            if (source.weatherHabits != null && source.weatherHabits.enabled && (target.weatherHabits == null || !target.weatherHabits.enabled))
+                target.weatherHabits = source.weatherHabits.Clone();
             MigrateNotes(target, source);
-            // 2.0: a voice arrives only where the asset has none of its own (never over one tuned by hand).
-            if (source.voice != null && source.voice.enabled && (target.voice == null || !target.voice.enabled)) target.voice = VoiceBank.Clone(source.voice);
+            // Voices are never copied onto assets: VoiceBank is the single tuning point (an asset's own enabled voice still wins).
             if (RhythmRevisedIn19.Contains(source.speciesId) && source.rhythm != null && source.rhythm.enabled && RhythmIsPre19Default(target.rhythm, source.speciesId))
                 target.rhythm = new DailyRhythm(source.rhythm.dawn, source.rhythm.morning, source.rhythm.midday, source.rhythm.goldenHour, source.rhythm.dusk, source.rhythm.night);
             if (ColoursRevisedIn19.Contains(source.speciesId) && ColoursMayChange(target, source.speciesId))
@@ -706,16 +708,25 @@ namespace WildLens.Data
 
         /// <summary>
         /// The turkey's colours were revised again in 2.0 (the 1.9 ones rendered almost black): an asset still on the 1.8 or 1.9 default (or any
-        /// colour darker than a luminance of 0.2) takes the new ones; a turkey tuned by hand to something brighter is left alone. The fox is unchanged.
+        /// colour darker than a luminance of 0.2) takes the new ones; a turkey tuned by hand to something brighter is left alone. The fox's 1.9
+        /// colours are delivered only to an asset still on the pre-1.9 default, so a v4 fox (already given them, perhaps tuned since) is untouched.
         /// </summary>
         private static bool ColoursMayChange(SpeciesDefinition target, string id)
         {
+            if (id == "red_fox")
+            {
+                // The fox default before 1.9 (git a54f1fa): all three colours must still be exactly it.
+                return Near(target.primaryColor, 0.78f, 0.36f, 0.12f) && Near(target.secondaryColor, 0.95f, 0.93f, 0.9f) && Near(target.accentColor, 0.14f, 0.1f, 0.08f);
+            }
             if (id != "wild_turkey") return true;
             Color p = target.primaryColor;
             float lum = 0.2126f * p.r + 0.7152f * p.g + 0.0722f * p.b;
             bool v18 = Mathf.Abs(p.r - 0.3f) < 0.01f && Mathf.Abs(p.g - 0.23f) < 0.01f && Mathf.Abs(p.b - 0.15f) < 0.01f;
             return lum < 0.2f || v18;
         }
+
+        private static bool Near(Color c, float r, float g, float b) =>
+            Mathf.Abs(c.r - r) < 0.01f && Mathf.Abs(c.g - g) < 0.01f && Mathf.Abs(c.b - b) < 0.01f;
 
         /// <summary>
         /// Field notes: an empty note or one still equal to the species' previous default (the default without its 1.9 hint) takes the new

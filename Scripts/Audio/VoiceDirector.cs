@@ -60,6 +60,8 @@ namespace WildLens.Sound
         private static readonly Dictionary<VoiceCall, AudioClip> Clips = new Dictionary<VoiceCall, AudioClip>();
         private static AudioClip _crickets, _buzz;
         private static long _clipBytes;
+        /// <summary>The frame in which a clip was last synthesised: at most one clip is rendered per frame (the render is a 30-100 ms stall).</summary>
+        private static int _synthFrame = -1;
         /// <summary>Memory held by the generated clips (bytes), for diagnostics.</summary>
         public static long ClipBytes => _clipBytes;
 
@@ -70,7 +72,11 @@ namespace WildLens.Sound
         private AudioSource _cricketSource, _beeSource;
         private Transform _listener;
         private WildlifeSpawner _spawner;
-        private float _nextPoll, _nextClean, _nextListenerSearch, _lastPoll = -1f, _alarmGlobalReady;
+        private float _nextPoll, _nextClean, _nextListenerSearch, _nextSpawnerSearch, _lastPoll = -1f, _alarmGlobalReady;
+        private bool _deferred;                 // the last Play found its clip not yet rendered (frame budget): try again on a later poll
+        private bool _warmBuilt;
+        private int _warmIndex, _warmBed;
+        private readonly List<VoiceCall> _warm = new List<VoiceCall>();
         private float _cricketTarget, _cricketNow, _beeTarget, _beeNow;
         private Transform _beeFollow;
         private VoiceConditions _cond;
@@ -82,8 +88,17 @@ namespace WildLens.Sound
         private static void ResetStatics()
         {
             Instance = null;
+            // Enter Play Mode without a domain reload keeps statics: free the generated clips so they do not leak.
+            foreach (var kv in Clips) DestroyClip(kv.Value);
             Clips.Clear();
-            _crickets = null; _buzz = null; _clipBytes = 0;
+            DestroyClip(_crickets); DestroyClip(_buzz);
+            _crickets = null; _buzz = null; _clipBytes = 0; _synthFrame = -1;
+        }
+
+        private static void DestroyClip(AudioClip clip)
+        {
+            if (clip == null) return;
+            if (Application.isPlaying) Destroy(clip); else DestroyImmediate(clip);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -164,6 +179,7 @@ namespace WildLens.Sound
                 return;
             }
             Follow(dt);
+            Warm();
             if (Time.time < _nextPoll) return;
             _nextPoll = Time.time + PollInterval;
             Poll();
@@ -206,17 +222,28 @@ namespace WildLens.Sound
             _cricketNow = Mathf.MoveTowards(_cricketNow, _cricketTarget, dt * 0.25f);
             if (_cricketNow > 0.003f)
             {
-                if (!_cricketSource.isPlaying) { _cricketSource.clip = Crickets(); _cricketSource.time = (float)_rng.NextDouble() * 5f; _cricketSource.Play(); }
-                _cricketSource.volume = _cricketNow * cricketLevel * masterVolume * BedCover();
+                if (!_cricketSource.isPlaying)
+                {
+                    var cc = Crickets(); // null: rendered on a later frame (one clip per frame); the source stays unstarted and this retries
+                    if (cc != null) { _cricketSource.clip = cc; _cricketSource.time = (float)_rng.NextDouble() * 5f; _cricketSource.Play(); }
+                }
+                if (_cricketSource.isPlaying) _cricketSource.volume = _cricketNow * cricketLevel * masterVolume * BedCover();
             }
             else if (_cricketSource.isPlaying) _cricketSource.Stop();
 
             _beeNow = Mathf.MoveTowards(_beeNow, _beeFollow != null ? _beeTarget : 0f, dt * 1.5f);
             if (_beeNow > 0.003f && _beeFollow != null)
             {
-                if (!_beeSource.isPlaying) { _beeSource.clip = Buzz(); _beeSource.Play(); }
-                _beeSource.transform.position = _beeFollow.position;
-                _beeSource.volume = _beeNow * 0.07f * masterVolume;
+                if (!_beeSource.isPlaying)
+                {
+                    var bc = Buzz(); // null: not rendered yet this frame; retry next frame
+                    if (bc != null) { _beeSource.clip = bc; _beeSource.Play(); }
+                }
+                if (_beeSource.isPlaying)
+                {
+                    _beeSource.transform.position = _beeFollow.position;
+                    _beeSource.volume = _beeNow * 0.07f * masterVolume;
+                }
             }
             else if (_beeSource.isPlaying) _beeSource.Stop();
         }
@@ -256,8 +283,7 @@ namespace WildLens.Sound
             _cricketTarget = VoiceRules.CricketLevel(_cond.hour, _cond.raining, _cond.hoursSinceRain);
 
             if (Time.time >= _nextClean) { _nextClean = Time.time + 20f; Clean(); }
-            var game = WildLensGame.Instance;
-            if (game != null && game.IsUiOpen) return; // paused: nothing new starts
+            // No "menu open" branch: a menu sets Time.timeScale to 0, so Time.time stands still and this poll does not run; sounding calls simply finish.
 
             Vector3 lp = ListenerPos;
             PollAnimals(lp, dtPoll);
@@ -295,10 +321,24 @@ namespace WildLens.Sound
         private static bool IsFlying(AnimalActivity a) =>
             a == AnimalActivity.Flying || a == AnimalActivity.Soaring || a == AnimalActivity.Gliding || a == AnimalActivity.TakingOff || a == AnimalActivity.Landing;
 
+        private bool FindSpawner()
+        {
+            if (_spawner != null) return true;
+            if (Time.unscaledTime < _nextSpawnerSearch) return false;
+            _nextSpawnerSearch = Time.unscaledTime + 2f;
+            _spawner = SceneQuery.FindOne<WildlifeSpawner>();
+            return _spawner != null;
+        }
+
+        private void ClearAnswer(Component c)
+        {
+            Singer s;
+            if (_singers.TryGetValue(c, out s)) s.answerAt = -1f;
+        }
+
         private void PollAnimals(Vector3 lp, float dt)
         {
-            if (_spawner == null) _spawner = SceneQuery.FindOne<WildlifeSpawner>();
-            if (_spawner == null) return;
+            if (!FindSpawner()) return;
             var list = _spawner.Spawned;
             for (int i = 0; i < list.Count; i++)
             {
@@ -306,9 +346,10 @@ namespace WildLens.Sound
                 if (a == null || a.Species == null) continue;
                 Vector3 pos = a.transform.position;
                 float d2 = (pos - lp).sqrMagnitude;
-                if (d2 > 125f * 125f) continue; // no voice reaches farther: skip before anything else
+                if (d2 > 125f * 125f) { ClearAnswer(a); continue; } // no voice reaches farther: skip before anything else
                 var r = Resolve(a.Species);
-                if (r == null || d2 > r.range * r.range) continue;
+                if (r == null) continue;
+                if (d2 > r.range * r.range) { ClearAnswer(a); continue; } // out of earshot: a queued answer is forgotten, never saved for later
                 var st = Get(a);
                 var aware = a.Awareness != null ? a.Awareness.State : AwarenessState.Calm;
                 float now = Time.time;
@@ -316,8 +357,9 @@ namespace WildLens.Sound
                 // Natural alarm: the first moment it notices something enough to go Alert.
                 if (aware != st.lastAware)
                 {
-                    if (aware == AwarenessState.Alert && st.lastAware != AwarenessState.Fleeing) TryAlarm(a, r, st, pos, now);
-                    st.lastAware = aware;
+                    bool wait = false;
+                    if (aware == AwarenessState.Alert && st.lastAware != AwarenessState.Fleeing) wait = TryAlarm(a, r, st, pos, now);
+                    if (!wait) st.lastAware = aware; // a deferred alarm (clip not rendered yet) keeps the transition pending for the next poll
                 }
                 if (aware == AwarenessState.Alert || aware == AwarenessState.Fleeing) continue;
                 if (aware == AwarenessState.Aware && !r.awareOk) continue;
@@ -325,13 +367,14 @@ namespace WildLens.Sound
                 bool flying = IsFlying(a.Activity);
                 if (flying ? !r.inFlight : !r.atRest) continue;
 
+                if (st.answerAt >= 0f && now > st.answerAt + 3f) st.answerAt = -1f; // a stale answer is dropped, never played late
                 bool reply = st.answerAt >= 0f && now >= st.answerAt;
                 bool fire = false;
                 float rate = VoiceRules.Rate(r, _cond, false);
                 if (reply)
                 {
-                    st.answerAt = -1f;
                     fire = rate > 0f && now >= st.nextAllowed;
+                    if (!fire) st.answerAt = -1f;
                 }
                 else if (rate > 0f && now >= st.nextAllowed && now >= st.inhibitUntil)
                     fire = _rng.NextDouble() < VoiceRules.Chance(rate, dt);
@@ -343,23 +386,28 @@ namespace WildLens.Sound
                 var call = song ? r.song : r.call;
                 if (call == null || !call.Has) continue;
                 float len;
-                if (!Play(call, r, a.transform, pos, false, 1f, out len)) continue;
+                if (!Play(call, r, a.transform, pos, false, 1f, out len)) continue; // nothing has changed: a deferred clip is simply retried
+                if (reply) st.answerAt = -1f;
                 st.nextAllowed = now + len + r.minGap * (0.7f + (float)_rng.NextDouble() * 0.8f);
                 Neighbours(a, r, st, pos, now, len, reply);
             }
         }
 
-        private void TryAlarm(AnimalAgent a, VoiceRecipe r, Singer st, Vector3 pos, float now)
+        /// <summary>Returns true when the alarm must wait (its clip is not rendered yet): nothing was rolled or changed, so the next poll tries again.</summary>
+        private bool TryAlarm(AnimalAgent a, VoiceRecipe r, Singer st, Vector3 pos, float now)
         {
-            if (r.alarm == null || !r.alarm.Has || r.alarmChance <= 0f) return;
-            if (now < st.alarmReady || now < _alarmGlobalReady) return;
-            if (_animalVoices >= VoiceRules.MaxAnimalVoices) return;
-            if (_rng.NextDouble() > r.alarmChance) return;
+            if (r.alarm == null || !r.alarm.Has || r.alarmChance <= 0f) return false;
+            if (now < st.alarmReady || now < _alarmGlobalReady) return false;
+            if (_animalVoices >= VoiceRules.MaxAnimalVoices) return false;
+            bool deferred;
+            if (ClipFor(r.alarm, out deferred) == null) return deferred; // render first, so the dice are only thrown when the call can sound
+            if (_rng.NextDouble() > r.alarmChance) return false;
             float len;
-            if (!Play(r.alarm, r, a.transform, pos, false, AlarmBoost, out len)) return;
+            if (!Play(r.alarm, r, a.transform, pos, false, AlarmBoost, out len)) return false;
             st.alarmReady = now + r.alarmCooldown * (0.8f + (float)_rng.NextDouble() * 0.5f);
             st.nextAllowed = now + len + 4f;
             _alarmGlobalReady = now + 3f;
+            return false;
         }
 
         /// <summary>After a call: same-species neighbours stay quiet a few seconds, and one of them may answer a moment after it ends.</summary>
@@ -412,18 +460,20 @@ namespace WildLens.Sound
                 if (r == null) continue;
                 Vector3 pos = ms.transform.position;
                 float d2 = (pos - lp).sqrMagnitude;
-                if (d2 > r.range * r.range) continue;
+                if (d2 > r.range * r.range) { ClearAnswer(ms); continue; }
                 var st = Get(ms);
+                if (st.answerAt >= 0f && now > st.answerAt + 3f) st.answerAt = -1f; // stale chorus answers are dropped
                 bool reply = st.answerAt >= 0f && now >= st.answerAt;
                 float rate = VoiceRules.Rate(r, _cond, true);
                 if (rate <= 0f) { st.answerAt = -1f; continue; }
                 bool fire;
-                if (reply) { st.answerAt = -1f; fire = now >= st.nextAllowed; }
+                if (reply) { fire = now >= st.nextAllowed; if (!fire) st.answerAt = -1f; }
                 else fire = now >= st.nextAllowed && _rng.NextDouble() < VoiceRules.Chance(rate, dt);
                 if (!fire || _frogVoices >= VoiceRules.MaxFrogVoices) continue;
                 var call = r.call;
                 float len;
                 if (call == null || !call.Has || !Play(call, r, ms.transform, pos, true, 1f, out len)) continue;
+                if (reply) st.answerAt = -1f;
                 st.nextAllowed = now + len + r.minGap * (0.7f + (float)_rng.NextDouble() * 0.8f);
                 Chorus(active, ms, r, pos, now, len, reply);
             }
@@ -453,12 +503,13 @@ namespace WildLens.Sound
         private bool Play(VoiceCall call, VoiceRecipe r, Transform follow, Vector3 pos, bool frog, float boost, out float length)
         {
             length = 0f;
+            _deferred = false;
             Slot slot = null;
             for (int i = 0; i < _slots.Length; i++)
                 if (!_slots[i].busy && _slots[i].frog == frog) { slot = _slots[i]; break; }
             if (slot == null) return false;
-            var clip = ClipFor(call);
-            if (clip == null) return false;
+            var clip = ClipFor(call, out _deferred);
+            if (clip == null) return false; // before any state is touched
             float pitch = 1f + ((float)_rng.NextDouble() * 2f - 1f) * 0.03f;
             var src = slot.source;
             src.clip = clip;
@@ -478,12 +529,19 @@ namespace WildLens.Sound
             return true;
         }
 
-        private static AudioClip ClipFor(VoiceCall call)
+        /// <summary>
+        /// The clip of a call, rendered on first use. At most one clip is synthesised per frame: when another was already rendered this frame,
+        /// returns null with <paramref name="deferred"/> true and the caller retries on a later poll. Null with deferred false: nothing to play.
+        /// </summary>
+        private static AudioClip ClipFor(VoiceCall call, out bool deferred)
         {
+            deferred = false;
             AudioClip clip;
             if (Clips.TryGetValue(call, out clip) && clip != null) return clip;
+            if (_synthFrame == Time.frameCount) { deferred = true; return null; }
             float[] data = VoiceSynth.RenderCall(call, call.name != null ? call.name.GetHashCode() & 0xffff : 1);
             if (data.Length == 0) return null;
+            _synthFrame = Time.frameCount;
             int rate = call.rate > 4000 ? call.rate : 22050;
             clip = AudioClip.Create("Voice_" + call.name, data.Length, 1, rate, false);
             clip.SetData(data, 0);
@@ -495,6 +553,8 @@ namespace WildLens.Sound
         private static AudioClip Crickets()
         {
             if (_crickets != null) return _crickets;
+            if (_synthFrame == Time.frameCount) return null;
+            _synthFrame = Time.frameCount;
             var d = VoiceSynth.RenderCrickets(22050, 6f, 3);
             _crickets = AudioClip.Create("Crickets", d.Length, 1, 22050, false);
             _crickets.SetData(d, 0);
@@ -505,11 +565,75 @@ namespace WildLens.Sound
         private static AudioClip Buzz()
         {
             if (_buzz != null) return _buzz;
+            if (_synthFrame == Time.frameCount) return null;
+            _synthFrame = Time.frameCount;
             var d = VoiceSynth.RenderBuzz(22050);
             _buzz = AudioClip.Create("BeeBuzz", d.Length, 1, 22050, false);
             _buzz.SetData(d, 0);
             _clipBytes += d.Length * 4L;
             return _buzz;
+        }
+
+        // ------------------------------------------------------------------ warming the cache
+
+        /// <summary>
+        /// Gently renders the clips before they are needed: one not-yet-cached clip every tenth frame (never two in a frame, never in a frame that already
+        /// rendered one), in order of likely use: the species actually present (song, call, alarm), the frogs, then the cricket and bee beds.
+        /// By the first dawn everything is ready, so no chorus ever stalls on synthesis.
+        /// </summary>
+        private void Warm()
+        {
+            if (Time.timeScale <= 0f || Time.time < 3f || Time.frameCount % 10 != 0 || _synthFrame == Time.frameCount) return;
+            if (!_warmBuilt)
+            {
+                if (!FindSpawner() && Time.time < 12f) return; // give the spawner a moment; without one, warm what there is
+                BuildWarmList();
+                _warmBuilt = true;
+            }
+            while (_warmIndex < _warm.Count)
+            {
+                var call = _warm[_warmIndex++];
+                AudioClip c;
+                if (Clips.TryGetValue(call, out c) && c != null) continue; // already rendered
+                bool deferred;
+                ClipFor(call, out deferred);
+                return;
+            }
+            if (_warmBed == 0) { _warmBed = 1; if (_crickets == null) { Crickets(); return; } }
+            if (_warmBed == 1) { _warmBed = 2; if (_buzz == null) Buzz(); }
+        }
+
+        private void BuildWarmList()
+        {
+            if (_spawner != null)
+            {
+                var seen = new HashSet<string>();
+                var list = _spawner.Spawned;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var a = list[i];
+                    if (a == null || a.Species == null || !seen.Add(a.Species.speciesId)) continue;
+                    var r = Resolve(a.Species);
+                    if (r == null) continue;
+                    AddWarm(r.song); AddWarm(r.call); AddWarm(r.alarm);
+                }
+            }
+            foreach (var ms in MacroSubject.Active)
+            {
+                if (ms == null || ms.subject == null || ms.subject.group != SubjectGroup.Frog) continue;
+                var fr = VoiceBank.ForSubject(ms.subject.subjectId);
+                if (fr != null) AddWarm(fr.call);
+            }
+            foreach (var id in VoiceBank.SubjectIds)
+            {
+                var fr = VoiceBank.ForSubject(id);
+                if (fr != null) AddWarm(fr.call);
+            }
+        }
+
+        private void AddWarm(VoiceCall c)
+        {
+            if (c != null && c.Has && !_warm.Contains(c)) _warm.Add(c);
         }
     }
 }

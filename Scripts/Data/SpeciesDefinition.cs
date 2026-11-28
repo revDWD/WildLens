@@ -200,7 +200,7 @@ namespace WildLens.Data
     public class SpeciesDefinition : ScriptableObject
     {
         /// <summary>Data layout version. Assets below this are upgraded by the editor (SpeciesAssetMigrator).</summary>
-        public const int CurrentDataVersion = 5; // 4: weather habits (SpeciesDefaults.ApplyHabits); 5: voices and the turkey's brighter colours (same step)
+        public const int CurrentDataVersion = 5; // 4: weather habits (SpeciesDefaults.ApplyHabits); 5: the turkey's brighter colours and the voice field notes (same step); voices themselves live in VoiceBank, not on assets
         [HideInInspector] public int dataVersion; // 0 on assets created before versioning
 
         [Header("Identity")]
@@ -261,8 +261,8 @@ namespace WildLens.Data
         public WeatherHabits weatherHabits = new WeatherHabits();
 
         [Header("Voice (2.0)")]
-        [Tooltip("What it sounds like and when it is heard. Off (or empty) here: the VoiceDirector uses the default voice for this species id (VoiceBank), " +
-                 "so an asset from before 2.0 is heard too. Tick Enabled and edit the notes to tune it.")]
+        [Tooltip("What it sounds like and when it is heard. Leave Enabled OFF (the default): the VoiceDirector then uses the species' default voice from VoiceBank, " +
+                 "so every asset, old or new, is heard and follows later retuning. Tick Enabled and edit the notes only to override this one species by hand.")]
         public VoiceRecipe voice = new VoiceRecipe();
 
         [Header("Behaviours")]

@@ -177,8 +177,8 @@ namespace WildLens.Sound
                     Hoot(.17f, .13f), Hoot(.17f, .22f), Hoot(.17f, .13f),
                     N(570, 380, .95f, 0, vib: 5.5f, vibDepth: .02f, buzz: .25f, atk: .04f, dec: .5f))),
                 call: C("hoo-hoo", 16000, S(Hoot(.2f, .2f), Hoot(.2f, .2f), N(560, 400, .5f, 0, buzz: .25f, atk: .04f, dec: .5f))),
-                songShare: .65f, perMin: .9f, period: P(1.0f, .3f, 0, 0, .1f, 1.2f), rain: 0, after: .6f,
-                answer: .55f, minGap: 20, range: 120, near: 14, vol: .7f));
+                songShare: .65f, perMin: 1.6f, period: P(1.0f, .3f, 0, 0, .1f, 3.0f), rain: 0, after: .6f,
+                answer: .55f, minGap: 14, range: 120, near: 14, vol: .7f));
 
             Add("wild_turkey", "Hens give soft clucks and rising, whining yelps.", V(
                 song: C("yelps", 16000, Rep(3, S(N(900, 1450, .17f, .02f, buzz: .8f, noise: .15f, noiseBw: .3f, dec: .3f), N(1450, 1000, .12f, .16f, buzz: .7f, noise: .15f, dec: .5f)))),
