@@ -693,7 +693,7 @@ namespace WildLens.EditorTools
                     animator.runtimeAnimatorController = controller;
                     animated = true;
                 }
-                if (animator != null) { animator.applyRootMotion = false; animator.cullingMode = AnimatorCullingMode.CullCompletely; }
+                if (animator != null) { animator.applyRootMotion = false; animator.cullingMode = AnimatorCullingMode.CullCompletely; animator.fireEvents = false; }
 
                 var m = go.AddComponent<MacroSubject>();
                 m.subject = s;

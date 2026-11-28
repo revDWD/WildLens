@@ -23,6 +23,9 @@ namespace WildLens.Wildlife
             _agent = GetComponent<AnimalAgent>();
             _animator = GetComponentInChildren<Animator>();
             if (_animator == null) { enabled = false; return; }
+            // 1.10: pack clips can carry animation events meant for the pack's own scripts (Living Birds' 'ResetHopInt'),
+            // which WildLens strips from the model. With nothing to receive them Unity logs an error each time one fires.
+            _animator.fireEvents = false;
             foreach (var p in _animator.parameters)
             {
                 if (p.nameHash == SpeedId) _hasSpeed = true;

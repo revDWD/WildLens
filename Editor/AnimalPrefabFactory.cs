@@ -468,6 +468,7 @@ namespace WildLens.EditorTools
                 animator.runtimeAnimatorController = controller;
                 animator.applyRootMotion = false; // the AI moves the animal; clips only animate the body
                 animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+                animator.fireEvents = false; // pack clips may carry events for scripts we removed (1.10)
 
                 // Materials the active pipeline cannot draw (a built-in shader in URP is pink) are replaced by converted COPIES, then tinted.
                 try { converted = ConvertMaterialsForPipeline(model, id, Folder, out conversionNote); }
