@@ -35,6 +35,22 @@ namespace WildLens.EditorTools
             { "firefly", (new[] { "firefly", "lightningbug" }, new string[0]) },
             { "woodland_mushroom", (new[] { "mushroom", "toadstool", "fungus", "fungi", "shroom" }, new string[0]) },
             { "oxeye_daisy", (new[] { "daisy", "oxeye" }, new[] { "flower", "wildflower" }) },
+            // 1.9: the specific subjects. A generic "butterfly", "bee" or "frog" stays with the monarch, the bumble bee and the leopard frog;
+            // these match only when a model names the real thing, so a pack's one butterfly is not handed to four subjects.
+            { "eastern_tiger_swallowtail", (new[] { "swallowtail", "papilio" }, new string[0]) },
+            { "cabbage_white", (new[] { "cabbagewhite", "pieris" }, new string[0]) },
+            { "ebony_jewelwing", (new[] { "jewelwing", "calopteryx", "damselfly" }, new string[0]) },
+            { "honey_bee", (new[] { "honeybee", "apis" }, new string[0]) },
+            { "green_frog", (new[] { "greenfrog", "clamitans" }, new string[0]) },
+            { "gray_treefrog", (new[] { "treefrog", "grayfrog" }, new string[0]) },
+            { "red_backed_salamander", (new[] { "redbacked", "redback", "plethodon" }, new string[0]) },
+            { "yellow_fly_agaric", (new[] { "agaric", "amanita", "flyagaric" }, new string[0]) },
+            { "turkey_tail", (new[] { "turkeytail", "trametes" }, new[] { "bracket", "polypore" }) },
+            { "common_milkweed", (new[] { "milkweed", "asclepias" }, new string[0]) },
+            { "black_eyed_susan", (new[] { "rudbeckia", "blackeyedsusan", "susan" }, new string[0]) },
+            { "common_blue_violet", (new[] { "violet" }, new string[0]) },
+            { "haircap_moss", (new[] { "haircap", "polytrichum", "moss" }, new string[0]) },
+            { "common_cattail", (new[] { "cattail", "typha" }, new string[0]) },
         };
 
         /// <summary>
@@ -74,11 +90,13 @@ namespace WildLens.EditorTools
         private static bool IsExcluded(List<string> words)
         {
             bool mushroom = HasMushroomWord(words);
+            bool treefrog = words.Contains("treefrog"); // "Tree_Frog" is an animal, not a tree (1.9)
             foreach (var bad in NeverSmallLife)
                 foreach (var w in words)
                     if (w == bad || w == bad + "s")
                     {
                         if (mushroom && IsWoodWord(w)) continue;
+                        if (treefrog && w == "tree") continue;
                         return true;
                     }
             return false;

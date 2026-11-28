@@ -151,6 +151,10 @@ namespace WildLens.EditorTools
                  "fireflies, mushrooms, daisies) the best matching model or prefab found in the project, then place them in their " +
                  "habitats. Untick to only use WildLens ▸ Macro Subjects From Packs by hand.")]
         public bool autoMacroFromPacks = true;
+        [Tooltip("1.9: a subject with no model from your packs gets one WildLens generates (butterflies, a dragonfly and damselfly, bees, a firefly, " +
+                 "a ladybird, frogs, newts, a snail, mushrooms, wildflowers, moss: small stylised models made in code and saved under " +
+                 "Assets/WildLens/Generated/SmallLife). A pack model always wins. Untick to leave small life out unless your packs supply it.")]
+        public bool generatedSmallLife = true;
 
         [Header("Scene")]
         public bool configureLightingAndFog = true;

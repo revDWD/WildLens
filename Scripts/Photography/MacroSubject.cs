@@ -19,6 +19,11 @@ namespace WildLens.Photography
         public float focusSize;
         [Tooltip("Hide the renderers while the subject is not showing (wrong hour, rain). Set for animals from packs; plants never vanish.")]
         public bool hideWhenNotShowing;
+        [Tooltip("1.9: a second-tier instance (more butterflies in the sun after rain, more frogs after rain and at dusk, more mushrooms the day after rain): " +
+                 "out only while that condition holds. None: always subject to the subject's own rules only.")]
+        public SubjectExtra tier = SubjectExtra.None;
+        [Tooltip("1.9: 0 to 1, spreads a group's emergence over time (fireflies rise over about twenty game minutes).")]
+        [Range(0f, 1f)] public float stagger;
 
         private static readonly List<MacroSubject> ActiveList = new List<MacroSubject>();
         public static IReadOnlyList<MacroSubject> Active => ActiveList;
@@ -26,47 +31,34 @@ namespace WildLens.Photography
         private bool _visible = true;
         private float _nextPoll;
 
-        // "Recently rained": raining now, or within the last three game hours (afterRain subjects: newts, snails).
+        // "Recently rained": raining now, or within the last three game hours (afterRain subjects: newts, snails). Since 1.9 the memory of
+        // the rain lives in NaturalConditions (which also seeds it from the forecast), shared with every other small-life rule.
         private const float AfterRainHours = 3f;
-        private static float _lastRain = -1e9f, _nextRainCheck;
-        private static bool _recentlyRained;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() { ActiveList.Clear(); _lastRain = -1e9f; _nextRainCheck = 0f; _recentlyRained = false; }
+        private static void ResetStatics() { ActiveList.Clear(); }
 
-        /// <summary>True while it rains and for three game hours after (cached, refreshed twice a second at most).</summary>
-        public static bool RecentlyRained
-        {
-            get
-            {
-                if (Time.unscaledTime < _nextRainCheck) return _recentlyRained;
-                _nextRainCheck = Time.unscaledTime + 0.5f;
-                var weather = WeatherCycle.Instance;
-                var day = DayCycle.Instance;
-                bool raining = weather != null && weather.Rain > 0.25f;
-                if (day == null) { _recentlyRained = raining; return _recentlyRained; }
-                float now = day.Day * 24f + day.Hour; // the day counter handles midnight
-                if (raining) _lastRain = now;
-                else if (now < _lastRain) _lastRain = -1e9f; // the clock was set back: forget
-                _recentlyRained = raining || now - _lastRain <= AfterRainHours;
-                return _recentlyRained;
-            }
-        }
+        /// <summary>True while it rains and for three game hours after.</summary>
+        public static bool RecentlyRained => NaturalConditions.RecentlyRained(AfterRainHours);
 
         /// <summary>False while hidden by <see cref="hideWhenNotShowing"/>.</summary>
         public bool Visible => _visible;
 
         private void Start()
         {
+            _nextPoll = Time.time + Random.value; // per-instance phase: no frame has all the polls
             if (!hideWhenNotShowing) return;
             Apply(IsShowing);
-            _nextPoll = Time.time + Random.value; // per-instance phase: no frame has all the polls
         }
 
+        // One cheap poll a second per instance. A hidden instance has its renderers off and does nothing else (its MacroMotion
+        // returns at once), so the second tier of a subject costs nothing while it is out of season. Plants only keep the shared
+        // memory of the rain up to date.
         private void Update()
         {
-            if (!hideWhenNotShowing || Time.time < _nextPoll) return;
+            if (Time.time < _nextPoll) return;
             _nextPoll = Time.time + 1f;
+            if (!hideWhenNotShowing) { NaturalConditions.Refresh(); return; }
             bool show = IsShowing;
             if (show != _visible) Apply(show);
         }
@@ -90,7 +82,9 @@ namespace WildLens.Photography
                 if (subject == null) return false;
                 var day = DayCycle.Instance;
                 var weather = WeatherCycle.Instance;
-                return subject.IsShowing(day != null ? day.Period : DayPeriod.Midday, weather != null && weather.Rain > 0.25f, RecentlyRained);
+                if (!subject.IsShowing(day != null ? day.Period : DayPeriod.Midday, weather != null && weather.Rain > NaturalConditions.RainThreshold, RecentlyRained)) return false;
+                if (subject.condition != SubjectCondition.None && !NaturalConditions.Check(subject.condition, stagger)) return false;
+                return tier == SubjectExtra.None || NaturalConditions.Tier(tier);
             }
         }
 
