@@ -18,6 +18,7 @@ The folder name ends in `~`, so Unity ignores it; **WildLens ▸ Build Vertical 
 | Surfaces/bark_brown_02_* | Bark Brown 02 | Broadleaf trunks |
 | Surfaces/pine_bark_* | Pine Bark | Conifer trunks |
 | Surfaces/mossy_rock_* | Mossy Rock | Rock material |
+| Surfaces/weathered_brown_planks_* | Weathered Brown Planks | Woodwork: kiosk, signs, decks, the blind, benches, bridges (1.3) |
 | Models/fern_02 | Fern 02 | Undergrowth |
 | Models/shrub_02, shrub_04 | Shrub 02, Shrub 04 | Trailside shrubs |
 | Models/rock_moss_set_01, rock_moss_set_02 | Rock Moss Set 01 / 02 | Outcrop rocks (split into pieces) |

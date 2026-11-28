@@ -8,11 +8,12 @@ using WildLens.UI;
 namespace WildLens.Environment
 {
     /// <summary>
-    /// The trailhead information board: a park notice board maintained by the reserve staff, and quietly the
-    /// game's version dashboard. Everything on it is read from the running game when the scene starts (package
-    /// version, the build that made the scene, features, recent changes, species and journal progress, trails,
-    /// viewpoints, destinations), so it can never go out of date. Its map is drawn from the real terrain, trails,
-    /// tracks, trees and destinations, with a "you are here" marker.
+    /// The trailhead information board, designed like a national-park trailhead sign (1.2): read in seconds, from a few
+    /// steps back. Header: the reserve's name, the time of day and conditions. Left: a large map drawn from the real
+    /// terrain, trails, tracks, creek, trees and destinations, with numbered markers and "you are here". Right: the
+    /// destinations, each with its number, distance and best times as pictograms. Footer: one line of etiquette and the
+    /// version (kept small; full release notes live in CHANGELOG.md). Everything is read from the running game when the
+    /// scene starts, so it never goes out of date; a stale scene is flagged in the footer.
     ///
     /// The transform is the centre of the board face; +Z faces the reader.
     /// </summary>
@@ -20,18 +21,20 @@ namespace WildLens.Environment
     {
         [Tooltip("Board face size in metres.")]
         public Vector2 size = new Vector2(2.6f, 1.6f);
+        [Tooltip("Best-time pictograms (dawn, day, golden hour, dusk), set by the builder; the same as on the signs.")]
+        public Texture2D[] timeIcons = new Texture2D[0];
 
         private const float UnitsPerMetre = 500f;
-        private static readonly Color Paper = new Color(0.86f, 0.83f, 0.72f);
-        private static readonly Color Green = new Color(0.2f, 0.3f, 0.18f);
-        private static readonly Color Cream = new Color(0.93f, 0.9f, 0.8f);
-        private static readonly Color Ink = new Color(0.17f, 0.15f, 0.11f);
+        private static readonly Color Paper = new Color(0.9f, 0.87f, 0.76f);
+        private static readonly Color Green = new Color(0.2f, 0.32f, 0.19f);
+        private static readonly Color Cream = new Color(0.95f, 0.91f, 0.8f);
+        private static readonly Color Ink = new Color(0.14f, 0.12f, 0.09f);
+        private static readonly Color Muted = new Color(0.36f, 0.32f, 0.25f);
         private static readonly Color Brown = new Color(0.45f, 0.29f, 0.14f);
-        private const string HeadingHex = "#33492a";
 
         private RectTransform _root;
-        private Text _status;
-        private Texture2D _map;
+        private Text _nowBig, _nowSmall;
+        private Texture2D _map, _disc;
 
         private void Start()
         {
@@ -45,6 +48,7 @@ namespace WildLens.Environment
             var game = WildLensGame.Instance;
             if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
             if (_map != null) Destroy(_map);
+            if (_disc != null) Destroy(_disc);
         }
 
         // ------------------------------------------------------------------ layout
@@ -63,83 +67,84 @@ namespace WildLens.Environment
             _root = (RectTransform)go.transform;
             _root.sizeDelta = size * UnitsPerMetre;
             float w = _root.sizeDelta.x, h = _root.sizeDelta.y;
+            _disc = DiscTexture(64);
 
             var paper = UIFactory.CreateImage("Paper", _root, Paper);
             UIFactory.Stretch(paper.rectTransform);
 
-            // Header band
+            // Header: the place, then the moment.
+            const float headerH = 150f;
             var header = UIFactory.CreateImage("Header", _root, Green);
-            Top(header.rectTransform, 0f, 0f, w, 92f);
-            var title = UIFactory.CreateText("Title", header.rectTransform, "WILLOW CREEK NATURE RESERVE", 44, Cream, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIFactory.Stretch(title.rectTransform, 30f, 0f, 300f, 0f);
-            var sub = UIFactory.CreateText("Subtitle", header.rectTransform, "Visitor Information\n<size=19>Willow Creek Conservation Trust · est. 1962</size>", 24, Cream, TextAnchor.MiddleRight);
-            UIFactory.Stretch(sub.rectTransform, 0f, 0f, 30f, 0f);
+            Top(header.rectTransform, 0f, 0f, w, headerH);
+            var title = UIFactory.CreateText("Title", header.rectTransform, "WILLOW CREEK", 72, Cream, TextAnchor.UpperLeft, FontStyle.Bold);
+            title.horizontalOverflow = HorizontalWrapMode.Overflow;
+            Top(title.rectTransform, 34f, 12f, 640f, 86f);
+            var sub = UIFactory.CreateText("Subtitle", header.rectTransform, "NATURE RESERVE", 36, Cream, TextAnchor.UpperLeft);
+            Top(sub.rectTransform, 38f, 96f, 640f, 46f);
+            _nowBig = UIFactory.CreateText("Now", header.rectTransform, "", 52, Cream, TextAnchor.UpperRight, FontStyle.Bold);
+            _nowBig.horizontalOverflow = HorizontalWrapMode.Overflow; // right-aligned: grows leftwards
+            Top(_nowBig.rectTransform, w - 640f, 16f, 606f, 64f);
+            _nowSmall = UIFactory.CreateText("Conditions", header.rectTransform, "", 30, Cream, TextAnchor.UpperRight);
+            Top(_nowSmall.rectTransform, w - 760f, 88f, 726f, 46f);
 
-            // Left: map, legend
-            float mapSize = 500f;
+            // Map: the biggest thing on the board.
+            const float footerH = 68f;
+            float mapSize = Mathf.Min(640f, h - headerH - footerH - 70f);
             var mapFrame = UIFactory.CreateImage("Map Frame", _root, Brown);
-            Top(mapFrame.rectTransform, 26f, 112f, mapSize + 8f, mapSize + 8f);
+            Top(mapFrame.rectTransform, 30f, headerH + 18f, mapSize + 8f, mapSize + 8f);
             var map = UIFactory.CreateRawImage("Map", mapFrame.rectTransform);
             UIFactory.Stretch(map.rectTransform, 4f, 4f, 4f, 4f);
             BuildMap(map, mapSize);
             var legend = UIFactory.CreateText("Legend", _root,
-                "<color=#b8996b><b>——</b></color> Reserve Road   <color=#8a5a2b><b>——</b></color> Meadow Loop   <color=#a0784a><b>– –</b></color> Footpaths   " +
-                "<color=#5b8fb3><b>——</b></color> Creek   <color=#c0392b><b>●</b></color> You are here   (map faces the way you do)", 19, Ink);
-            Top(legend.rectTransform, 30f, 126f + mapSize, mapSize, 60f);
+                "<color=#b8996b><b>——</b></color> Road    <color=#8a5a2b><b>——</b></color> Loop    <color=#a0784a><b>– –</b></color> Footpath    " +
+                "<color=#5b8fb3><b>——</b></color> Creek", 24, Ink);
+            Top(legend.rectTransform, 34f, headerH + mapSize + 32f, mapSize, 34f);
 
-            // Right column
-            float x = 566f, cw = w - x - 30f, y = 110f;
-            var welcome = UIFactory.CreateText("Welcome", _root, WelcomeText(), 22, Ink);
-            Top(welcome.rectTransform, x, y, cw, 100f);
-            y += 104f;
-
-            Heading("WHAT YOU CAN DO HERE", x, y, cw);
-            y += 34f;
-            var features = WildLensVersion.Features;
-            int rows = Mathf.CeilToInt(features.Length / 2f);
-            for (int i = 0; i < features.Length; i++)
+            // Destinations: number, name, distance, best times.
+            float x = mapSize + 80f, cw = w - x - 34f, y = headerH + 20f;
+            var heading = UIFactory.CreateText("Heading", _root, "DESTINATIONS", 34, Green, TextAnchor.UpperLeft, FontStyle.Bold);
+            Top(heading.rectTransform, x, y, cw, 42f);
+            var rule = UIFactory.CreateImage("Rule", _root, Green);
+            Top(rule.rectTransform, x, y + 44f, cw, 3f);
+            y += 64f;
+            var dests = new List<ReserveDestination>(ReserveDestination.All);
+            dests.Sort((a, b) => a.number.CompareTo(b.number));
+            float rowH = dests.Count > 0 ? Mathf.Min(132f, (h - footerH - 10f - y) / dests.Count) : 132f;
+            foreach (var d in dests)
             {
-                int col = i / rows, row = i % rows;
-                float fx = x + col * (cw * 0.5f), fy = y + row * 27f;
-                var box = UIFactory.CreateImage("Tick", _root, Green);
-                Top(box.rectTransform, fx + 2f, fy + 6f, 16f, 16f);
-                var tick = UIFactory.CreateImage("Tick Mark", box.rectTransform, Cream);
-                UIFactory.Stretch(tick.rectTransform, 4f, 4f, 4f, 4f);
-                var t = UIFactory.CreateText("Feature", _root, features[i], 21, Ink);
-                Top(t.rectTransform, fx + 26f, fy, cw * 0.5f - 30f, 28f);
+                var disc = UIFactory.CreateRawImage("Disc", _root);
+                disc.texture = _disc;
+                disc.color = Green;
+                Top(disc.rectTransform, x, y + 4f, 72f, 72f);
+                var n = UIFactory.CreateText("Number", disc.rectTransform, d.number.ToString(), 44, Cream, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UIFactory.Stretch(n.rectTransform);
+                var name = UIFactory.CreateText("Destination", _root, d.title, 40, Ink, TextAnchor.UpperLeft, FontStyle.Bold);
+                Top(name.rectTransform, x + 90f, y - 2f, cw - 90f, 52f);
+                float ix = x + 92f;
+                foreach (int k in TimeIndices(d.bestTimes))
+                {
+                    if (timeIcons == null || k >= timeIcons.Length || timeIcons[k] == null) continue;
+                    var icon = UIFactory.CreateRawImage("Best Time", _root);
+                    icon.texture = timeIcons[k];
+                    icon.color = k == 1 || k == 2 ? new Color(0.78f, 0.5f, 0.12f) : Muted;
+                    Top(icon.rectTransform, ix, y + 52f, 44f, 44f);
+                    ix += 50f;
+                }
+                float km = TerrainUtil.FlatDistance(d.transform.position, transform.position) / 1000f;
+                var dist = UIFactory.CreateText("Distance", _root, $"{km:0.0} km", 30, Muted, TextAnchor.UpperLeft);
+                Top(dist.rectTransform, ix + 8f, y + 56f, cw - (ix - x), 40f);
+                y += rowH;
             }
-            y += rows * 27f + 10f;
 
-            Heading("NEW THIS SEASON", x, y, cw);
-            y += 34f;
-            var sb = new StringBuilder();
-            for (int i = 0; i < Mathf.Min(3, WildLensVersion.RecentChanges.Length); i++)
-                sb.Append(i == 0 ? "<b>" : "").Append(WildLensVersion.RecentChanges[i]).Append(i == 0 ? "</b>" : "").Append('\n');
-            var changes = UIFactory.CreateText("Changes", _root, sb.ToString().TrimEnd('\n'), 20, Ink);
-            Top(changes.rectTransform, x, y, cw, 78f);
-            y += 82f;
-
-            Heading("RESERVE STATUS", x, y, cw);
-            y += 34f;
-            _status = UIFactory.CreateText("Status", _root, "", 20, Ink);
-            Top(_status.rectTransform, x, y, cw, h - y - 70f);
+            // Footer: one line of etiquette; the version small at the right (a stale scene is flagged here).
+            var footer = UIFactory.CreateImage("Footer", _root, new Color(0.78f, 0.74f, 0.6f));
+            Top(footer.rectTransform, 0f, h - footerH, w, footerH);
+            var tip = UIFactory.CreateText("Etiquette", footer.rectTransform,
+                "Walk quietly  ·  park bikes at pull-offs  ·  wildlife keeps hours", 28, Ink, TextAnchor.MiddleLeft);
+            UIFactory.Stretch(tip.rectTransform, 34f, 0f, 380f, 0f);
+            var version = UIFactory.CreateText("Version", footer.rectTransform, VersionText(), 22, Muted, TextAnchor.MiddleRight);
+            UIFactory.Stretch(version.rectTransform, 0f, 0f, 30f, 0f);
             RefreshStatus();
-
-            // Footer
-            var footer = UIFactory.CreateImage("Footer", _root, new Color(0.76f, 0.72f, 0.58f));
-            Top(footer.rectTransform, 0f, h - 52f, w, 52f);
-            var tip = UIFactory.CreateText("Ranger Tip", footer.rectTransform,
-                "<b>Ranger's tip:</b> ride the Reserve Road, park at the pull-offs and walk the last stretch. " +
-                "Wildlife keeps hours: come back at a different time of day.", 20, Ink, TextAnchor.MiddleCenter);
-            UIFactory.Stretch(tip.rectTransform, 20f, 0f, 20f, 0f);
-        }
-
-        private void Heading(string text, float x, float y, float width)
-        {
-            var t = UIFactory.CreateText("Heading", _root, $"<color={HeadingHex}>{text}</color>", 24, Ink, TextAnchor.UpperLeft, FontStyle.Bold);
-            Top(t.rectTransform, x, y, width, 30f);
-            var rule = UIFactory.CreateImage("Rule", _root, new Color(Green.r, Green.g, Green.b, 0.5f));
-            Top(rule.rectTransform, x, y + 29f, width, 2f);
         }
 
         private static void Top(RectTransform rt, float x, float y, float width, float height) =>
@@ -147,52 +152,45 @@ namespace WildLens.Environment
 
         // ------------------------------------------------------------------ content
 
-        private static string WelcomeText()
+        private static string VersionText()
         {
             var info = SceneQuery.FindOne<SliceInfo>();
-            string built = info != null
-                ? (info.IsCurrent ? $"Scene built with {info.packageVersion}" : $"<color=#a0401a>Scene built with {info.packageVersion}: please rebuild</color>")
-                : "Scene build version unknown";
-            return $"<b>Welcome to the reserve.</b> Walk the Meadow Loop, or take the trail bike out to the far corners.\n" +
-                   $"<size=19><color=#5b5444>WildLens {WildLensVersion.Package} \"{WildLensVersion.ReleaseName}\" · {WildLensVersion.ReleaseDate} · " +
-                   $"{built} · environment {WildLensVersion.Environment}</color></size>";
+            if (info != null && !info.IsCurrent) return $"<color=#a0401a><b>Scene built with {info.packageVersion}: please rebuild</b></color>";
+            return $"WildLens {WildLensVersion.Package} · {WildLensVersion.ReleaseName}";
+        }
+
+        /// <summary>Best-time pictogram indices (0 dawn, 1 day, 2 golden hour, 3 dusk) from a destination's best-times words.</summary>
+        private static IEnumerable<int> TimeIndices(string bestTimes)
+        {
+            string t = (bestTimes ?? "").ToLowerInvariant();
+            if (t.Contains("dawn") || t.Contains("early morning")) yield return 0;
+            if (t.Contains("midday") || (t.Contains("morning") && !t.Contains("early morning"))) yield return 1;
+            if (t.Contains("golden") || t.Contains("late afternoon") || t.Contains("evening")) yield return 2;
+            if (t.Contains("dusk")) yield return 3;
+        }
+
+        /// <summary>
+        /// Conditions for the header. There is no weather yet, so this follows the light; when weather arrives, its state
+        /// belongs here ("Overcast", "Light rain").
+        /// </summary>
+        private static string Conditions(DayPeriod p)
+        {
+            switch (p)
+            {
+                case DayPeriod.Dawn: return "Misty";
+                case DayPeriod.Dusk: return "Calm";
+                case DayPeriod.Night: return "Clear night";
+                default: return "Fair";
+            }
         }
 
         private void RefreshStatus()
         {
-            if (_status == null) return;
-            var sb = new StringBuilder();
-            var game = WildLensGame.Instance;
+            if (_nowBig == null) return;
             var clock = DayCycle.Instance;
-            if (clock != null) sb.Append($"<b>Now: {DayCycle.PeriodName(clock.Period)}, {clock.ClockText}.</b> {RightNow(clock.Period)}\n");
-            int species = game != null && game.Species != null ? game.Species.Count : 0;
-            int seen = game != null && game.Journal != null ? game.Journal.DiscoveredCount : 0;
-            sb.Append($"Species living here: <b>{species}</b>   ·   in your journal: <b>{seen}</b>\n");
-
-            var trail = SceneQuery.FindOne<TrailPath>();
-            float tracks = 0f;
-            foreach (var t in ReserveTrack.All) tracks += t.Length;
-            sb.Append("Trails: <b>Meadow Loop</b>");
-            if (trail != null) sb.Append($" {trail.Length / 1000f:0.0} km");
-            float road = 0f; foreach (var t in ReserveTrack.All) if (t.kind == TrackKind.Road) road += t.Length;
-            if (road > 0f) sb.Append($"   ·   <b>Reserve Road</b> {road / 1000f:0.0} km");
-            if (ReserveTrack.All.Count > 0) sb.Append($"   ·   footpaths {(tracks - road) / 1000f:0.0} km");
-            sb.Append('\n');
-            int views = SceneQuery.FindAll<ScenicViewpoint>().Length;
-            sb.Append($"Scenic viewpoints: <b>{views}</b>   ·   Destinations: <b>{ReserveDestination.All.Count}</b>");
-            foreach (var c in ReserveCreek.All) sb.Append($"   ·   <b>{c.title}</b> {c.Length / 1000f:0.0} km");
-            if (ReserveParking.All.Count > 0) sb.Append($"   ·   <b>{ReserveParking.All.Count}</b> bike pull-offs");
-            sb.Append('\n');
-
-            var dests = new List<ReserveDestination>(ReserveDestination.All);
-            dests.Sort((a, b) => a.number.CompareTo(b.number));
-            foreach (var d in dests)
-            {
-                float km = TerrainUtil.FlatDistance(d.transform.position, transform.position) / 1000f;
-                string when = string.IsNullOrEmpty(d.bestTimes) ? Short(d.fieldNote) : "best: " + d.bestTimes;
-                sb.Append($"<b>{d.number}</b>  {d.title}  <color=#5b5444>{km:0.0} km · {when}</color>\n");
-            }
-            _status.text = sb.ToString().TrimEnd('\n');
+            if (clock == null) { _nowBig.text = ""; _nowSmall.text = "Welcome"; return; }
+            _nowBig.text = $"{DayCycle.PeriodName(clock.Period).ToUpperInvariant()}  {clock.ClockText}";
+            _nowSmall.text = $"{Conditions(clock.Period)}  ·  {RightNow(clock.Period)}";
         }
 
         /// <summary>What the reserve is doing at this time of day: the patterns, said plainly.</summary>
@@ -200,12 +198,12 @@ namespace WildLens.Environment
         {
             switch (p)
             {
-                case DayPeriod.Dawn: return "Mist on the water; cottontails on the meadow edges.";
-                case DayPeriod.Morning: return "Deer in the meadows; hawks rising over the ridge.";
-                case DayPeriod.Midday: return "Deer resting in the woods; the grove is cool and quiet.";
-                case DayPeriod.GoldenHour: return "Best light on the ridge; deer back in the meadows.";
-                case DayPeriod.Dusk: return "Deer at the pond and creek; foxes on the meadow edges.";
-                default: return "The reserve sleeps.";
+                case DayPeriod.Dawn: return "mist on the pond";
+                case DayPeriod.Morning: return "deer in the meadows";
+                case DayPeriod.Midday: return "deer resting in the woods";
+                case DayPeriod.GoldenHour: return "best light on the ridge";
+                case DayPeriod.Dusk: return "deer at the water";
+                default: return "the reserve sleeps";
             }
         }
 
@@ -316,25 +314,44 @@ namespace WildLens.Environment
             // Markers as UI so the numbers stay sharp.
             float k = displaySize / res;
             foreach (var d in ReserveDestination.All)
-                Marker(target.rectTransform, ToPx(d.transform.position) * k, new Color(0.2f, 0.3f, 0.18f), d.number.ToString(), d.title);
-            Marker(target.rectTransform, ToPx(transform.position) * k, new Color(0.75f, 0.22f, 0.15f), "", "You are here");
+                Marker(target.rectTransform, ToPx(d.transform.position) * k, Green, d.number.ToString(), d.title, displaySize);
+            Marker(target.rectTransform, ToPx(transform.position) * k, new Color(0.75f, 0.22f, 0.15f), "", "You are here", displaySize);
         }
 
-        private static void Marker(RectTransform map, Vector2 pos, Color colour, string number, string label)
+        private void Marker(RectTransform map, Vector2 pos, Color colour, string number, string label, float displaySize)
         {
-            var dot = UIFactory.CreateImage("Marker", map, colour);
-            UIFactory.Place(dot.rectTransform, Vector2.zero, pos - new Vector2(13f, 13f), new Vector2(26f, 26f));
+            var dot = UIFactory.CreateRawImage("Marker", map);
+            dot.texture = _disc;
+            dot.color = colour;
+            UIFactory.Place(dot.rectTransform, Vector2.zero, pos - new Vector2(20f, 20f), new Vector2(40f, 40f));
             if (!string.IsNullOrEmpty(number))
             {
-                var n = UIFactory.CreateText("Number", dot.rectTransform, number, 20, Cream, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var n = UIFactory.CreateText("Number", dot.rectTransform, number, 28, Cream, TextAnchor.MiddleCenter, FontStyle.Bold);
                 UIFactory.Stretch(n.rectTransform);
             }
-            bool right = pos.x < 330f;
-            var t = UIFactory.CreateText("Label", map, $"<b>{label}</b>", 18, Ink, right ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight);
-            UIFactory.Place(t.rectTransform, Vector2.zero, right ? pos + new Vector2(18f, -14f) : pos + new Vector2(-218f, -14f), new Vector2(200f, 28f));
+            bool right = pos.x < displaySize * 0.55f;
+            var t = UIFactory.CreateText("Label", map, $"<b>{label}</b>", 26, Ink, right ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight);
+            UIFactory.Place(t.rectTransform, Vector2.zero, right ? pos + new Vector2(26f, -18f) : pos + new Vector2(-286f, -18f), new Vector2(260f, 36f));
             var halo = t.gameObject.AddComponent<Outline>();
-            halo.effectColor = new Color(Paper.r, Paper.g, Paper.b, 0.9f);
-            halo.effectDistance = new Vector2(1.5f, -1.5f);
+            halo.effectColor = new Color(Paper.r, Paper.g, Paper.b, 0.95f);
+            halo.effectDistance = new Vector2(2f, -2f);
+        }
+
+        /// <summary>A soft-edged white disc for round markers (tinted by the image colour).</summary>
+        private static Texture2D DiscTexture(int n)
+        {
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[n * n];
+            float r = n * 0.5f - 1f;
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(n * 0.5f, n * 0.5f));
+                px[y * n + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(r - d + 0.5f));
+            }
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
         }
 
         private static void Disc(Color[] px, int res, Vector2 c, float r, Color colour)

@@ -246,7 +246,7 @@ namespace WildLens.EditorTools
             _frustumTrunk = GeneratedAssets.LoadOrCreate("Mesh_FrustumTrunk", () => ProceduralMeshes.Frustum(10, 0.7f));
             _frustumLimb = GeneratedAssets.LoadOrCreate("Mesh_FrustumLimb", () => ProceduralMeshes.Frustum(8, 0.4f));
             _frustumSpire = GeneratedAssets.LoadOrCreate("Mesh_FrustumSpire", () => ProceduralMeshes.Frustum(8, 0.08f));
-            _birchBark = GeneratedAssets.Material("BirchBark", new Color(0.82f, 0.8f, 0.74f), 0.15f);
+            _birchBark = GeneratedAssets.Material("BirchBark", new Color(0.66f, 0.65f, 0.6f), 0.08f); // 1.2: grey-white, not glowing
         }
 
         /// <summary>A tapered tube from <paramref name="from"/> along <paramref name="dir"/> (local to the tree root).</summary>
@@ -256,6 +256,19 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>A leaf cluster: dark core inside a shell of leaf cards. Returns the swaying part.</summary>
+        /// <summary>A leaf cluster drawn from its own random source (1.2), so extra crown detail never shifts placement.</summary>
+        private Transform Cluster(Transform root, Vector3 at, float size, float squash, Material cards, System.Random rng)
+        {
+            var core = MeshPart("Crown", root, _canopies[rng.Next(_canopies.Length)], _leafCore, at,
+                new Vector3(size, size * squash, size) * 0.82f, Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f));
+            var go = new GameObject("Cards");
+            go.transform.SetParent(core.transform, false);
+            go.transform.localRotation = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
+            go.AddComponent<MeshFilter>().sharedMesh = FoliageCards.Canopy(rng);
+            go.AddComponent<MeshRenderer>().sharedMaterial = cards;
+            return core.transform;
+        }
+
         private Transform Cluster(Transform root, Vector3 at, float size, float squash, Material cards)
         {
             var core = MeshPart("Crown", root, Pick(_canopies), _leafCore, at,
@@ -364,7 +377,9 @@ namespace WildLens.EditorTools
                 crownW = h * (form == 0 ? R(0.58f, 0.7f) : R(0.38f, 0.46f));
                 int limbs = form == 0 ? _rng.Next(3, 6) : _rng.Next(2, 4);
                 float spread = form == 0 ? R(38f, 55f) : R(16f, 28f);
+                if (form == 0) spread *= 0.8f; // 1.2: limbs rise more steeply: a dome, not an umbrella (read as acacia)
                 float az0 = R(0f, 360f);
+                var limbEnds = new List<(Vector3 dir, float len)>();
                 for (int i = 0; i < limbs; i++)
                 {
                     float az = az0 + i * 360f / limbs + R(-22f, 22f);
@@ -373,14 +388,37 @@ namespace WildLens.EditorTools
                     Limb(root.transform, "Limb", _frustumLimb, bark, forkPt - dir * 0.15f, dir, len, trunkR * 0.62f);
                     Vector3 end = forkPt + dir * len;
                     float size = crownW * R(0.4f, 0.55f);
-                    parts.Add(Cluster(root.transform, end, size, form == 0 ? R(0.7f, 0.85f) : R(0.95f, 1.15f), cards));
+                    float squash = form == 0 ? R(0.7f, 0.85f) : R(0.95f, 1.15f);
+                    if (form == 0) squash = 0.6f + squash * 0.45f; // 1.2: rounder clusters (0.9–1.0), no flat-topped puffs
+                    parts.Add(Cluster(root.transform, end, size, squash, cards));
                     top = Mathf.Max(top, end.y + size * 0.35f);
+                    limbEnds.Add((dir, len));
+                }
+                // 1.2: fill the crown from its own random source (placement unchanged): clusters part-way along each limb
+                // close the gaps between the limb tips, and the spreading form gets a raised top, so silhouettes read as
+                // temperate broadleaf crowns rather than flat-topped savanna trees.
+                var detail = new System.Random((Mathf.RoundToInt(p.x * 10f) * 73856093) ^ (Mathf.RoundToInt(p.z * 10f) * 19349663) ^ _s.seed);
+                float D(float a, float b) => a + (float)detail.NextDouble() * (b - a);
+                for (int li = 0; li < limbEnds.Count; li += 2) // alternate limbs: fills the gaps at half the renderer cost
+                {
+                    var (dir, len) = limbEnds[li];
+                    Vector3 mid = forkPt + dir * len * D(0.5f, 0.68f) + new Vector3(D(-0.3f, 0.3f), D(0f, 0.4f), D(-0.3f, 0.3f));
+                    parts.Add(Cluster(root.transform, mid, crownW * D(0.32f, 0.42f), D(0.9f, 1.05f), cards, detail));
                 }
                 // A leading cluster over the fork fills the crown's centre.
                 Vector3 lead = forkPt + Vector3.up * (h - fork) * R(0.65f, 0.8f);
                 float leadSize = crownW * (form == 0 ? 0.5f : 0.58f);
-                parts.Add(Cluster(root.transform, lead, leadSize, form == 0 ? 0.8f : 1.15f, cards));
+                parts.Add(Cluster(root.transform, lead, leadSize, form == 0 ? 0.95f : 1.15f, cards));
                 top = Mathf.Max(top, lead.y + leadSize * 0.4f);
+                if (form == 0)
+                    for (int k = 0; k < 1; k++)
+                    {
+                        float a = D(0f, Mathf.PI * 2f);
+                        Vector3 cap = lead + new Vector3(Mathf.Cos(a) * crownW * 0.18f, leadSize * D(0.3f, 0.45f), Mathf.Sin(a) * crownW * 0.18f);
+                        float capSize = crownW * D(0.32f, 0.4f);
+                        parts.Add(Cluster(root.transform, cap, capSize, D(0.85f, 1f), cards, detail));
+                        top = Mathf.Max(top, cap.y + capSize * 0.35f);
+                    }
                 crownCentre = (forkPt + lead) * 0.5f + Vector3.up * (h - fork) * 0.15f;
             }
             AddSway(root, parts, h, R(1.3f, 2.1f), R(0.3f, 0.42f));

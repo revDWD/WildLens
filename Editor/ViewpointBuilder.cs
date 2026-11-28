@@ -47,10 +47,8 @@ namespace WildLens.EditorTools
                 PropBuilder.Box("Rail L", platform, new Vector3(-1.35f, 1.05f, 0f), new Vector3(0.08f, 0.08f, 2.2f), woodDark);
                 PropBuilder.Box("Rail R", platform, new Vector3(1.35f, 1.05f, 0f), new Vector3(0.08f, 0.08f, 2.2f), woodDark);
                 // Sign beside the steps, facing back toward the trail.
-                var sign = PropBuilder.Group("Sign", platform, pos + platform.right * -1.9f - toMeadow * 0.9f, Quaternion.LookRotation(-toMeadow));
-                PropBuilder.Box("Post", sign, new Vector3(0f, 0.45f, 0f), new Vector3(0.08f, 0.9f, 0.08f), woodDark);
-                PropBuilder.Box("Board", sign, new Vector3(0f, 0.95f, 0f), new Vector3(0.9f, 0.45f, 0.06f), wood);
-                PropBuilder.Label(sign, new Vector3(0f, 0.95f, 0.04f), "MEADOW OVERLOOK\nDeer graze here at dawn", 0.012f);
+                SignKit.Sign(platform, TerrainUtil.Ground(pos + platform.right * -1.9f - toMeadow * 0.9f), Quaternion.LookRotation(-toMeadow),
+                    "MEADOW OVERLOOK", "deer graze at dawn", new[] { SignIcon.Dawn }, 0, woodDark);
                 PropBuilder.AddCollider(platform, new Vector3(0f, 0.3f, 0f), new Vector3(2.8f, 0.12f, 2.2f));
 
                 float viewDist = TerrainUtil.FlatDistance(pos, best.center) + best.radius;
@@ -78,9 +76,7 @@ namespace WildLens.EditorTools
                 PropBuilder.Box("Back", bench, new Vector3(0f, 0.8f, -0.22f), new Vector3(1.8f, 0.34f, 0.06f), wood);
                 PropBuilder.Box("LegL", bench, new Vector3(-0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), woodDark);
                 PropBuilder.Box("LegR", bench, new Vector3(0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), woodDark);
-                PropBuilder.Box("Sign Post", bench, new Vector3(1.4f, 0.6f, 0f), new Vector3(0.1f, 1.2f, 0.1f), woodDark);
-                PropBuilder.Box("Sign", bench, new Vector3(1.4f, 1.15f, 0.06f), new Vector3(0.7f, 0.3f, 0.05f), wood);
-                PropBuilder.Label(bench, new Vector3(1.4f, 1.15f, 0.09f), "LOOKOUT", 0.012f);
+                SignKit.Sign(bench, bench.TransformPoint(new Vector3(1.7f, 0f, 0f)), bench.rotation, "LOOKOUT", null, new[] { SignIcon.Binoculars }, 0, woodDark);
                 PropBuilder.AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.8f, 0.9f, 0.5f));
 
                 ClearCone(pos, inward, 25f, 70f);
@@ -134,10 +130,8 @@ namespace WildLens.EditorTools
             }
             else PropBuilder.Box("Seat Log", seat, new Vector3(0f, 0.25f, 0f), new Vector3(2.4f, 0.4f, 0.45f), woodDark);
 
-            var sign = PropBuilder.Group("Glade Sign", parent, TerrainUtil.Ground(entrance + toGlade * (_trail.Width * 0.5f + 0.8f)), Quaternion.LookRotation(-toGlade));
-            PropBuilder.Box("Post", sign, new Vector3(0f, 0.5f, 0f), new Vector3(0.09f, 1f, 0.09f), woodDark);
-            PropBuilder.Box("Board", sign, new Vector3(0f, 1.05f, 0f), new Vector3(0.75f, 0.32f, 0.05f), wood);
-            PropBuilder.Label(sign, new Vector3(0f, 1.05f, 0.04f), "FOREST GLADE\nSit quietly · watch the edges", 0.011f);
+            SignKit.Sign(parent, TerrainUtil.Ground(entrance + toGlade * (_trail.Width * 0.5f + 0.8f)), Quaternion.LookRotation(-toGlade),
+                "FOREST GLADE", "sit quietly", new[] { SignIcon.Tree }, 0, woodDark);
 
             AddViewpoint(parent, "Forest Glade", seatPos + Vector3.up * 1.2f, TerrainUtil.Ground(best - toGlade * radius) + Vector3.up * 1.5f);
         }

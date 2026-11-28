@@ -43,7 +43,7 @@ namespace WildLens.EditorTools
     {
         public const string Destination = GeneratedAssets.Root + "/Art";
         private const string PrefabFolder = Destination + "/Prefabs";
-        private const string ImportVersion = "3"; // 2: Foliage card textures. 3: rock faces (outcrops)
+        private const string ImportVersion = "4"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture
 
         private struct ModelSpec
         {

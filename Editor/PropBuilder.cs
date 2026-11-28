@@ -107,25 +107,48 @@ namespace WildLens.EditorTools
                 slab.name = side < 0f ? "Roof Back" : "Roof Front";
             }
             Box("Ridge", kiosk, new Vector3(0f, 3.04f, 0f), new Vector3(W + 0.72f, 0.08f, 0.1f), _woodDark);
-            Box("Header Plank", kiosk, new Vector3(0f, 2.74f, 0.06f), new Vector3(1.9f, 0.24f, 0.05f), SignBoard);
-            Label(kiosk, new Vector3(0f, 2.74f, 0.09f), "MEADOW LOOP TRAILHEAD", 0.012f, SignText);
+            Box("Header Plank", kiosk, new Vector3(0f, 2.72f, 0.06f), new Vector3(2.3f, 0.3f, 0.05f), SignBoard);
+            SignKit.Label(kiosk, new Vector3(0f, 2.72f, 0.09f), "MEADOW LOOP TRAILHEAD", SignKit.Fit("MEADOW LOOP TRAILHEAD", 0.02f, 2.1f, true),
+                SignKit.Cream, TextAnchor.MiddleCenter, true);
 
             var face = new GameObject("Board Face");
             face.transform.SetParent(kiosk, false);
             face.transform.localPosition = new Vector3(0f, boardY, 0.025f);
-            face.AddComponent<ReserveInfoBoard>().size = new Vector2(W - 0.16f, boardH - 0.12f);
+            var board = face.AddComponent<ReserveInfoBoard>();
+            board.size = new Vector2(W - 0.16f, boardH - 0.12f);
+            // 1.2: the board shows best times as the same pictograms as the destination signs.
+            board.timeIcons = new[] { SignKit.IconTexture(SignIcon.Dawn), SignKit.IconTexture(SignIcon.Day),
+                SignKit.IconTexture(SignIcon.GoldenHour), SignKit.IconTexture(SignIcon.Dusk) };
 
             AddCollider(kiosk, new Vector3(0f, 1.5f, 0f), new Vector3(W + 0.3f, 3f, 0.3f));
 
             // Reserve guidelines: a small post beside the kiosk. Quiet evidence that this place is looked after.
             var rules = Group("Reserve Guidelines", parent, kiosk.TransformPoint(new Vector3(W * 0.5f + 1.3f, 0f, 0.3f)), kiosk.rotation * Quaternion.Euler(0f, -15f, 0f));
             rules.position = TerrainUtil.Ground(rules.position);
-            Box("Post", rules, new Vector3(0f, 0.65f, 0f), new Vector3(0.1f, 1.3f, 0.1f), _woodDark);
-            Box("Board", rules, new Vector3(0f, 1.2f, 0.06f), new Vector3(0.95f, 0.7f, 0.05f), SignBoard);
-            Box("Rule", rules, new Vector3(0f, 1.48f, 0.087f), new Vector3(0.87f, 0.012f, 0.005f), SignTrim);
-            Label(rules, new Vector3(0f, 1.18f, 0.09f),
-                "PLEASE\nKeep to trails & footpaths\nRide slowly on the Reserve Road\nGive wildlife space\nLeave nothing but footprints", 0.0075f, SignText);
+            // 1.2: three pictogram lines instead of four sentences.
+            Box("Post", rules, new Vector3(0f, 0.7f, 0f), new Vector3(0.1f, 1.4f, 0.1f), _woodDark);
+            Box("Board", rules, new Vector3(0f, 1.32f, 0.06f), new Vector3(1.15f, 0.92f, 0.05f), SignBoard);
+            Box("Rule", rules, new Vector3(0f, 1.74f, 0.087f), new Vector3(1.07f, 0.014f, 0.005f), SignTrim);
+            SignKit.Label(rules, new Vector3(0f, 1.63f, 0.09f), "PLEASE", 0.02f, SignKit.Cream, TextAnchor.MiddleCenter, true);
+            var lines = new[] { (SignIcon.Walk, "Stay on the trails"), (SignIcon.Bike, "Ride slowly"), (SignIcon.Paw, "Give wildlife space") };
+            for (int i = 0; i < lines.Length; i++)
+            {
+                float y = 1.44f - i * 0.2f;
+                SignKit.Icon(rules, new Vector3(-0.42f, y, 0.088f), lines[i].Item1, 0.15f, SignKit.Cream);
+                SignKit.Label(rules, new Vector3(-0.3f, y, 0.09f), lines[i].Item2, SignKit.Fit(lines[i].Item2, 0.0135f, 0.8f, false), SignKit.Cream, TextAnchor.MiddleLeft);
+            }
             AddCollider(rules, new Vector3(0f, 0.65f, 0f), new Vector3(0.12f, 1.3f, 0.12f));
+
+            // 1.2: a trail register on a post, where visitors sign in and note what they saw. People were here; someone
+            // empties it. Inside the kiosk's clear zone, on the side away from the guidelines.
+            var reg = Group("Trail Register", parent, kiosk.TransformPoint(new Vector3(-W * 0.5f - 1.1f, 0f, 0.4f)), kiosk.rotation * Quaternion.Euler(0f, 20f, 0f));
+            reg.position = TerrainUtil.Ground(reg.position);
+            Box("Post", reg, new Vector3(0f, 0.55f, 0f), new Vector3(0.1f, 1.1f, 0.1f), _woodDark);
+            Box("Box", reg, new Vector3(0f, 1.2f, 0.03f), new Vector3(0.46f, 0.32f, 0.28f), _wood);
+            Box("Lid", reg, new Vector3(0f, 1.385f, 0.03f), new Vector3(0.52f, 0.05f, 0.34f), _woodDark);
+            Box("Plate", reg, new Vector3(0f, 1.2f, 0.172f), new Vector3(0.38f, 0.2f, 0.01f), SignBoard);
+            SignKit.Label(reg, new Vector3(0f, 1.2f, 0.179f), "TRAIL\nREGISTER", 0.0085f, SignKit.Cream, TextAnchor.MiddleCenter, true);
+            AddCollider(reg, new Vector3(0f, 0.65f, 0f), new Vector3(0.5f, 1.3f, 0.35f));
         }
 
         private static Vector3 Outward(Vector3 p, TrailBuilder.Loop loop)
@@ -144,7 +167,72 @@ namespace WildLens.EditorTools
 
         internal static void Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material mat)
         {
-            PrimitiveMeshes.CreatePart(name, PrimitiveType.Cube, parent, localPos, size, mat);
+            var go = PrimitiveMeshes.CreatePart(name, PrimitiveType.Cube, parent, localPos, size, mat);
+            // Textured boxes (woodwork) get real-scale UVs so planks aren't stretched over long or wide pieces (1.2).
+            if (mat != null && mat.mainTexture != null) go.GetComponent<MeshFilter>().sharedMesh = MetricCube(size);
+        }
+
+        // ---- real-scale box UVs (1.2)
+
+        private const string BoxMeshAsset = GeneratedAssets.Folder + "/Mesh_PropBoxes.asset";
+        private static System.Collections.Generic.Dictionary<string, Mesh> _boxes;
+
+        /// <summary>
+        /// A unit cube (scaled by the transform, like the built-in cube) whose UVs measure each face in metres of the wood
+        /// scan, with U along the face's longer side: posts get vertical grain, boards and walls horizontal. Cached as
+        /// sub-assets of one mesh asset, one per size.
+        /// </summary>
+        internal static Mesh MetricCube(Vector3 s)
+        {
+            string key = $"Box_{Mathf.RoundToInt(s.x * 1000f)}_{Mathf.RoundToInt(s.y * 1000f)}_{Mathf.RoundToInt(s.z * 1000f)}";
+            if (_boxes == null)
+            {
+                _boxes = new System.Collections.Generic.Dictionary<string, Mesh>();
+                foreach (var o in UnityEditor.AssetDatabase.LoadAllAssetsAtPath(BoxMeshAsset))
+                    if (o is Mesh m) _boxes[m.name] = m;
+            }
+            if (_boxes.TryGetValue(key, out var cached) && cached != null) return cached;
+
+            var verts = new System.Collections.Generic.List<Vector3>();
+            var normals = new System.Collections.Generic.List<Vector3>();
+            var uvs = new System.Collections.Generic.List<Vector2>();
+            var tris = new System.Collections.Generic.List<int>();
+            // A different patch of the scan for each size, so identical-looking pieces don't line up.
+            int hash = (Mathf.RoundToInt(s.x * 1000f) * 73856093) ^ (Mathf.RoundToInt(s.y * 1000f) * 19349663) ^ (Mathf.RoundToInt(s.z * 1000f) * 83492791);
+            Vector2 offset = new Vector2((hash & 1023) / 1023f, ((hash >> 10) & 1023) / 1023f); // stable across sessions
+            void Face(Vector3 n, Vector3 a, Vector3 b, float la, float lb)
+            {
+                if (lb > la) { var t = a; a = b; b = t; var l = la; la = lb; lb = l; }
+                int i0 = verts.Count;
+                foreach (var (su, sv) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
+                {
+                    verts.Add(n * 0.5f + a * su * 0.5f + b * sv * 0.5f);
+                    normals.Add(n);
+                    uvs.Add(new Vector2((su * 0.5f + 0.5f) * la, (sv * 0.5f + 0.5f) * lb) / GeneratedAssets.WoodTextureSize + offset);
+                }
+                // Unity's front face: Cross(p1 - p0, p2 - p0) points out of it.
+                bool outward = Vector3.Dot(Vector3.Cross(a, b), n) > 0f;
+                if (outward) tris.AddRange(new[] { i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3 });
+                else tris.AddRange(new[] { i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2 });
+            }
+            Face(Vector3.right, Vector3.forward, Vector3.up, s.z, s.y);
+            Face(Vector3.left, Vector3.forward, Vector3.up, s.z, s.y);
+            Face(Vector3.up, Vector3.right, Vector3.forward, s.x, s.z);
+            Face(Vector3.down, Vector3.right, Vector3.forward, s.x, s.z);
+            Face(Vector3.forward, Vector3.right, Vector3.up, s.x, s.y);
+            Face(Vector3.back, Vector3.right, Vector3.up, s.x, s.y);
+            var mesh = new Mesh { name = key };
+            mesh.SetVertices(verts);
+            mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            mesh.RecalculateTangents();
+            GeneratedAssets.EnsureFolders();
+            if (UnityEditor.AssetDatabase.LoadMainAssetAtPath(BoxMeshAsset) == null) UnityEditor.AssetDatabase.CreateAsset(mesh, BoxMeshAsset);
+            else UnityEditor.AssetDatabase.AddObjectToAsset(mesh, BoxMeshAsset);
+            _boxes[key] = mesh;
+            return mesh;
         }
 
         internal static void AddCollider(Transform t, Vector3 center, Vector3 size)

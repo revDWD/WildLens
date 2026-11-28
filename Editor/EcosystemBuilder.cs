@@ -377,8 +377,51 @@ namespace WildLens.EditorTools
             water.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
             water.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = water.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = GeneratedAssets.Material("CreekWater", new Color(0.13f, 0.21f, 0.2f), 0.94f);
+            // 1.2: tea-coloured water with moving ripples. Before, a near-mirror (smoothness 0.94) reflected the sky's
+            // saturated zenith at grazing angles, and the creek read as a flat blue ribbon.
+            mr.sharedMaterial = WaterMaterial("CreekWater", new Color(0.075f, 0.095f, 0.07f), 0.8f, new Vector2(3f, 3f), 0.55f);
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            water.AddComponent<WaterFlow>().speed = new Vector2(0f, 0.09f); // downstream (V runs along the creek)
+        }
+
+        /// <summary>Water surface material: dark base, tileable ripple normal map (generated once), moderate smoothness.</summary>
+        private static Material WaterMaterial(string name, Color colour, float smoothness, Vector2 tiling, float normalStrength)
+        {
+            var mat = GeneratedAssets.Material(name, colour, smoothness);
+            var ripples = RippleNormal();
+            if (ripples != null && mat.HasProperty("_BumpMap"))
+            {
+                mat.SetTexture("_BumpMap", ripples);
+                mat.SetTextureScale("_BumpMap", tiling);
+                if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", normalStrength);
+                mat.EnableKeyword("_NORMALMAP");
+            }
+            // Existing materials keep their old smoothness unless it is set here (GeneratedAssets only updates colour).
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
+            if (mat.HasProperty("_SpecularHighlights")) mat.SetFloat("_SpecularHighlights", 1f);
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        /// <summary>Tileable small ripples: two octaves of value noise plus a gentle cross-wave, as a normal map.</summary>
+        private static Texture2D RippleNormal()
+        {
+            string path = GeneratedAssets.Folder + "/Terrain/T_WaterRipples_N_v1.png";
+            var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (existing != null) return existing;
+            const int n = 256;
+            var h = new float[n * n];
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float u = x / (float)n, v = y / (float)n;
+                h[y * n + x] = Fbm(u, v, 6, 3, 911) * 0.8f + Mathf.Sin((u * 5f + v * 3f) * Mathf.PI * 2f) * 0.06f;
+            }
+            GeneratedAssets.EnsureFolder(GeneratedAssets.Folder + "/Terrain");
+            WritePng(path, n, NormalsFromHeight(h, n, 14f));
+            ConfigureImporter(path, true, false);
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
 
         // ================================================================== pull-offs
@@ -402,7 +445,7 @@ namespace WildLens.EditorTools
                 float walk = s.track.Length - AlongTrack(pts, i) + 6f;
                 string hint = s.kind == DestinationKind.ObservationBlind ? $"walk {walk:0} m quietly to the blind" : $"walk {walk:0} m to {s.title}";
                 AddPullOff(pad, side, $"{s.title} parking", hint, shapeTerrain, wood, post,
-                    $"P  BIKE PARKING\n{s.title}: walk from here", false);
+                    "BIKE PARKING", $"walk to {s.title}", new[] { SignIcon.Bike, SignIcon.Walk }, false);
                 _destinationPads.Add(_pads[_pads.Count - 1].p);
 
                 // Midway scenic pull-off on tracks long enough to want a pause.
@@ -413,7 +456,7 @@ namespace WildLens.EditorTools
                     {
                         Vector3 spot = PullOffSpot(pts, mid, out Vector3 sd);
                         if (PadDistance(spot) > 25f)
-                            AddPullOff(spot, sd, "Scenic pull-off", "a bench with a view", shapeTerrain, wood, post, "SCENIC PULL-OFF", true, view);
+                            AddPullOff(spot, sd, "Scenic pull-off", "a bench with a view", shapeTerrain, wood, post, "SCENIC PULL-OFF", "a bench with a view", new[] { SignIcon.Binoculars }, true, view);
                     }
                 }
             }
@@ -467,7 +510,7 @@ namespace WildLens.EditorTools
         }
 
         private void AddPullOff(Vector3 pad, Vector3 side, string title, string hint, bool shape, Material wood, Material post,
-            string signText, bool bench, Vector3 view = default)
+            string signTitle, string signLine, SignIcon[] signIcons, bool bench, Vector3 view = default)
         {
             const float r = 3.4f;
             if (shape)
@@ -488,7 +531,7 @@ namespace WildLens.EditorTools
             parking.radius = r;
 
             Vector3 signPos = TerrainUtil.Ground(pad + side * (r + 0.6f));
-            Plank(go.transform, signText, signPos, Quaternion.LookRotation(-side), wood, post, 1.25f);
+            Plank(go.transform, signTitle, signLine, signIcons, 0, signPos, Quaternion.LookRotation(-side), post);
             if (bench)
             {
                 Vector3 look = view == Vector3.zero ? side : view;
@@ -768,9 +811,7 @@ namespace WildLens.EditorTools
 
             if (panel)
                 InterpretivePanel(parent, TerrainUtil.Ground(at - dir * (len * 0.5f + 2f) + Vector3.Cross(Vector3.up, dir) * 2.4f), -dir,
-                    "WILLOW CREEK",
-                    "This creek runs from the ridge to Cattail Pond.\nDeer follow it to drink; foxes hunt its banks.\n" +
-                    "Stones in the bed are rolled smooth by floods;\ncut banks show where the water bites in.", wood, post);
+                    SignIcon.Water, "WILLOW CREEK", "From the ridge to the pond.\nDeer follow it to drink.", wood, post);
         }
 
         private void PlantReeds(Transform group, List<Vector3> clumps, string name)
@@ -814,18 +855,10 @@ namespace WildLens.EditorTools
         // ================================================================== storytelling
 
         /// <summary>An angled interpretive lectern: a title and a few lines, like the ones on real reserve trails.</summary>
-        private void InterpretivePanel(Transform parent, Vector3 pos, Vector3 facing, string title, string body, Material wood, Material post)
+        /// <remarks>1.2: a pictogram, a bold title and two short lines (<see cref="SignKit.Panel"/>), not a paragraph.</remarks>
+        private void InterpretivePanel(Transform parent, Vector3 pos, Vector3 facing, SignIcon icon, string title, string body, Material wood, Material post)
         {
-            var panelMat = GeneratedAssets.Material("PanelFace", new Color(0.82f, 0.78f, 0.64f), 0.2f);
-            var g = PropBuilder.Group("Interpretive Panel: " + title, parent, pos, Quaternion.LookRotation(facing));
-            PropBuilder.Box("Leg L", g, new Vector3(-0.45f, 0.45f, 0f), new Vector3(0.09f, 0.9f, 0.09f), post);
-            PropBuilder.Box("Leg R", g, new Vector3(0.45f, 0.45f, 0f), new Vector3(0.09f, 0.9f, 0.09f), post);
-            var face = PropBuilder.Group("Face", g, pos + Vector3.up * 1.0f, Quaternion.LookRotation(facing) * Quaternion.Euler(-35f, 0f, 0f));
-            PropBuilder.Box("Frame", face, new Vector3(0f, 0f, -0.03f), new Vector3(1.15f, 0.72f, 0.05f), wood);
-            PropBuilder.Box("Panel", face, Vector3.zero, new Vector3(1.05f, 0.62f, 0.02f), panelMat);
-            PropBuilder.Label(face, new Vector3(0f, 0.22f, 0.015f), title, 0.011f);
-            PropBuilder.Label(face, new Vector3(0f, -0.06f, 0.015f), body, 0.0062f);
-            PropBuilder.AddCollider(g, new Vector3(0f, 0.6f, 0f), new Vector3(1.1f, 1.2f, 0.4f));
+            SignKit.Panel(parent, pos, facing, icon, title, body, wood, post);
             Clear(pos, 1.5f);
             AddKeepOut(pos, 1.5f);
         }
@@ -891,7 +924,7 @@ namespace WildLens.EditorTools
                     Vector3 dir = TerrainUtil.Flat(pts[Mathf.Min(pts.Count - 1, best - 12 + 1)] - pts[Mathf.Max(0, best - 12 - 1)]).normalized;
                     int signAt = Mathf.Max(1, best - 14);
                     Vector3 side = Vector3.Cross(Vector3.up, dir);
-                    Plank(parent, "DEER CROSSING\nSlow down · look both ways", TerrainUtil.Ground(pts[signAt] + side * 2.2f), Quaternion.LookRotation(-dir), wood, post, 1.3f);
+                    Plank(parent, "DEER CROSSING", "slow down", new[] { SignIcon.Paw }, 0, TerrainUtil.Ground(pts[signAt] + side * 2.2f), Quaternion.LookRotation(-dir), post);
                 }
             }
 

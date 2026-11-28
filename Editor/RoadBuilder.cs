@@ -83,8 +83,7 @@ namespace WildLens.EditorTools
                 Vector3 a = first.Points[3], dir = TerrainUtil.Flat(first.Points[5] - first.Points[1]).normalized;
                 Vector3 side = Vector3.Cross(Vector3.up, dir);
                 Vector3 pos = TerrainUtil.Ground(a + side * 3f);
-                Plank(parent, "RESERVE ROAD  ·  ride slowly\nBikes & ranger vehicles · to all destinations\nFootpaths: ride gently, or walk",
-                    pos, Quaternion.LookRotation(-dir), wood, post, 1.7f);
+                Plank(parent, "RESERVE ROAD", "ride slowly · all destinations", new[] { SignIcon.Bike }, 0, pos, Quaternion.LookRotation(-dir), post);
                 AddKeepOut(pos, 1.2f);
             }
         }

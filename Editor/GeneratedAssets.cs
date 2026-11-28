@@ -53,7 +53,46 @@ namespace WildLens.EditorTools
                 if (doubleSided) MaterialLibrary.MakeDoubleSided(mat);
                 EditorUtility.SetDirty(mat);
             }
+            if (WoodTints.TryGetValue(name, out var tint)) ApplyWoodGrain(mat, tint);
             return mat;
+        }
+
+        /// <summary>
+        /// 1.2: the reserve's woodwork (kiosk, signs, decks, the blind, benches, bridges) gets the scanned CC0 plank texture
+        /// (Poly Haven Weathered Brown Planks), tinted per role: light boards, dark posts, stained sign boards. Boxes made
+        /// by <see cref="PropBuilder.Box"/> carry real-scale UVs, so the grain runs along each piece at its true size.
+        /// </summary>
+        private static readonly System.Collections.Generic.Dictionary<string, Color> WoodTints =
+            new System.Collections.Generic.Dictionary<string, Color>
+            {
+                { "Wood", new Color(1f, 0.94f, 0.86f) },
+                { "WoodDark", new Color(0.6f, 0.53f, 0.46f) },
+                { "SignBoard", new Color(0.44f, 0.36f, 0.3f) },
+            };
+
+        public const string WoodTexture = "Surfaces/weathered_brown_planks_diff_1k.jpg";
+        public const float WoodTextureSize = 1.8f; // metres covered by one repeat of the scan
+
+        private static void ApplyWoodGrain(Material mat, Color tint)
+        {
+            if (!ArtLibrary.Import()) return;
+            var albedo = ArtLibrary.Texture(WoodTexture);
+            if (albedo == null) return;
+            MaterialLibrary.ApplyColor(mat, tint);
+            foreach (var prop in new[] { "_BaseMap", "_MainTex" })
+            {
+                if (!mat.HasProperty(prop)) continue;
+                mat.SetTexture(prop, albedo);
+                mat.SetTextureScale(prop, Vector2.one);
+            }
+            var normal = ArtLibrary.Texture("Surfaces/weathered_brown_planks_nor_gl_1k.jpg");
+            if (normal != null && mat.HasProperty("_BumpMap"))
+            {
+                mat.SetTexture("_BumpMap", normal);
+                mat.EnableKeyword("_NORMALMAP");
+            }
+            mat.enableInstancing = true;
+            EditorUtility.SetDirty(mat);
         }
 
         /// <summary>Saves (replacing) a generated asset such as a mesh or texture.</summary>

@@ -625,16 +625,10 @@ namespace WildLens.EditorTools
         /// The reserve's sign standard (0.9): dark stained boards with cream routed lettering and a thin green rule,
         /// the same everywhere, so the place reads as one curated reserve rather than scattered props.
         /// </summary>
-        private static void Plank(Transform parent, string text, Vector3 pos, Quaternion rot, Material wood, Material post, float width = 1.3f)
-        {
-            var sign = PropBuilder.Group("Sign", parent, pos, rot);
-            int lines = text.Split('\n').Length;
-            float h = 0.22f + lines * 0.13f;
-            PropBuilder.Box("Post", sign, new Vector3(0f, 0.65f, 0f), new Vector3(0.11f, 1.3f, 0.11f), post);
-            PropBuilder.Box("Board", sign, new Vector3(0f, 1.15f, 0.06f), new Vector3(width, h, 0.05f), PropBuilder.SignBoard);
-            PropBuilder.Box("Rule", sign, new Vector3(0f, 1.15f + h * 0.5f - 0.035f, 0.087f), new Vector3(width - 0.08f, 0.012f, 0.005f), PropBuilder.SignTrim);
-            PropBuilder.Label(sign, new Vector3(0f, 1.13f, 0.09f), text, 0.012f, PropBuilder.SignText);
-        }
+        /// <remarks>1.2: big bold title, pictograms and at most one short line (<see cref="SignKit.Sign"/>), readable from
+        /// across a clearing. Destination signs carry the destination's number, as on the trailhead map.</remarks>
+        private static void Plank(Transform parent, string title, string line, SignIcon[] icons, int number, Vector3 pos, Quaternion rot, Material post) =>
+            SignKit.Sign(parent, pos, rot, title, line, icons, number, post);
 
         /// <summary>A fingerpost where the track leaves the loop: "→ Cattail Pond 0.4 km".</summary>
         private void Fingerpost(Transform group, Site s, Material wood, Material post)
@@ -645,15 +639,25 @@ namespace WildLens.EditorTools
             Vector3 side = Vector3.Cross(Vector3.up, dir);
             Vector3 pos = TerrainUtil.Ground(start + dir * 2.5f + side * 2.3f);
             var sign = PropBuilder.Group("Fingerpost: " + s.title, group, pos, Quaternion.LookRotation(side));
-            PropBuilder.Box("Post", sign, new Vector3(0f, 0.85f, 0f), new Vector3(0.11f, 1.7f, 0.11f), post);
-            PropBuilder.Box("Finger", sign, new Vector3(-0.55f, 1.45f, 0f), new Vector3(1.2f, 0.24f, 0.05f), PropBuilder.SignBoard);
-            PropBuilder.Box("Point", sign, new Vector3(-1.2f, 1.45f, 0f), new Vector3(0.17f, 0.17f, 0.05f), PropBuilder.SignBoard); // arrow tip
-            sign.Find("Point").localRotation = Quaternion.Euler(0f, 0f, 45f);
+            // 1.2: a finger sized to its words, the destination's number disc at the root, lettering on both faces.
             float km = s.track.Length / 1000f;
-            string text = $"{s.number}  {s.title.ToUpperInvariant()}  {km:0.0} km";
-            PropBuilder.Label(sign, new Vector3(-0.55f, 1.45f, 0.03f), text, 0.0085f, PropBuilder.SignText);
-            PropBuilder.Label(sign, new Vector3(-0.55f, 1.45f, -0.03f), text, 0.0085f, PropBuilder.SignText);
-            sign.GetChild(sign.childCount - 1).localRotation = Quaternion.identity; // second label reads from the back
+            string text = $"{s.title.ToUpperInvariant()}  {km:0.0} km";
+            float size = SignKit.Fit(text, 0.016f, 1.9f, true);
+            float len = SignKit.TextWidth(text, size, true) + 0.5f;
+            PropBuilder.Box("Post", sign, new Vector3(0f, 0.85f, 0f), new Vector3(0.11f, 1.7f, 0.11f), post);
+            PropBuilder.Box("Finger", sign, new Vector3(-len * 0.5f, 1.45f, 0f), new Vector3(len, 0.3f, 0.05f), PropBuilder.SignBoard);
+            PropBuilder.Box("Point", sign, new Vector3(-len, 1.45f, 0f), new Vector3(0.21f, 0.21f, 0.05f), PropBuilder.SignBoard); // arrow tip
+            sign.Find("Point").localRotation = Quaternion.Euler(0f, 0f, 45f);
+            foreach (float face in new[] { 1f, -1f })
+            {
+                var side2 = PropBuilder.Group("Face", sign, sign.position, sign.rotation * Quaternion.Euler(0f, face > 0f ? 0f : 180f, 0f));
+                // Each face reads root-to-tip: the front has the root on its right, the back on its left.
+                float root = face > 0f ? -0.2f : 0.2f, dirX = face > 0f ? -1f : 1f;
+                SignKit.Icon(side2, new Vector3(root, 1.45f, 0.03f), SignIcon.Disc, 0.22f, SignKit.Green);
+                SignKit.Label(side2, new Vector3(root, 1.45f, 0.033f), s.number.ToString(), 0.019f, SignKit.Cream, TextAnchor.MiddleCenter, true);
+                SignKit.Label(side2, new Vector3(root + dirX * 0.15f, 1.45f, 0.03f), text, size, SignKit.Cream,
+                    face > 0f ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft, true);
+            }
             Clear(pos, 1.5f);
         }
 
@@ -685,8 +689,8 @@ namespace WildLens.EditorTools
                 PropBuilder.AddCollider(deck, new Vector3(x, y + 0.6f, 0f), new Vector3(0.1f, 1.2f, 3f));
             PropBuilder.AddCollider(deck, new Vector3(0f, y + 0.6f, 1.45f), new Vector3(4f, 1.2f, 0.1f));
 
-            Plank(group, "RIDGE OVERLOOK\nBest at golden hour · hawks hunt the slopes", TerrainUtil.Ground(pos - f * 4.2f + Vector3.Cross(Vector3.up, f) * 2.6f),
-                Quaternion.LookRotation(-f), wood, post);
+            Plank(group, "RIDGE OVERLOOK", "hawks ride the wind", SignKit.TimeIcons(BestTimes(s.kind)), s.number,
+                TerrainUtil.Ground(pos - f * 4.2f + Vector3.Cross(Vector3.up, f) * 2.6f), Quaternion.LookRotation(-f), post);
             ClearCone(pos, f, 35f, 160f);
             AddViewpoint(group, "Ridge Overlook", pos + Vector3.up * (y + 1.65f), TerrainUtil.Ground(pos + f * 120f) + Vector3.up * 3f);
 
@@ -738,9 +742,8 @@ namespace WildLens.EditorTools
             amb.kind = AmbientKind.Wind;
             amb.volume = 0.5f;
             amb.audibleRadius = 70f;
-            InterpretivePanel(group, TerrainUtil.Ground(pos - f * 4.4f - Vector3.Cross(Vector3.up, f) * 2.6f), -f, "RIDING THE WIND",
-                "Wind striking the ridge rises, and red-tailed\nhawks ride it without a wingbeat, watching the\n" +
-                "slopes for voles and rabbits. Look for the dead\nsnag: their favourite lookout.", wood, post);
+            InterpretivePanel(group, TerrainUtil.Ground(pos - f * 4.4f - Vector3.Cross(Vector3.up, f) * 2.6f), -f, SignIcon.Bird, "RIDING THE WIND",
+                "Hawks soar on the rising air.\nWatch the dead snag.", wood, post);
         }
 
         // ------------------------------------------------------------------ Cattail Pond
@@ -750,7 +753,8 @@ namespace WildLens.EditorTools
             float maxR = s.water * 1.35f;
             Clear(s.centre, maxR + 5f);
             float level = s.waterLevel != 0f ? s.waterLevel : TerrainUtil.SampleHeight(s.centre) + 0.1f;
-            var waterMat = GeneratedAssets.Material("PondWater", new Color(0.1f, 0.17f, 0.17f), 0.96f);
+            // 1.2: still, dark water that mirrors the banks, with faint ripples drifting in the breeze.
+            var waterMat = WaterMaterial("PondWater", new Color(0.06f, 0.085f, 0.07f), 0.88f, new Vector2(18f, 18f), 0.25f);
             var disc = GeneratedAssets.LoadOrCreate("Mesh_PondDisc", () => ProceduralMeshes.Disc(48));
             var water = new GameObject("Water");
             water.transform.SetParent(group, false);
@@ -761,6 +765,9 @@ namespace WildLens.EditorTools
             var mr = water.AddComponent<MeshRenderer>();
             mr.sharedMaterial = waterMat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var drift = water.AddComponent<WaterFlow>();
+            drift.speed = new Vector2(0.004f, 0.006f);
+            drift.wobble = 1f;
 
             // Reflections of the banks and trees, not just the sky: a realtime probe rendered once on load.
             var probeGo = new GameObject("Pond Reflections");
@@ -824,10 +831,10 @@ namespace WildLens.EditorTools
             PropBuilder.AddCollider(jetty, new Vector3(0.75f, deckY + 0.6f, len * 0.5f), new Vector3(0.08f, 1.2f, len - 2f));
             PropBuilder.AddCollider(jetty, new Vector3(0f, deckY + 0.6f, len - 1.5f), new Vector3(1.5f, 1.2f, 0.08f));
 
-            Plank(group, "CATTAIL POND\nMist at dawn · deer drink at dusk", TerrainUtil.Ground(shore - f * 3.5f + side * 2.2f), Quaternion.LookRotation(-f), wood, post);
-            InterpretivePanel(group, TerrainUtil.Ground(shore - f * 3.2f - side * 2.4f), -f, "LIFE AT THE WATER'S EDGE",
-                "Cattails and reeds shelter frogs and nesting birds.\nDeer come down to drink in the cool of evening.\n" +
-                "Stand still on the jetty: the far shore is\nwhere they step out of the trees.", wood, post);
+            Plank(group, "CATTAIL POND", "deer drink at dusk", SignKit.TimeIcons(BestTimes(s.kind)), s.number,
+                TerrainUtil.Ground(shore - f * 3.5f + side * 2.2f), Quaternion.LookRotation(-f), post);
+            InterpretivePanel(group, TerrainUtil.Ground(shore - f * 3.2f - side * 2.4f), -f, SignIcon.Water, "LIFE AT THE WATER'S EDGE",
+                "Herons fish the shallows.\nDeer come down at dusk.", wood, post);
             AddViewpoint(group, "Cattail Pond", new Vector3(shore.x, level + deckY + 1.65f, shore.z) + f * (len - 2f), s.centre + f * s.water + Vector3.up);
             Vector3 farShore = TerrainUtil.Ground(s.centre + f * (PondRadius(s, s.centre + f * s.water) + 6f));
             AddHotspot(group, "Pond Edge Hotspot", HotspotType.Meadow, farShore, 10f);
@@ -925,10 +932,11 @@ namespace WildLens.EditorTools
                 }
                 Vector3 toClearing = TerrainUtil.Flat(s.centre - c).normalized;
                 var plaque = PropBuilder.Group("Plaque", group, TerrainUtil.Ground(c + toClearing * (ringR + 0.7f)), Quaternion.LookRotation(toClearing));
-                PropBuilder.Box("Post", plaque, new Vector3(0f, 0.35f, 0f), new Vector3(0.09f, 0.7f, 0.09f), post);
-                PropBuilder.Box("Plate", plaque, new Vector3(0f, 0.72f, 0.03f), new Vector3(0.62f, 0.34f, 0.04f), PropBuilder.SignBoard);
-                plaque.Find("Plate").localRotation = Quaternion.Euler(-30f, 0f, 0f);
-                PropBuilder.Label(plaque, new Vector3(0f, 0.74f, 0.06f), "GRANDMOTHER OAK\nabout 280 years old\nplease don't climb", 0.0065f, PropBuilder.SignText);
+                PropBuilder.Box("Post", plaque, new Vector3(0f, 0.4f, 0f), new Vector3(0.1f, 0.8f, 0.1f), post);
+                var plate = PropBuilder.Group("Plate", plaque, plaque.TransformPoint(new Vector3(0f, 0.86f, 0.03f)), plaque.rotation * Quaternion.Euler(-30f, 0f, 0f));
+                PropBuilder.Box("Board", plate, Vector3.zero, new Vector3(0.95f, 0.42f, 0.04f), PropBuilder.SignBoard);
+                SignKit.Label(plate, new Vector3(0f, 0.07f, 0.022f), "GRANDMOTHER OAK", SignKit.Fit("GRANDMOTHER OAK", 0.016f, 0.85f, true), SignKit.Cream, TextAnchor.MiddleCenter, true);
+                SignKit.Label(plate, new Vector3(0f, -0.1f, 0.022f), "about 280 years old", 0.011f, SignKit.Cream);
                 Occupy(c);
                 AddKeepOut(c, ringR + 0.5f);
             }
@@ -985,11 +993,10 @@ namespace WildLens.EditorTools
             PropBuilder.Box("LegL", bench, new Vector3(-0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), post);
             PropBuilder.Box("LegR", bench, new Vector3(0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), post);
             PropBuilder.AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.8f, 0.9f, 0.5f));
-            Plank(group, "OLD-GROWTH GROVE\nCool shade at midday · squirrels at work", TerrainUtil.Ground(s.centre - f * 5f + Vector3.Cross(Vector3.up, f) * 3f),
-                Quaternion.LookRotation(-f), wood, post);
-            InterpretivePanel(group, TerrainUtil.Ground(s.centre - f * 5f - Vector3.Cross(Vector3.up, f) * 3f), -f, "OLD GROWTH",
-                "Some of these trees are older than the reserve.\nFallen trunks feed the soil; mosses and ferns\n" +
-                "keep it damp. Grey squirrels nest high up:\nlisten for them before you see them.", wood, post);
+            Plank(group, "OLD-GROWTH GROVE", "cool shade at midday", SignKit.TimeIcons(BestTimes(s.kind)), s.number, TerrainUtil.Ground(s.centre - f * 5f + Vector3.Cross(Vector3.up, f) * 3f),
+                Quaternion.LookRotation(-f), post);
+            InterpretivePanel(group, TerrainUtil.Ground(s.centre - f * 5f - Vector3.Cross(Vector3.up, f) * 3f), -f, SignIcon.Tree, "OLD GROWTH",
+                "Trees older than the reserve.\nOwls roost here by day.", wood, post);
             AddViewpoint(group, "Old-Growth Grove", TerrainUtil.Ground(s.centre - f * 2f) + Vector3.up * 1.2f, TerrainUtil.Ground(s.centre + f * 12f) + Vector3.up * 6f);
             AddKeepOut(s.centre, 6f);
         }
@@ -1032,11 +1039,10 @@ namespace WildLens.EditorTools
             PropBuilder.Box("Bench", hide, new Vector3(0f, 0.45f, D * 0.5f - 0.75f), new Vector3(W - 0.8f, 0.07f, 0.35f), wood);
             // Ranger's log on the inside of the left wall, readable from the bench.
             var log = PropBuilder.Group("Ranger Log", hide, hide.TransformPoint(new Vector3(-W * 0.5f + 0.07f, 1.45f, -0.2f)), hide.rotation * Quaternion.Euler(0f, 90f, 0f));
-            PropBuilder.Box("Board", log, Vector3.zero, new Vector3(0.75f, 0.55f, 0.02f), GeneratedAssets.Material("PanelFace", new Color(0.82f, 0.78f, 0.64f), 0.2f));
-            PropBuilder.Label(log, new Vector3(0f, 0.18f, 0.012f), "RANGER'S LOG: MEADOW BLIND", 0.0055f);
-            PropBuilder.Label(log, new Vector3(0f, -0.05f, 0.012f),
-                "Mon  doe and fawn, west edge, dawn\nTue  cottontails along the brush line\nThu  fox crossing at dusk\n" +
-                "Sat  three deer grazing 15 m out\nSit still. They come to you.", 0.0045f);
+            PropBuilder.Box("Board", log, Vector3.zero, new Vector3(0.95f, 0.7f, 0.02f), GeneratedAssets.Material("PanelFace", new Color(0.88f, 0.84f, 0.7f), 0.2f));
+            SignKit.Label(log, new Vector3(0f, 0.25f, 0.012f), "RANGER'S LOG", 0.011f, SignKit.Ink, TextAnchor.MiddleCenter, true);
+            const string entries = "Mon  doe and fawn, dawn\nTue  cottontails, brush line\nThu  fox crossing at dusk\nSat  turkeys by the feeder\nSit still. They come to you.";
+            SignKit.Label(log, new Vector3(0f, -0.06f, 0.012f), entries, SignKit.Fit(entries, 0.0075f, 0.85f, false), SignKit.Ink);
             var blind = hide.gameObject.AddComponent<ObservationBlind>();
             blind.interiorCentre = new Vector3(0f, 1f, 0f);
             blind.interiorSize = new Vector3(W - 0.2f, 2f, D - 0.2f);
@@ -1060,10 +1066,9 @@ namespace WildLens.EditorTools
                 if (_art && _artShrubs.Count > 0) PlaceArt(_artShrubs, group, p, R(0.9f, 1.3f), 0.02f, 3f);
             }
 
-            Plank(group, "MEADOW BLIND\nBest early morning & late afternoon\nEnter quietly. Inside, wildlife can't see you", TerrainUtil.Ground(s.arrival + side * 2.2f), Quaternion.LookRotation(-along), wood, post, 1.6f);
-            InterpretivePanel(group, TerrainUtil.Ground(s.arrival - side * 2.4f), -along, "A MEADOW FOR EVERYONE",
-                "Wildflowers feed the insects that feed the birds.\nDeer graze here at dawn; cottontails keep to the\n" +
-                "brushy edges. Inside the blind your outline\nand footsteps are hidden: watch, and wait.", wood, post);
+            Plank(group, "MEADOW BLIND", "enter quietly", SignKit.TimeIcons(BestTimes(s.kind)), s.number, TerrainUtil.Ground(s.arrival + side * 2.2f), Quaternion.LookRotation(-along), post);
+            InterpretivePanel(group, TerrainUtil.Ground(s.arrival - side * 2.4f), -along, SignIcon.Binoculars, "A MEADOW FOR EVERYONE",
+                "Sit still inside the blind.\nThe meadow comes to you.", wood, post);
             AddViewpoint(group, "Meadow Blind", pos + Vector3.up * 1.65f + f * (D * 0.5f - 0.15f), s.centre + Vector3.up * 0.8f);
             ClearCone(pos, f, 45f, s.radius * 1.8f);
             // Signature (1.0): a bird feeder on a pole in front of the window: life close to the glass.

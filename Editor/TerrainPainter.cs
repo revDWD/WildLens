@@ -115,7 +115,7 @@ namespace WildLens.EditorTools
                     float bed = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.8f, 1.8f, creek));
                     float bankCut = (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(2f, 4f, creek))) * (1f - bed);
                     rock = Mathf.Max(rock, bed * 0.85f);
-                    tread = Mathf.Max(tread, bankCut * 0.6f);
+                    tread = Mathf.Max(tread, bankCut * 0.3f); // 1.2: a hint of cut bank, not an orange band
                     forest = Mathf.Max(forest, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(4f, 10f, creek)));
                 }
 
@@ -162,7 +162,8 @@ namespace WildLens.EditorTools
         {
             var protos = new[]
             {
-                Detail(DetailTexture("Grass", DrawGrass), new Color(0.4f, 0.53f, 0.22f), new Color(0.58f, 0.55f, 0.3f), 0.45f, 0.8f, 0.22f, 0.42f),
+                // 1.2: narrower, taller short-grass tufts: the wide low ones read as fern rosettes from eye height.
+                Detail(DetailTexture("Grass", DrawGrass), new Color(0.4f, 0.53f, 0.22f), new Color(0.58f, 0.55f, 0.3f), 0.3f, 0.52f, 0.3f, 0.52f),
                 Detail(DetailTexture("MeadowGrass", DrawMeadowGrass), new Color(0.48f, 0.55f, 0.26f), new Color(0.68f, 0.6f, 0.34f), 0.5f, 0.9f, 0.38f, 0.62f),
                 Detail(DetailTexture("FlowersYellow", (px, n) => DrawFlowers(px, n, new Color(0.98f, 0.82f, 0.22f))), Color.white, new Color(0.95f, 0.9f, 0.8f), 0.35f, 0.55f, 0.3f, 0.5f),
                 Detail(DetailTexture("FlowersWhite", (px, n) => DrawFlowers(px, n, new Color(0.97f, 0.96f, 0.92f))), Color.white, new Color(0.95f, 0.93f, 0.85f), 0.35f, 0.55f, 0.3f, 0.48f),
@@ -201,12 +202,16 @@ namespace WildLens.EditorTools
                 float trunk = trees.Nearest(p, 2f);
 
                 layers[0][z, x] = Count(kitDensity[0] * (10f * open * (1f - meadow * 0.5f) * edge * (0.6f + 0.8f * n)), cellArea);
-                layers[1][z, x] = Count(kitDensity[1] * (7f * meadow * edge * (0.5f + n)), cellArea);
+                // 1.2: sunny creek banks grow tall grass and sedge, not ferns (ferns need shade).
+                float wetBank = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3f, 12f, creekD));
+                float shade = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.4f, 0.65f, forest));
+                layers[1][z, x] = Count(kitDensity[1] * ((7f * meadow + 6f * wetBank * (1f - shade)) * edge * (0.5f + n)), cellArea);
                 float flowers = meadow * 0.7f + open * 0.04f;
                 layers[2][z, x] = Count(kitDensity[2] * (flowers * edge * (n > 0.55f ? 1.2f : 0.2f)), cellArea);
                 layers[3][z, x] = Count(kitDensity[3] * (flowers * edge * (n < 0.4f ? 1f : 0.15f)), cellArea);
-                float wet = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3f, 14f, creekD)); // ferns crowd the creek
-                layers[4][z, x] = trunk < 0.9f ? 0 : Count(kitDensity[4] * ((3f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 0.75f, forest)) + 4f * wet) * (0.4f + n)), cellArea);
+                float wet = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3f, 14f, creekD)); // ferns crowd the creek...
+                // ...where it runs through woodland (1.2: in the open they read as a fern field).
+                layers[4][z, x] = trunk < 0.9f ? 0 : Count(kitDensity[4] * ((3f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 0.75f, forest)) + 4f * wet * shade) * (0.4f + n)), cellArea);
                 // Purple asters in the meadows (0.8): colour that says "wildflower meadow" at a glance.
                 layers[5][z, x] = Count(kitDensity[5] * (meadow * edge * (n > 0.4f && n < 0.58f ? 1.1f : 0.1f)), cellArea);
             }
@@ -289,7 +294,7 @@ namespace WildLens.EditorTools
                     ScannedLayer("Grass", "leafy_grass", 3f, new Color(0.72f, 0.95f, 0.6f)),
                     ScannedLayer("Meadow", "leafy_grass", 4.3f, new Color(0.82f, 0.93f, 0.55f)),
                     ScannedLayer("ForestFloor", "forest_leaves_02", 2.6f, new Color(0.92f, 0.9f, 0.88f)),
-                    ScannedLayer("Dirt", "dirt_floor", 2.4f, new Color(0.84f, 0.78f, 0.72f)), // tone the orange down
+                    ScannedLayer("Dirt", "dirt_floor", 2.4f, new Color(0.7f, 0.66f, 0.62f)), // 1.2: a brown earth path, not orange
                     ScannedLayer("Rock", "aerial_rocks_02", 6f, Color.white),
                 };
                 if (System.Array.TrueForAll(scanned, l => l != null)) return scanned;
