@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.3.0] Trailhead
+A presentation and readability pass from playtest screenshots. No new systems.
+### Signs you can read
+- **Trailhead board redesigned** like a national-park trailhead: WILLOW CREEK in big letters, the time of day and
+  conditions ("MORNING 09:44 · Fair · deer in the meadows"), a large map with big numbered markers, and the four
+  destinations with number, distance and best times as pictograms. The feature list, release notes and statistics are
+  gone; the version is one small line in the footer (a stale scene is still flagged there).
+- **One sign standard, round two** (`SignKit`): big bold titles (about 10 cm capitals, readable from ~15 m), at most
+  one short line, the destination's number disc (matching the board's map), and **pictograms** for best times
+  (sunrise, sun, sunset, moon) and for meaning (binoculars, paw, bird, water, tree, bike, walker). Boards are sized
+  to their words from the font's real glyph widths, so nothing spills over.
+- Every sign rewritten short: destination signs, fingerposts (bigger, numbered, readable from both sides), bike
+  parking and scenic pull-offs, Reserve Road, deer crossing, viewpoint signs (now dark boards with cream lettering),
+  the Grandmother Oak plaque, the ranger's log, and the reserve guidelines (three pictogram lines).
+- **Interpretive panels**: a large pictogram, a bold title on a green band and two short lines instead of a paragraph.
+### Looks
+- **Real wood**: a scanned CC0 plank texture (Poly Haven *Weathered Brown Planks*) on the kiosk, signs, decks, the blind,
+  benches and bridges, with real-scale UVs so grain runs along each piece (posts vertical, boards horizontal).
+- **Water that reads as water**: Willow Creek and Cattail Pond are dark and tea-coloured with ripples; the creek's
+  ripples **flow downstream** and the pond's drift. Before, a near-mirror surface reflected the sky's blue zenith.
+- **Creek banks** in the open grow tall grass and sedge; ferns keep to shade (they carpeted sunny banks before). Cut
+  banks and earth paths are brown rather than orange; short grass tufts are narrower and taller.
+- **Broadleaf crowns** are rounder and fuller (steeper limbs, round clusters, crown filled between the limb tips, a
+  raised top), so distant woods read as temperate broadleaf, not savanna. Tree positions are unchanged.
+- **Birch** trunks are grey-white instead of glowing.
+- A **trail register** on a post beside the kiosk.
+- Environment version 14; art import version 4 (**rebuild the slice**).
+
 ## [1.2.0] Habitat Kit
 An environment pass that keeps every gameplay system as it is: better rocks now, and a supported route to
 high-quality free trees, grass and ground. Store assets can't be committed to this public repository, so they are

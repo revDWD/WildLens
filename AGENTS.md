@@ -10,7 +10,7 @@ reserve is in `Documentation~/ReserveExpansion.md`; the environment audit, free-
 
 ## 0. Start here (a fresh session's first ten minutes)
 
-1. **What this is:** Willow Creek Nature Reserve, a quiet wildlife photography game (v1.2). The *place* is the
+1. **What this is:** Willow Creek Nature Reserve, a quiet wildlife photography game (v1.3). The *place* is the
    product: a generated reserve (meadow loop, ridge, pond, grove, meadow blind, Willow Creek, Reserve Road, footpaths)
    with a day cycle and wildlife that keeps hours. Photography (zoom, grading, journal) is the reason to be there.
 2. **How it's built:** a Unity UPM package. An editor builder (`WildLens ▸ Vertical Slice Builder`) generates the
@@ -291,7 +291,7 @@ without adding one. Players learn patterns only if they're consistent and stated
 cardinal, blue jay, red-winged blackbird, opossum, coyote), each with residents at a destination; small-bird flight
 as species data. *Lesson:* the framework held: fifteen species with no new AI.
 
-**1.2.0 Habitat Kit** (current). Gameplay had outgrown the environment's look, and the brief was to replace as
+**1.2.0 Habitat Kit**. Gameplay had outgrown the environment's look, and the brief was to replace as
 much generated scenery as possible with free, high-quality assets. *Why a kit, not an import:* every store asset,
 free or not, is barred from this public repo, and the scene is rebuilt from code, so assets have to be found in the
 user's project and placed by the builder. *Why by ecological role:* a random list of tree prefabs ignores the forest
@@ -301,6 +301,17 @@ best free environments (Book of the Dead, Fontainebleau) are HDRP-only; Unity's 
 realistic free source of game-ready trees. Scanned "rock faces" are open shells: measure which way they face before
 placing them. Never change the random sequence for users who don't opt in, or every reserve silently changes.
 
+**1.3.0 Trailhead** (current). The playtest said the reserve was looking good and was now limited by presentation and
+readability: the kiosk read like software release notes, signs needed standing next to, the creek was a blue ribbon,
+ferns carpeted sunny banks, and distant broadleaf trees looked like acacias. So: a park-style trailhead board (name,
+time, conditions, map, destinations), one sign standard with big titles, one short line and pictograms (`SignKit`),
+scanned wood on the woodwork, tea-coloured flowing water, sedge banks, rounder crowns. *Lessons:* a sign is read in
+two seconds from several metres away, so it gets a title, a number and an icon, and the paragraph goes. Measure text
+with the font's own glyph advances instead of guessing board widths. A mirror-smooth water material reflects the sky's
+most saturated colour at exactly the angle players look at a creek. Add visual detail from a separate random source,
+or every tree after it moves. Players asked for wildlife already added in 1.1: say what's already there before
+building more.
+
 **Cross-cutting lessons**
 - When the player says something doesn't work, believe them and **build a probe** before theorising.
 - Make invisible state visible: stale scenes, ignored inputs and FOV overrides each cost a milestone before they
@@ -309,13 +320,14 @@ placing them. Never change the random sequence for users who don't opt in, or ev
   either alone.
 - Keep package size in mind: `Art~` ships to every user. Use 2k skies and ground, and drop unused files.
 
-## 6. Current state (1.2.0)
+## 6. Current state (1.3.0)
 
 **Strengths:** the approach-and-photograph loop; camera feel; legible grading; a reserve of distinct, connected,
 named places with signature details; a day of changing light and learnable wildlife rhythms; a road for riding and
 footpaths for walking; one coherent reserve identity; the trailhead board; a data-driven species framework; tooling
 (F3/F4, comparison capture, stale-scene detection, model setup, compile check); a supported path to free
-high-quality scenery (Environment Kit) and scanned bedrock outcrops.
+high-quality scenery (Environment Kit) and scanned bedrock outcrops; readable park-style signs and a trailhead board
+that reads in seconds; scanned wood on the woodwork; flowing creek water.
 
 **Remaining weaknesses (honest):**
 1. **Animals are primitive placeholders.** The biggest gap by far. No free licence-safe realistic models exist; buy
@@ -325,9 +337,11 @@ high-quality scenery (Environment Kit) and scanned bedrock outcrops.
    run in Unity**: expect fixes on first use (scale, crown colliders, scanner guesses).
 3. **Grass** is drawn procedurally (flat billboards) unless the kit supplies mesh grass; the grass terrain layer is a
    tinted leaf-litter scan (no CC0 lush-grass scan exists).
-4. **Props are flat-coloured boxes**; text is TextMesh (no proper font rendering, legibility at distance is poor).
+4. **Props are boxes** (now with scanned wood, but box-shaped: no bevels, no real kiosk or blind models). Sign text is
+   TextMesh in the built-in font (bold, large and short since 1.3, but unlit, so it glows slightly at dusk; no
+   third-party font is committed because free sign fonts are OFL, not CC0).
 5. **Sky**: two HDRIs re-tinted through the day; no night sky, no weather.
-6. **Water is static** (no flow or ripples); no ford or cascade on the creek.
+6. **Water** has ripples and flow since 1.3, but no refraction, foam or shoreline blending; no ford or cascade.
 7. **The reserve depends on the terrain it's built on**; creek and road grading need terrain shaping on. Building on
    a demo scene's terrain isn't supported (multi-tile terrains, its own tree instances).
 8. **Schedules move whole groups at period changes**: commuting can look synchronised.
@@ -335,8 +349,8 @@ high-quality scenery (Environment Kit) and scanned bedrock outcrops.
 10. **The authors of 0.7–1.2 never ran Unity**: everything compiles in five configurations, but every feature
    since 0.7 was verified only through the user's screenshots. Expect tuning.
 
-**Visual priorities (in order):** believable animals → kit trees and grass proven in Unity → textured props and
-legible signs → water that moves → weather and night.
+**Visual priorities (in order):** believable animals → kit trees and grass proven in Unity → real prop models
+(kiosk, blind, benches) → weather and night → water detail (foam, ford, cascade).
 
 ## 7. Checklist for changes
 
@@ -349,6 +363,8 @@ legible signs → water that moves → weather and night.
   `ReleaseDate` (the trailhead board shows them).
 - New gameplay idea? Check it against the non-priorities in section 2 first, then ask "would this make the place
   feel more real?" If not, it probably doesn't belong.
+- New sign? Use `SignKit.Sign` / `SignKit.Panel`: a title, at most one short line, pictograms, the destination
+  number where there is one. If it needs a paragraph, it belongs in the journal or nowhere.
 - Anything the player walks into or onto (doors, decks, steps): doorways ≥ 1.0 m wide and ≥ 1.95 m tall, steps
   ≤ 0.4 m (CharacterController radius 0.35, skin 0.05, height 1.8, step offset 0.4).
 - New scenery placement? Route it through the kit roles (`KitPlacement`) so free packs can replace it, give placed
@@ -367,12 +383,12 @@ legible signs → water that moves → weather and night.
    improvement available, and it is a purchase plus an afternoon, not a system.
 4. **Trees, round three, only if the kit route fails**: translucent leaf cards, crown AO, distance billboards for the
    generated trees. Kit trees (SpeedTree) bring all of this.
-5. **Signs and props worth looking at**: scanned wood materials on decks, posts and signs; a real font for sign
-   lettering (TextMeshPro or textured labels).
+5. **Props worth looking at**: the woodwork has scanned wood (1.3); next are proper shapes (bevelled posts, a shingled
+   kiosk roof, a timber blind) and lit sign lettering (TextMeshPro with a CC0 font, if one fits).
 6. **Weather as a second rhythm**: overcast, light rain, wind strength; animals shelter in woodland in rain (a
    `DailyRhythm`-style placement rule, not new AI). A night sky. CC0 overcast/dusk/night skies are on Poly Haven.
-7. **Expansion species, one at a time** (`Documentation~/WildlifeExpansion.md`): heron and raccoon first (they're
-   already defined), then turkey, barred owl, groundhog, songbirds.
+7. **Expansion species, one at a time** (`Documentation~/WildlifeExpansion.md`). Fifteen are in (1.1); the next
+   ones are in that file. Each needs a destination where it would really live.
 8. **New places with a reason**: creek ford and cascade, wetland boardwalk with a second blind, a forest footpath,
    a ranger cabin (`Documentation~/ReserveExpansion.md`).
 9. **A hand-authored reserve terrain** shipped as CC0 data, so the reserve no longer depends on the user's terrain.

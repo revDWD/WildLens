@@ -192,6 +192,28 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Signage, woodwork and water (1.3.0)
+* **Sign standard** (`Editor/SignKit.cs`): `Sign(parent, pos, rot, title, line, icons, number, post)` builds a dark
+  stained board sized to its words: number disc (destinations), bold title (`TitleSize` 0.024 ≈ 10 cm capitals), one
+  row of pictograms plus a short line (`LineSize` 0.015). `Panel(...)` builds the interpretive lectern: pictogram,
+  title on a green band, two short lines. `TextWidth` sums the font's glyph advances (TextMesh: one pixel at size 64 is
+  0.1 × characterSize m); `Fit` shrinks text to a width. `TimeIcons(bestTimes)` turns best-times words into sunrise /
+  sun / sunset / moon pictograms. Icons are 128 px generated alpha PNGs in `Generated/Icons` (append to `SignIcon`).
+* **Trailhead board** (`ReserveInfoBoard`): header (name; period, clock, `Conditions()` and `RightNow()`, refreshed
+  every 2 s), a 582-unit map with round numbered markers, destinations (number disc, name, best-time icons from
+  `timeIcons`, distance), footer (etiquette; version or stale warning). 500 canvas units per metre.
+  `Conditions()` follows the light until a weather system exists.
+* **Woodwork** (`GeneratedAssets.ApplyWoodGrain`): materials named `Wood`, `WoodDark`, `SignBoard` get the scanned plank
+  texture with role tints. `PropBuilder.Box` gives textured boxes `MetricCube(size)` meshes: UVs in metres of the scan
+  (1.8 m per repeat), U along each face's longer side, cached as sub-assets of `Generated/Mesh_PropBoxes.asset`.
+* **Water** (`EcosystemBuilder.WaterMaterial`, `RippleNormal`): dark base, generated tileable ripple normal map,
+  smoothness 0.8 (creek) / 0.88 (pond), set explicitly so old materials update. `WaterFlow` (runtime) scrolls the
+  normal map on a material instance: creek 0.09 UV/s downstream (V runs along it, 4 m per unit), pond a slow drift.
+* **Vegetation tweaks**: terrain fern detail near the creek only in shade (`shade` from the forest field); sunny
+  banks get meadow grass (detail layer 1) instead. Spreading broadleaf limbs 20% steeper, rounder clusters, plus
+  mid-limb clusters on alternate limbs and one raised top, from a position-seeded `System.Random` so placement is
+  unchanged.
+
 ## Environment Kit and outcrops (1.2.0)
 Plan, asset list and instructions: `EnvironmentMigration.md`.
 * **Kit asset** (`Editor/EnvironmentKit.cs`, saved at `Assets/WildLens/Data/EnvironmentKit.asset`, referenced by

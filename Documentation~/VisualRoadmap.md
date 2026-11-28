@@ -3,6 +3,16 @@
 Updated for 1.2.0. Licensing notes checked November 2026; **re-check each listing before buying or importing**.
 For the environment audit, the free asset list and the migration plan, see **`EnvironmentMigration.md`**.
 
+## Integrated in 1.3.0
+| Area | Asset(s) | Result |
+|---|---|---|
+| Woodwork | Poly Haven *Weathered Brown Planks* (CC0, 1k diffuse + normal, 0.45 MB) | Scanned wood on the kiosk, signs, decks, blind, benches, bridges, with real-scale UVs |
+| Sign pictograms | Generated in code (no third-party art) | Best times and meanings at a glance |
+| Water | Generated ripple normal map + `WaterFlow` | Tea-coloured water; the creek flows |
+
+**Fonts:** free signage-style fonts (Overpass, Atkinson Hyperlegible, Public Sans) are SIL OFL, not CC0, so none is
+committed; signs use the built-in font, bold and large. Revisit only if a CC0 font of comparable quality turns up.
+
 ## Integrated in 1.2.0
 | Area | Asset(s) | Result |
 |---|---|---|
