@@ -403,6 +403,21 @@ namespace WildLens.EditorTools
         public static int AutoSetUp(SpeciesDatabase db)
         {
             if (db == null || Application.isPlaying) return 0;
+            int n = AutoSetUpModels(db);
+            // 1.9.1: whatever built them (this run, an older version, a setup window), species prefabs whose materials URP cannot draw are
+            // repaired in place: only the undrawable material slots change, never the model, size, yaw or tint.
+            try
+            {
+                var lines = AnimalPrefabFactory.RepairBuiltPrefabs(db);
+                if (lines.Count > 0)
+                    Debug.LogWarning("[WildLens] Wildlife models: materials URP could not draw (they would show magenta) were repaired:\n  • " + string.Join("\n  • ", lines));
+            }
+            catch (System.Exception e) { Debug.LogWarning("[WildLens] Checking wildlife materials failed: " + e.Message); }
+            return n;
+        }
+
+        private static int AutoSetUpModels(SpeciesDatabase db)
+        {
             var settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath);
             int refreshed = 0;
             try { refreshed = RefreshOldBuilds(db, settings); }
@@ -480,8 +495,8 @@ namespace WildLens.EditorTools
                 try
                 {
                     AnimalPrefabFactory.Create(sp, best.asset, AnimalPrefabFactory.Classify(best.clips), AnimalPrefabFactory.DefaultSize(sp), 0f,
-                        TintByDefault(sp.speciesId, best.kind), out _, manual: false);
-                    lines.Add($"{sp.displayName}: now uses {best.asset.name} (was {cur.asset.name})");
+                        TintByDefault(sp.speciesId, best.kind), out string message, manual: false);
+                    lines.Add($"{sp.displayName}: now uses {best.asset.name} (was {cur.asset.name}); {message}");
                     count++;
                 }
                 catch (System.Exception e)
@@ -508,6 +523,7 @@ namespace WildLens.EditorTools
         {
             if (db == null || db.species == null) return 0;
             var refreshedNames = new List<string>();
+            var refreshedLines = new List<string>(); // 1.9.1: each species' build message (scale, materials) reaches the Console
             var failed = new List<string>();
             bool touched = false;
             foreach (var sp in db.species)
@@ -547,8 +563,9 @@ namespace WildLens.EditorTools
                     var kind = MatchAsset(src.name, System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(srcPath)), id, out _);
                     bool tint = (rec != null ? rec.tint : kind == MatchKind.StandIn) || TintByDefault(id, kind);
                     float yaw = rec != null ? rec.yaw : 0f;
-                    AnimalPrefabFactory.Create(sp, src, AnimalPrefabFactory.Classify(clips), AnimalPrefabFactory.DefaultSize(sp), yaw, tint, out _, manual: false);
+                    AnimalPrefabFactory.Create(sp, src, AnimalPrefabFactory.Classify(clips), AnimalPrefabFactory.DefaultSize(sp), yaw, tint, out string message, manual: false);
                     refreshedNames.Add(sp.displayName);
+                    refreshedLines.Add(message + $" (from {src.name})");
                 }
                 catch (System.Exception e)
                 {
@@ -558,7 +575,8 @@ namespace WildLens.EditorTools
             }
             if (touched) AssetDatabase.SaveAssets(); // records written without a build (foreign or untraceable prefabs)
             if (refreshedNames.Count > 0)
-                Debug.Log("[WildLens] Wildlife models refreshed (colours, sizes, clips, materials): " + string.Join(", ", refreshedNames) + "." +
+                Debug.Log($"[WildLens] Wildlife models refreshed for factory version {AnimalPrefabFactory.FactoryVersion} (colours, sizes, clips, materials): " + string.Join(", ", refreshedNames) + "." +
+                          "\n  • " + string.Join("\n  • ", refreshedLines) +
                           (failed.Count > 0 ? "\nCould not refresh: " + string.Join("; ", failed) + "." : "") +
                           "\nRebuilt from the same models; a model you set by hand in a setup window is never rebuilt automatically.");
             else if (failed.Count > 0)

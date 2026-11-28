@@ -310,10 +310,79 @@ namespace WildLens.EditorTools
                    fileName.EndsWith("_URP.mat", System.StringComparison.Ordinal);
         }
 
+        /// <summary>A name made only of letters, digits and underscores (at most 40 characters), "mat" when nothing is left.</summary>
+        internal static string SafeName(string s)
+        {
+            var sb = new StringBuilder();
+            foreach (char c in s ?? "") { if (sb.Length >= 40) break; sb.Append(char.IsLetterOrDigit(c) ? c : '_'); }
+            return sb.Length == 0 ? "mat" : sb.ToString();
+        }
+
+        /// <summary>
+        /// The file name of the converted copy of one source material: <c>{prefix}_{nn}_{material}_URP.mat</c>. The prefix is the species id
+        /// (or a small-life subject and variant), the index the order in which this build met the source material, so every species keeps
+        /// its own files and two materials with the same name never share one.
+        /// </summary>
+        internal static string ConversionCopyName(string prefix, int index, string materialName) =>
+            $"{prefix}_{System.Math.Max(0, System.Math.Min(index, 99)):00}_{SafeName(materialName)}_URP.mat";
+
+        /// <summary>The file name of the plain URP material that stands in for an empty or undrawable slot: <c>{prefix}_Fallback{rr}_{ss}_URP.mat</c>.</summary>
+        internal static string FallbackName(string prefix, int rendererIndex, int slot) =>
+            $"{prefix}_Fallback{System.Math.Max(0, System.Math.Min(rendererIndex, 99)):00}_{System.Math.Max(0, System.Math.Min(slot, 99)):00}_URP.mat";
+
+        /// <summary>
+        /// Whether URP draws a shader pass with this LightMode tag in its colour passes. Untagged passes are drawn (as SRPDefaultUnlit), and so
+        /// are UniversalForward, UniversalForwardOnly, UniversalGBuffer and the old LightweightForward. Built-in pipeline modes (ForwardBase,
+        /// ForwardAdd, Deferred, PrepassBase, PrepassFinal, Vertex, VertexLM, VertexLMRGBM, Always) are drawn by URP with its magenta error
+        /// shader, and helper passes (ShadowCaster, DepthOnly, Meta, MotionVectors, Universal2D…) never colour a 3D object.
+        /// </summary>
+        internal static bool UrpDrawsLightMode(string lightMode)
+        {
+            if (string.IsNullOrEmpty(lightMode)) return true;
+            switch (lightMode)
+            {
+                case "SRPDefaultUnlit":
+                case "UniversalForward":
+                case "UniversalForwardOnly":
+                case "UniversalGBuffer":
+                case "LightweightForward":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>Whether a shader whose passes carry these LightMode tags ("" = untagged) has at least one pass URP draws. No passes: false.</summary>
+        internal static bool UrpDrawsAnyPass(IList<string> lightModes)
+        {
+            if (lightModes == null || lightModes.Count == 0) return false;
+            foreach (var m in lightModes) if (UrpDrawsLightMode(m)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// One line on a model's materials for the Console, e.g. "materials: 2 (Universal Render Pipeline/Lit ×2)", from the shader name of every
+        /// material slot ("(no material)" for an empty one) and the problems still left (an empty list: none).
+        /// </summary>
+        internal static string MaterialSummary(IList<string> slotShaders, IList<string> problems)
+        {
+            var counts = new SortedDictionary<string, int>(System.StringComparer.Ordinal);
+            int n = 0;
+            if (slotShaders != null)
+                foreach (var s in slotShaders) { string k = string.IsNullOrEmpty(s) ? "(missing shader)" : s; counts.TryGetValue(k, out int c); counts[k] = c + 1; n++; }
+            var parts = new List<string>();
+            foreach (var kv in counts) parts.Add(kv.Value > 1 ? $"{kv.Key} ×{kv.Value}" : kv.Key);
+            string line = $"materials: {n}" + (parts.Count > 0 ? " (" + string.Join(", ", parts) + ")" : "");
+            if (problems != null && problems.Count > 0) line += "; STILL NOT DRAWABLE IN URP: " + string.Join("; ", problems);
+            return line;
+        }
+
         // <pure-end>
 
-        /// <summary>Bump when the factory's output improves enough that prefabs it made before should be rebuilt (1.8: real sizes, looping clips, pack scripts stripped, materials converted; 3: tinted copies bake the species colours, so changed colours need a rebuild).</summary>
-        internal const int FactoryVersion = 3;
+        /// <summary>Bump when the factory's output improves enough that prefabs it made before should be rebuilt (1.8: real sizes, looping clips, pack scripts stripped, materials converted; 3: tinted copies bake the species colours, so changed colours need a rebuild; 4: every material slot is checked for what URP can really draw (a
+        /// shader whose passes are all built-in-only, a broken shader, an empty slot) and repaired, materials are updated in place instead of deleted and
+        /// recreated, pack animation events are silenced, and lighter tints on textured stand-ins).</summary>
+        internal const int FactoryVersion = 4;
 
         /// <summary>Every clip in the given assets (models, animation FBXs, clips, controllers).</summary>
         public static List<AnimationClip> ClipsIn(IEnumerable<Object> sources)
@@ -431,8 +500,9 @@ namespace WildLens.EditorTools
 
             GameObject root = null, model = null, prefab;
             float scale = 1f;
-            int converted = 0, tinted = 0, removedCopies = 0;
-            string conversionNote = "";
+            int converted = 0, tinted = 0, repaired = 0;
+            string conversionNote = "", repairNote = "", materialLine = "";
+            Color fallbackColour = species.primaryColor; fallbackColour.a = 1f;
             try
             {
                 // Wrapper root (what the spawner instantiates and the AI moves) → yaw-corrected, scaled model.
@@ -471,11 +541,16 @@ namespace WildLens.EditorTools
                 animator.fireEvents = false; // pack clips may carry events for scripts we removed (1.10)
 
                 // Materials the active pipeline cannot draw (a built-in shader in URP is pink) are replaced by converted COPIES, then tinted.
-                try { converted = ConvertMaterialsForPipeline(model, id, Folder, out conversionNote); }
+                // Every slot URP cannot draw (built-in or built-in-only shader, broken shader, empty slot) gets a converted COPY (1.9.1).
+                try { converted = ConvertMaterialsForPipeline(model, id, Folder, fallbackColour, out conversionNote); }
                 catch (System.Exception e) { conversionNote = "material conversion failed: " + e.Message; }
-                tinted = tint ? Tint(model, species, id) : 0;
-                // Tint copies the converted materials, which leaves the conversion copies unreferenced: remove them (this species' own only).
-                try { removedCopies = DeleteUnusedConversionCopies(model, id); } catch (System.Exception) { }
+                try { tinted = tint ? Tint(model, species, id) : 0; }
+                catch (System.Exception e) { conversionNote += (conversionNote.Length > 0 ? "; " : "") + "tint failed: " + e.Message; }
+                // Verified after the tint, the last step that touches materials: anything still undrawable is replaced (prefix "_Fix").
+                // Conversion copies a tint made unused are left on disk on purpose: an orphan .mat is harmless, deleting one is not (1.9.1).
+                try { repaired = ConvertMaterialsForPipeline(model, id + "_Fix", Folder, fallbackColour, out repairNote); }
+                catch (System.Exception e) { repairNote = "material check failed: " + e.Message; }
+                materialLine = DescribeMaterials(model);
 
                 prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             }
@@ -493,8 +568,74 @@ namespace WildLens.EditorTools
             AssetDatabase.SaveAssets();
             try { WildlifePackSetup.SetKeepPlaceholder(species.speciesId, false); } catch (System.Exception) { } // a model was set: no longer kept as a placeholder
             message = $"{species.displayName}: {prefabPath} (scale {scale:0.###}" + (converted > 0 ? $", {converted} materials converted for URP" : "") +
-                      (tinted > 0 ? $", {tinted} materials tinted" : "") + (string.IsNullOrEmpty(conversionNote) ? "" : "; " + conversionNote) + ")";
+                      (tinted > 0 ? $", {tinted} materials tinted" : "") + (repaired > 0 ? $", {repaired} more repaired after the tint" : "") +
+                      (string.IsNullOrEmpty(conversionNote) ? "" : "; " + conversionNote) + (string.IsNullOrEmpty(repairNote) ? "" : "; " + repairNote) +
+                      ") " + materialLine;
             return prefab;
+        }
+
+        /// <summary>
+        /// The probe line for a built model (1.9.1), e.g. "materials: 2 (Universal Render Pipeline/Lit ×2)": every material slot's shader and,
+        /// under URP, every slot URP still cannot draw. This is what the Console shows for each species, so a screenshot of it settles "why pink".
+        /// </summary>
+        internal static string DescribeMaterials(GameObject root)
+        {
+            var shaders = new List<string>();
+            var problems = new List<string>();
+            if (root == null) return MaterialSummary(shaders, problems);
+            bool urp = UrpActive();
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                foreach (var m in r.sharedMaterials)
+                {
+                    shaders.Add(m == null ? "(no material)" : m.shader != null ? m.shader.name : "(missing shader)");
+                    if (!urp) continue;
+                    string issue = UrpDrawIssue(m);
+                    if (issue != null) problems.Add($"{r.name}: {(m != null ? m.name : "empty slot")} ({issue})");
+                }
+            }
+            return MaterialSummary(shaders, problems);
+        }
+
+        /// <summary>
+        /// 1.9.1: repairs, in place, the materials of species prefabs the factory built that URP cannot draw, WITHOUT rebuilding them (so a
+        /// model, size, yaw or tint chosen by hand in a setup window stays exactly as it is: only undrawable material slots change). Under any
+        /// other pipeline nothing is done. Returns one Console line per prefab repaired (or that could not be).
+        /// </summary>
+        internal static List<string> RepairBuiltPrefabs(SpeciesDatabase db)
+        {
+            var lines = new List<string>();
+            if (db == null || db.species == null || !UrpActive()) return lines;
+            foreach (var sp in db.species)
+            {
+                if (sp == null || sp.prefab == null) continue;
+                string path = AssetDatabase.GetAssetPath(sp.prefab);
+                if (string.IsNullOrEmpty(path) || !path.StartsWith(Folder + "/", System.StringComparison.Ordinal)) continue; // the factory's own prefabs only
+                bool bad = false;
+                foreach (var r in sp.prefab.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r == null) continue;
+                    foreach (var m in r.sharedMaterials) if (UrpDrawIssue(m) != null) { bad = true; break; }
+                    if (bad) break;
+                }
+                if (!bad) continue;
+                string id = string.IsNullOrEmpty(sp.speciesId) ? sp.name : sp.speciesId;
+                GameObject contents = null;
+                try
+                {
+                    contents = PrefabUtility.LoadPrefabContents(path);
+                    Color c = sp.primaryColor; c.a = 1f;
+                    int n = ConvertMaterialsForPipeline(contents, id + "_Fix", Folder, c, out string note);
+                    string line = DescribeMaterials(contents);
+                    PrefabUtility.SaveAsPrefabAsset(contents, path);
+                    lines.Add($"{sp.displayName}: {n} material slots repaired in {path}" + (string.IsNullOrEmpty(note) ? "" : "; " + note) + "; " + line);
+                }
+                catch (System.Exception e) { lines.Add($"{sp.displayName}: materials could not be repaired ({e.Message})"); }
+                finally { if (contents != null) { try { PrefabUtility.UnloadPrefabContents(contents); } catch (System.Exception) { } } }
+            }
+            if (lines.Count > 0) AssetDatabase.SaveAssets();
+            return lines;
         }
 
         // ---- what was built from what (1.8)
@@ -560,27 +701,6 @@ namespace WildLens.EditorTools
             foreach (var mf in prefab.GetComponentsInChildren<MeshFilter>(true))
                 if (mf != null && mf.sharedMesh != null) { string mp = AssetDatabase.GetAssetPath(mf.sharedMesh); if (IsModelPath(mp)) Add(mp); }
             return list;
-        }
-
-        private static int DeleteUnusedConversionCopies(GameObject model, string id)
-        {
-            var used = new HashSet<string>();
-            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
-                foreach (var m in r.sharedMaterials)
-                {
-                    if (m == null) continue;
-                    string mp = AssetDatabase.GetAssetPath(m);
-                    if (!string.IsNullOrEmpty(mp)) used.Add(mp);
-                }
-            int removed = 0;
-            foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { Folder }))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (string.IsNullOrEmpty(path) || System.IO.Path.GetDirectoryName(path).Replace('\\', '/') != Folder) continue; // the factory's own folder only
-                if (!IsConversionCopyName(System.IO.Path.GetFileName(path), id) || used.Contains(path)) continue;
-                if (AssetDatabase.DeleteAsset(path)) removed++;
-            }
-            return removed;
         }
 
         // ---- pack components (1.7.1)
@@ -705,97 +825,304 @@ namespace WildLens.EditorTools
         private static bool HasFloat(Material m, string name) =>
             HasProp(m, name, ShaderPropertyType.Float) || HasProp(m, name, ShaderPropertyType.Range);
 
-        private static string SafeName(string s)
-        {
-            var sb = new StringBuilder();
-            foreach (char c in s ?? "") sb.Append(char.IsLetterOrDigit(c) ? c : '_');
-            return sb.Length == 0 ? "mat" : sb.ToString();
-        }
-
         /// <summary>
         /// Replaces, on every renderer under <paramref name="root"/>, each material whose shader the active pipeline cannot draw
         /// (a built-in "Standard", "Legacy Shaders/*", "Mobile/*", "Unlit/*" or an error shader under URP) with a converted COPY in
         /// <paramref name="folder"/> (the pack's own material is never touched). One copy per source material; names are
-        /// deterministic (<c>{prefix}_{n}_{material}_URP.mat</c>) and an existing copy is overwritten. Texture, colour, normal map,
+        /// deterministic (<c>{prefix}_{n}_{material}_URP.mat</c>) and an existing copy is updated in place (its GUID kept). Texture, colour, normal map,
         /// emission, metallic/smoothness, alpha clip or transparency and two-sidedness are carried over. Under any other pipeline
         /// nothing is changed. Returns how many materials were converted; <paramref name="note"/> says why none were when URP's
         /// shaders cannot be found. Reusable by anything that places pack models (call it on an instance or on prefab contents).
         /// </summary>
-        internal static int ConvertMaterialsForPipeline(GameObject root, string namePrefix, string folder, out string note)
+        internal static int ConvertMaterialsForPipeline(GameObject root, string namePrefix, string folder, out string note) =>
+            ConvertMaterialsForPipeline(root, namePrefix, folder, new Color(0.75f, 0.73f, 0.7f, 1f), out note);
+
+        /// <summary>
+        /// As above (1.9.1), with the colour given to a plain URP material that fills an EMPTY slot (a missing material is drawn magenta). A
+        /// slot is converted when <see cref="UrpDrawIssue"/> says URP cannot draw it: a built-in shader by name, a shader that does not compile
+        /// or is not supported here, or one whose passes are all built-in-only (a pack's own surface shader, whatever it is called). Copies are
+        /// updated IN PLACE when their file exists (its GUID, and every reference to it, survives); nothing is ever deleted.
+        /// </summary>
+        internal static int ConvertMaterialsForPipeline(GameObject root, string namePrefix, string folder, Color emptySlotColour, out string note)
         {
             note = "";
             if (root == null || !UrpActive()) return 0;
             var renderers = root.GetComponentsInChildren<Renderer>(true);
             Shader target = null;
+            string targetFrom = "";
             var copies = new Dictionary<Material, Material>();
-            int made = 0;
-            foreach (var r in renderers)
+            var notes = new List<string>();
+            int made = 0, index = 0;
+            for (int ri = 0; ri < renderers.Length; ri++)
             {
+                var r = renderers[ri];
                 if (r == null) continue;
                 var mats = r.sharedMaterials;
                 bool changed = false;
                 for (int i = 0; i < mats.Length; i++)
                 {
                     var src = mats[i];
-                    if (src == null) continue;
-                    if (copies.TryGetValue(src, out var done)) { mats[i] = done; changed = true; continue; }
-                    string shaderName = src.shader != null ? src.shader.name : "";
-                    if (BuiltinShaderIssue(shaderName) == null) continue;
+                    if (src != null && copies.TryGetValue(src, out var done)) { mats[i] = done; changed = true; continue; }
+                    string issue = UrpDrawIssue(src);
+                    if (issue == null) continue;
                     if (target == null)
                     {
-                        target = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Universal Render Pipeline/Simple Lit");
-                        if (target == null) { note = "URP shaders not found: materials left as they were"; return 0; }
+                        target = UrpLitShader(out targetFrom);
+                        if (target == null) { note = "URP's Lit shader could not be found (neither by name nor from the pipeline asset): materials left as they were"; return 0; }
+                        if (targetFrom != "Shader.Find") notes.Add("URP Lit taken from " + targetFrom);
                     }
                     try
                     {
                         GeneratedAssets.EnsureFolder(folder);
-                        string path = $"{folder}/{namePrefix}_{made:00}_{SafeName(src.name)}_URP.mat";
-                        var copy = ConvertMaterial(src, path, target);
-                        copies[src] = copy;
+                        Material copy;
+                        if (src == null)
+                        {
+                            copy = PlainMaterial($"{folder}/{FallbackName(namePrefix, ri, i)}", target, emptySlotColour);
+                            notes.Add($"empty slot {i} on {r.name} filled");
+                        }
+                        else
+                        {
+                            copy = ConvertMaterial(src, $"{folder}/{ConversionCopyName(namePrefix, index++, src.name)}", target);
+                            copies[src] = copy;
+                            if (!issue.StartsWith("built-in shader", System.StringComparison.Ordinal) && !issue.StartsWith("built-in unlit", System.StringComparison.Ordinal))
+                                notes.Add($"{src.name}: {issue}, converted");
+                        }
                         mats[i] = copy;
                         changed = true;
                         made++;
                     }
                     catch (System.Exception e)
                     {
-                        note = "a material could not be converted (" + src.name + ": " + e.Message + ")";
+                        notes.Add("a material could not be converted (" + (src != null ? src.name : "empty slot") + ": " + e.Message + ")");
                     }
                 }
                 if (changed) r.sharedMaterials = mats;
             }
+            if (notes.Count > 0) note = string.Join("; ", notes);
             return made;
+        }
+
+        // ---- what URP can draw (1.9.1)
+
+        /// <summary>
+        /// Why URP cannot draw a material (null: it can). Decided structurally, not only by name: no material (an empty or missing slot is
+        /// magenta); no shader or the error shader; a built-in pipeline shader by name (<see cref="BuiltinShaderIssue"/>, which also sends
+        /// built-in Unlit to Lit); a shader that is not supported here or has compile errors (an old pack shader on Unity 6); or a shader none of
+        /// whose passes URP draws (<see cref="UrpDrawsAnyPass"/>: a surface shader keeps its built-in ForwardBase/ForwardAdd passes whatever it
+        /// is named). Shared by the factory, the repair of built prefabs and the Asset Audit, so the probe and the fix agree.
+        /// </summary>
+        internal static string UrpDrawIssue(Material m)
+        {
+            if (m == null) return "no material";
+            Shader sh = null;
+            try { sh = m.shader; } catch (System.Exception) { }
+            if (sh == null) return "missing shader";
+            string name = sh.name ?? "";
+            string byName = BuiltinShaderIssue(name);
+            if (byName != null) return byName;
+            try { if (!sh.isSupported) return "shader not supported here"; } catch (System.Exception) { }
+            // Compile errors: asked of every shader but URP's own (so a false report there can never send URP Lit round in circles).
+            bool urpOwn = name.StartsWith("Universal Render Pipeline/", System.StringComparison.Ordinal) || name.StartsWith("Hidden/Universal", System.StringComparison.Ordinal);
+            try { if (!urpOwn && ShaderUtil.ShaderHasError(sh)) return "shader has compile errors"; } catch (System.Exception) { }
+            var modes = LightModes(sh);
+            if (modes != null && !UrpDrawsAnyPass(modes))
+            {
+                var distinct = new SortedSet<string>();
+                foreach (var x in modes) distinct.Add(string.IsNullOrEmpty(x) ? "untagged" : x);
+                return "no pass URP draws (" + string.Join(", ", distinct) + ")";
+            }
+            return null;
+        }
+
+        /// <summary>The LightMode tag of every pass of the shader's active SubShader ("" when untagged), or null when it cannot be read.</summary>
+        private static List<string> LightModes(Shader sh)
+        {
+            try
+            {
+                int n = sh.passCount;
+                var tag = new ShaderTagId("LightMode");
+                var list = new List<string>(n);
+                for (int i = 0; i < n; i++)
+                {
+                    var v = sh.FindPassTagValue(i, tag);
+                    list.Add(v.name ?? "");
+                }
+                return list;
+            }
+            catch (System.Exception) { return null; }
+        }
+
+        private static bool UsableTarget(Shader s)
+        {
+            if (s == null) return false;
+            try
+            {
+                if (s.name == "Hidden/InternalErrorShader" || !s.isSupported) return false;
+                var modes = LightModes(s);
+                return modes == null || UrpDrawsAnyPass(modes);
+            }
+            catch (System.Exception) { return false; }
+        }
+
+        /// <summary>
+        /// URP's Lit shader: by name, else the active pipeline asset's own default shader or default material's shader (read by reflection:
+        /// those members are obsolete in some Unity 6 versions), else Simple Lit. Null only when none of them can draw.
+        /// </summary>
+        internal static Shader UrpLitShader(out string from)
+        {
+            from = "Shader.Find";
+            var s = Shader.Find("Universal Render Pipeline/Lit");
+            if (UsableTarget(s)) return s;
+            var rp = GraphicsSettings.currentRenderPipeline;
+            if (rp != null)
+            {
+                const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+                try
+                {
+                    var p = rp.GetType().GetProperty("defaultShader", F);
+                    if (p != null && p.GetValue(rp, null) is Shader ds && UsableTarget(ds)) { from = "the pipeline's default shader"; return ds; }
+                }
+                catch (System.Exception) { }
+                try
+                {
+                    var p = rp.GetType().GetProperty("defaultMaterial", F);
+                    if (p != null && p.GetValue(rp, null) is Material dm && dm != null && UsableTarget(dm.shader)) { from = "the pipeline's default material"; return dm.shader; }
+                }
+                catch (System.Exception) { }
+            }
+            s = Shader.Find("Universal Render Pipeline/Simple Lit");
+            if (UsableTarget(s)) { from = "Simple Lit"; return s; }
+            return null;
+        }
+
+        // ---- a material's saved values, readable even when its shader is broken (1.9.1)
+
+        private static SerializedProperty SavedEntry(SerializedObject so, string list, string name)
+        {
+            var arr = so.FindProperty("m_SavedProperties." + list);
+            if (arr == null || !arr.isArray) return null;
+            for (int i = 0; i < arr.arraySize; i++)
+            {
+                var e = arr.GetArrayElementAtIndex(i);
+                var first = e.FindPropertyRelative("first");
+                if (first != null && first.propertyType == SerializedPropertyType.String && first.stringValue == name) return e.FindPropertyRelative("second");
+            }
+            return null;
+        }
+
+        /// <summary>A texture property: from the shader when it has it, else from the material's saved properties.</summary>
+        private static bool TryTexture(Material src, SerializedObject so, string p, out Texture tex, out Vector2 scale, out Vector2 offset)
+        {
+            tex = null; scale = Vector2.one; offset = Vector2.zero;
+            if (HasProp(src, p, ShaderPropertyType.Texture))
+            {
+                tex = src.GetTexture(p);
+                scale = src.GetTextureScale(p); offset = src.GetTextureOffset(p);
+                return tex != null;
+            }
+            try
+            {
+                var e = so != null ? SavedEntry(so, "m_TexEnvs", p) : null;
+                if (e == null) return false;
+                tex = e.FindPropertyRelative("m_Texture")?.objectReferenceValue as Texture;
+                var sc = e.FindPropertyRelative("m_Scale"); if (sc != null) scale = sc.vector2Value;
+                var of = e.FindPropertyRelative("m_Offset"); if (of != null) offset = of.vector2Value;
+                return tex != null;
+            }
+            catch (System.Exception) { return false; }
+        }
+
+        private static bool TryColour(Material src, SerializedObject so, string p, out Color c)
+        {
+            c = Color.white;
+            if (HasProp(src, p, ShaderPropertyType.Color)) { c = src.GetColor(p); return true; }
+            try
+            {
+                var e = so != null ? SavedEntry(so, "m_Colors", p) : null;
+                if (e == null || e.propertyType != SerializedPropertyType.Color) return false;
+                c = e.colorValue;
+                return true;
+            }
+            catch (System.Exception) { return false; }
+        }
+
+        private static bool TryFloat(Material src, SerializedObject so, string p, out float f)
+        {
+            f = 0f;
+            if (HasFloat(src, p)) { f = src.GetFloat(p); return true; }
+            try
+            {
+                var e = so != null ? SavedEntry(so, "m_Floats", p) : null;
+                if (e == null || e.propertyType != SerializedPropertyType.Float) return false;
+                f = e.floatValue;
+                return true;
+            }
+            catch (System.Exception) { return false; }
+        }
+
+        /// <summary>
+        /// Writes a freshly made material to <paramref name="path"/>: when a material already lives there its contents are replaced IN PLACE
+        /// (its GUID survives, so a prefab saved earlier that uses it keeps a valid reference), else it is created. Never deletes a material.
+        /// </summary>
+        private static Material SaveInPlace(Material fresh, string path)
+        {
+            string name = System.IO.Path.GetFileNameWithoutExtension(path);
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null && existing != fresh)
+            {
+                EditorUtility.CopySerialized(fresh, existing);
+                existing.name = name;
+                EditorUtility.SetDirty(existing);
+                Object.DestroyImmediate(fresh);
+                return existing;
+            }
+            // Something that is not a material sits at the path (never made by WildLens): the material goes beside it instead.
+            if (AssetDatabase.LoadMainAssetAtPath(path) != null) path = AssetDatabase.GenerateUniqueAssetPath(path);
+            fresh.name = name;
+            AssetDatabase.CreateAsset(fresh, path);
+            return fresh;
+        }
+
+        /// <summary>A plain opaque URP material of one colour, for a slot that had no material at all.</summary>
+        private static Material PlainMaterial(string path, Shader target, Color colour)
+        {
+            var m = new Material(target);
+            colour.a = 1f;
+            m.SetColor("_BaseColor", colour);
+            if (m.HasProperty("_Color")) m.SetColor("_Color", colour);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.15f);
+            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
+            return SaveInPlace(m, path);
         }
 
         private static Material ConvertMaterial(Material src, string path, Shader target)
         {
-            AssetDatabase.DeleteAsset(path); // overwrite: same name every run
-            var m = new Material(target) { name = System.IO.Path.GetFileNameWithoutExtension(path) };
+            var m = new Material(target);
             string sn = src.shader != null ? src.shader.name : "";
+            SerializedObject so = null;
+            try { so = new SerializedObject(src); } catch (System.Exception) { so = null; }
 
-            // Colour and main texture.
+            // Colour and main texture (read from the material's saved values when its shader cannot say: a broken shader keeps them).
             Color colour = Color.white;
-            foreach (var p in ColourProps) if (HasProp(src, p, ShaderPropertyType.Color)) { colour = src.GetColor(p); break; }
+            foreach (var p in ColourProps)
+                if (TryColour(src, so, p, out var c)) { colour = c; break; }
             m.SetColor("_BaseColor", colour);
             foreach (var p in MainTextureProps)
             {
-                if (!HasProp(src, p, ShaderPropertyType.Texture)) continue;
-                var tex = src.GetTexture(p);
-                if (tex == null) continue;
+                if (!TryTexture(src, so, p, out var tex, out var scale, out var offset)) continue;
                 m.SetTexture("_BaseMap", tex);
-                m.SetTextureScale("_BaseMap", src.GetTextureScale(p));
-                m.SetTextureOffset("_BaseMap", src.GetTextureOffset(p));
-                if (m.HasProperty("_MainTex")) { m.SetTexture("_MainTex", tex); m.SetTextureScale("_MainTex", src.GetTextureScale(p)); m.SetTextureOffset("_MainTex", src.GetTextureOffset(p)); }
+                m.SetTextureScale("_BaseMap", scale);
+                m.SetTextureOffset("_BaseMap", offset);
+                if (m.HasProperty("_MainTex")) { m.SetTexture("_MainTex", tex); m.SetTextureScale("_MainTex", scale); m.SetTextureOffset("_MainTex", offset); }
                 break;
             }
 
             // Normal map.
             foreach (var p in NormalProps)
             {
-                if (!HasProp(src, p, ShaderPropertyType.Texture)) continue;
-                var tex = src.GetTexture(p);
-                if (tex == null) continue;
+                if (!TryTexture(src, so, p, out var tex, out _, out _)) continue;
                 m.SetTexture("_BumpMap", tex);
-                if (HasFloat(src, "_BumpScale")) m.SetFloat("_BumpScale", src.GetFloat("_BumpScale"));
+                if (TryFloat(src, so, "_BumpScale", out float bs)) m.SetFloat("_BumpScale", bs);
                 m.EnableKeyword("_NORMALMAP");
                 break;
             }
@@ -823,7 +1150,7 @@ namespace WildLens.EditorTools
             if (alpha == AlphaKind.Cutout)
             {
                 m.SetFloat("_AlphaClip", 1f);
-                m.SetFloat("_Cutoff", HasFloat(src, "_Cutoff") ? src.GetFloat("_Cutoff") : 0.5f);
+                m.SetFloat("_Cutoff", TryFloat(src, so, "_Cutoff", out float cut) ? Mathf.Clamp(cut, 0.05f, 0.95f) : 0.5f);
                 m.EnableKeyword("_ALPHATEST_ON");
                 m.SetOverrideTag("RenderType", "TransparentCutout");
                 m.renderQueue = (int)RenderQueue.AlphaTest;
@@ -848,8 +1175,7 @@ namespace WildLens.EditorTools
                 if (m.HasProperty("_Cull")) m.SetFloat("_Cull", 0f);
                 if (m.HasProperty("_CullMode")) m.SetFloat("_CullMode", 0f);
             }
-            AssetDatabase.CreateAsset(m, path);
-            return m;
+            return SaveInPlace(m, path); // same name every run, updated in place (1.9.1: never deleted and recreated)
         }
 
         /// <summary>Bounds of the model as posed now (skinned meshes baked), relative to <paramref name="root"/>.</summary>
@@ -895,6 +1221,70 @@ namespace WildLens.EditorTools
         private const float DarkTintLuminance = 0.12f;
         private static readonly Color DarkTintFloor = new Color(0.16f, 0.15f, 0.15f, 1f);
 
+        /// <summary>Species that ARE black or near-black: their tint keeps the old rule (only a true black is lifted, to the dark floor).</summary>
+        private static readonly HashSet<string> MeantToBeDark = new HashSet<string> { "american_crow", "red_winged_blackbird", "american_black_bear" };
+
+        /// <summary>Lightest a tint may be made darker than, for species that are not meant to be black (1.9.1: the turkey read near-black at dusk).</summary>
+        private const float TintLuminanceFloor = 0.16f;
+
+        /// <summary>
+        /// The colour a tinted copy gets (1.9.1). The tint REPLACES the material's colour and multiplies its texture, so on a textured model the
+        /// species colour comes out darker than it is. For species not meant to be black: the colour is lifted to make up for the texture
+        /// (when the texture can be read, by its average brightness, at most ×1.5; when it cannot, 25% toward white), then kept at or above a
+        /// luminance of 0.16, hue kept. The crow, the blackbird and the bear keep the earlier rule.
+        /// </summary>
+        private static Color TintColour(Color colour, Material source, string speciesId)
+        {
+            Color c = colour; c.a = 1f;
+            if (speciesId != null && MeantToBeDark.Contains(speciesId))
+                return c.grayscale < DarkTintLuminance ? DarkTintFloor : c;
+            var tex = MainTexture(source);
+            if (tex != null)
+            {
+                float avg = AverageLuminance(tex);
+                if (avg > 0.01f) { float k = Mathf.Clamp(0.55f / avg, 1f, 1.5f); c = new Color(c.r * k, c.g * k, c.b * k, 1f); }
+                else c = Color.Lerp(c, Color.white, 0.25f);
+            }
+            float g = c.grayscale;
+            if (g < TintLuminanceFloor)
+            {
+                if (g > 0.01f) { float k = TintLuminanceFloor / g; c = new Color(c.r * k, c.g * k, c.b * k, 1f); }
+                else c = DarkTintFloor;
+            }
+            c.r = Mathf.Clamp01(c.r); c.g = Mathf.Clamp01(c.g); c.b = Mathf.Clamp01(c.b); c.a = 1f;
+            return c;
+        }
+
+        private static Texture MainTexture(Material m)
+        {
+            if (m == null) return null;
+            foreach (var p in MainTextureProps)
+                if (HasProp(m, p, ShaderPropertyType.Texture)) { var t = m.GetTexture(p); if (t != null) return t; }
+            return null;
+        }
+
+        /// <summary>The average luminance of a readable texture (sampled from a small mip), or -1 when it cannot be read (most pack textures).</summary>
+        private static float AverageLuminance(Texture tex)
+        {
+            try
+            {
+                if (!(tex is Texture2D t) || !t.isReadable) return -1f;
+                int mip = Mathf.Max(0, t.mipmapCount - 4);
+                var px = t.GetPixels32(mip);
+                if (px == null || px.Length == 0) return -1f;
+                double sum = 0; int n = 0;
+                int step = Mathf.Max(1, px.Length / 4096);
+                for (int i = 0; i < px.Length; i += step)
+                {
+                    var p = px[i];
+                    if (p.a < 16) continue; // cut-out holes do not count
+                    sum += (0.299 * p.r + 0.587 * p.g + 0.114 * p.b) / 255.0; n++;
+                }
+                return n == 0 ? -1f : (float)(sum / n);
+            }
+            catch (System.Exception) { return -1f; }
+        }
+
         private static int Tint(GameObject model, SpeciesDefinition s, string id)
         {
             var coverage = new Dictionary<Material, int>();
@@ -918,15 +1308,11 @@ namespace WildLens.EditorTools
             for (int i = 0; i < order.Count && i < colours.Length; i++)
             {
                 string path = $"{Folder}/{id}_Tint{i}.mat";
-                AssetDatabase.DeleteAsset(path);
                 var copy = new Material(order[i]) { name = $"{id}_Tint{i}" };
-                Color c = colours[i];
-                c.a = 1f;
-                // A near-black multiplier turns a textured model into a black void (the fur detail is multiplied away): lift it a little.
-                if (c.grayscale < DarkTintLuminance) c = DarkTintFloor;
+                Color c = TintColour(colours[i], order[i], s.speciesId);
                 if (copy.HasProperty("_BaseColor")) copy.SetColor("_BaseColor", c);
                 if (copy.HasProperty("_Color")) copy.SetColor("_Color", c);
-                AssetDatabase.CreateAsset(copy, path);
+                copy = SaveInPlace(copy, path); // 1.9.1: updated in place, never deleted and recreated
                 copies[order[i]] = copy;
             }
             foreach (var r in renderers)

@@ -357,6 +357,17 @@ namespace WildLens.EditorTools
             info.shaders.AddRange(shaderNames);
             var issues = new SortedSet<string>();
             foreach (var sn in shaderNames) { string issue = AnimalPrefabFactory.PipelineIssue(sn, hasRp, hdrp); if (issue != null) issues.Add(issue); }
+            // 1.9.1: under URP, also what the shader really does (a pack's own surface shader has only built-in passes, whatever its name).
+            if (hasRp && !hdrp && AnimalPrefabFactory.UrpActive())
+            {
+                if (shaderNames.Contains("(no material)")) issues.Add("empty material slot (drawn magenta)");
+                foreach (var m in mats)
+                {
+                    string issue = AnimalPrefabFactory.UrpDrawIssue(m);
+                    if (issue != null && !issue.StartsWith("built-in", System.StringComparison.Ordinal) && issue != "missing shader")
+                        issues.Add((m.shader != null ? m.shader.name : "?") + ": " + issue);
+                }
+            }
             info.pipelineIssues.AddRange(issues);
 
             // Rig and clips.
@@ -935,8 +946,104 @@ namespace WildLens.EditorTools
             }
 
             // The clipboard version: the sections that matter most, in this order, with the long tables trimmed to fit.
-            _shortText = HardCap(ShrinkTables(sum.ToString() + master + cov + macroSb + vehSb + uncatSb + otherSb, ClipboardLimit - 400), ClipboardLimit);
-            return sum.ToString() + master + cov + macroSb + vehSb + uncatSb + otherSb + detailSb + scenerySb;
+            // 1.9.1: what the species prefabs WildLens built actually use, slot by slot (the probe for a pink animal), near the top of both versions.
+            string built = BuiltAnimalsSection(speciesList, speciesById);
+            _shortText = HardCap(ShrinkTables(sum.ToString() + built + master + cov + macroSb + vehSb + uncatSb + otherSb, ClipboardLimit - 400), ClipboardLimit);
+            return sum.ToString() + built + master + cov + macroSb + vehSb + uncatSb + otherSb + detailSb + scenerySb;
+        }
+
+        private const int BuiltRowCap = 120;
+        private const int SmallLifeMatCap = 40;
+
+        /// <summary>
+        /// "WildLens animals as built" (1.9.1): for each species with a prefab in WildLens's Animals folder, every renderer's material slots with
+        /// the shader, whether URP can draw it (the same test the factory uses: <see cref="AnimalPrefabFactory.UrpDrawIssue"/>), the material's
+        /// file (or MISSING when the slot points at a material that no longer exists, or "empty"), its main texture and its colour. Then the
+        /// converted small-life pack materials. Read-only.
+        /// </summary>
+        private static string BuiltAnimalsSection(List<SpeciesDefinition> speciesList, Dictionary<string, SpeciesDefinition> speciesById)
+        {
+            var sb = new StringBuilder();
+            sb.Append("## WildLens animals as built\n\n");
+            bool urp = AnimalPrefabFactory.UrpActive();
+            sb.Append($"Factory version {AnimalPrefabFactory.FactoryVersion}; URP active: {(urp ? "yes" : "no")}. One row per material slot of each species prefab WildLens built (`{AnimalPrefabFactory.Folder}`).\n\n");
+            sb.Append("| Species | Prefab | Renderer | Slot | Material file | Shader | URP draws it | Main texture | Colour |\n|---|---|---|---|---|---|---|---|---|\n");
+            int rows = 0, bad = 0, prefabs = 0;
+            foreach (var sp in speciesList)
+            {
+                if (sp == null || sp.prefab == null) continue;
+                string path = AssetDatabase.GetAssetPath(sp.prefab);
+                if (string.IsNullOrEmpty(path) || !path.StartsWith(AnimalPrefabFactory.Folder + "/", System.StringComparison.Ordinal)) continue;
+                prefabs++;
+                string name = SpeciesName(sp.speciesId, speciesById);
+                try
+                {
+                    foreach (var r in sp.prefab.GetComponentsInChildren<Renderer>(true))
+                    {
+                        if (r == null) continue;
+                        var mats = r.sharedMaterials;
+                        SerializedProperty arr = null;
+                        try { arr = new SerializedObject(r).FindProperty("m_Materials"); } catch (System.Exception) { arr = null; }
+                        if (mats.Length == 0) { if (++rows <= BuiltRowCap) sb.Append($"| {Esc(name)} | {Esc(path)} | {Esc(r.name)} | - | (no slots) | - | - | - | - |\n"); continue; }
+                        for (int i = 0; i < mats.Length; i++)
+                        {
+                            var m = mats[i];
+                            string file, shader, draws, tex = "-", col = "-";
+                            if (m == null)
+                            {
+                                bool missing = false;
+                                try { if (arr != null && i < arr.arraySize) { var e = arr.GetArrayElementAtIndex(i); missing = e.objectReferenceValue == null && e.objectReferenceInstanceIDValue != 0; } }
+                                catch (System.Exception) { }
+                                file = missing ? "MISSING (points at a deleted material)" : "empty";
+                                shader = "-";
+                            }
+                            else
+                            {
+                                string mp = AssetDatabase.GetAssetPath(m);
+                                file = string.IsNullOrEmpty(mp) ? "(not an asset)" : mp;
+                                shader = m.shader != null ? m.shader.name : "(missing shader)";
+                                foreach (var p in new[] { "_BaseMap", "_MainTex" })
+                                    if (m.HasProperty(p) && m.GetTexture(p) != null) { tex = m.GetTexture(p).name; break; }
+                                foreach (var p in new[] { "_BaseColor", "_Color" })
+                                    if (m.HasProperty(p)) { var c = m.GetColor(p); col = $"{Num(c.r)}, {Num(c.g)}, {Num(c.b)}"; break; }
+                            }
+                            string issue = urp ? AnimalPrefabFactory.UrpDrawIssue(m) : null;
+                            draws = !urp ? "n/a (not URP)" : issue == null ? "yes" : "NO: " + issue;
+                            if (issue != null) bad++;
+                            if (++rows <= BuiltRowCap)
+                                sb.Append($"| {Esc(name)} | {Esc(path)} | {Esc(r.name)} | {i} | {Esc(file)} | {Esc(shader)} | {Esc(draws)} | {Esc(tex)} | {col} |\n");
+                        }
+                    }
+                }
+                catch (System.Exception e) { sb.Append($"| {Esc(name)} | {Esc(path)} | (could not be read: {Esc(e.Message)}) | | | | | | |\n"); }
+            }
+            if (rows > BuiltRowCap) sb.Append($"| +{rows - BuiltRowCap} more slots | | | | | | | | |\n");
+            sb.Append(prefabs == 0 ? "\nNo species prefab has been built yet.\n\n" : $"\n{prefabs} species prefabs, {rows} material slots, {bad} that URP cannot draw{(bad > 0 ? " (these show magenta: Rebuild the slice, then run this audit again)" : "")}.\n\n");
+
+            // Small life from packs: the converted copies the macro builder made.
+            string folder = GeneratedAssets.Folder + "/SmallLife/Materials";
+            if (AssetDatabase.IsValidFolder(folder))
+            {
+                var guids = AssetDatabase.FindAssets("t:Material", new[] { folder });
+                if (guids.Length > 0)
+                {
+                    sb.Append("Small-life pack materials (converted copies):\n\n| Material file | Shader | URP draws it | Main texture |\n|---|---|---|---|\n");
+                    int n = 0;
+                    foreach (var g in guids)
+                    {
+                        if (++n > SmallLifeMatCap) { sb.Append($"| +{guids.Length - SmallLifeMatCap} more | | | |\n"); break; }
+                        string mp = AssetDatabase.GUIDToAssetPath(g);
+                        var m = AssetDatabase.LoadAssetAtPath<Material>(mp);
+                        string shader = m == null ? "-" : m.shader != null ? m.shader.name : "(missing shader)";
+                        string issue = urp ? AnimalPrefabFactory.UrpDrawIssue(m) : null;
+                        string tex = "-";
+                        if (m != null) foreach (var p in new[] { "_BaseMap", "_MainTex" }) if (m.HasProperty(p) && m.GetTexture(p) != null) { tex = m.GetTexture(p).name; break; }
+                        sb.Append($"| {Esc(mp)} | {Esc(shader)} | {(!urp ? "n/a (not URP)" : issue == null ? "yes" : "NO: " + Esc(issue))} | {Esc(tex)} |\n");
+                    }
+                    sb.Append('\n');
+                }
+            }
+            return sb.ToString();
         }
 
         private static string HardCap(string text, int limit) =>
