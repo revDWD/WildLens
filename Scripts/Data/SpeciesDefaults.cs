@@ -16,6 +16,8 @@ namespace WildLens.Data
                 Deer(), Rabbit(), Fox(), Hawk(), Squirrel(),
                 // 1.1 expansion: all generic bodies and data rhythms (Documentation~/WildlifeExpansion.md).
                 Heron(), Raccoon(), Turkey(), BarredOwl(), Groundhog(), Cardinal(), BlueJay(), Blackbird(), Opossum(), Coyote(),
+                // 1.4: the creek itself had no specialists. Both live only at the Creek Ford (groupCount 0: residents only).
+                Kingfisher(), Sandpiper(),
             };
         }
 
@@ -311,6 +313,56 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 1f, 3f, 6f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 0.5f, 8f, 16f));
             s.rhythm = new DailyRhythm(RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water, RhythmPlace.Water);
+            return s;
+        }
+
+        // ------------------------------------------------------------------ 1.4 creek specialists
+
+        public static SpeciesDefinition Kingfisher()
+        {
+            var s = Songbird("belted_kingfisher", "Belted Kingfisher", "Megaceryle alcyon",
+                "A big-headed, ragged-crested fisher of clear creeks: slate blue above with a white collar. It rattles as it " +
+                "flies low along the water, hovers, and plunges from an overhanging snag. Best at the ford in the early morning.",
+                0.3f, 0.07f, new Color(0.36f, 0.45f, 0.56f), new Color(0.92f, 0.93f, 0.94f), new Color(0.1f, 0.1f, 0.12f),
+                HotspotType.Water, 0, new Vector2Int(1, 1));
+            s.bodyPlan.crest = true;
+            s.flightAltitude = new Vector2(1.5f, 4f);   // low over the water
+            s.circleRadius = new Vector2(8f, 16f);      // patrols up and down the reach
+            s.wanderRadius = 30f;
+            Awareness(s, aware: 28f, alert: 18f, flee: 9f, gain: 1.1f, decay: 0.22f, patience: 2.5f, startle: 1.3f);
+            s.clearPhotoDistance = 22f;
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition Sandpiper()
+        {
+            var s = New("spotted_sandpiper", "Spotted Sandpiper", "Actitis macularius",
+                "A small shorebird that teeters its tail as it walks the gravel bars and stones of the creek, white below with " +
+                "dark spots in summer. Flies off low over the water on stiff, flickering wings. Patient watchers at the ford see it.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.WadingBird, length = 0.19f, height = 0.18f, legLength = 0.07f, neckLength = 0.03f,
+                headSize = 0.032f, snoutLength = 0.026f, tailLength = 0.05f, tailThickness = 0.02f,
+            };
+            s.primaryColor = new Color(0.48f, 0.42f, 0.32f);
+            s.secondaryColor = new Color(0.93f, 0.92f, 0.88f);
+            s.accentColor = new Color(0.86f, 0.55f, 0.25f);
+            s.habitat = HabitatPreference.OpenMeadow;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 2);
+            s.spawnDistanceFromTrail = new Vector2(10f, 40f);
+            s.preferredHotspots = HotspotType.Water; s.hotspotAffinity = 1f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 0.7f; s.runSpeed = 2.6f; s.turnSpeed = 160f; s.gaitFrequency = 3.2f;
+            s.wanderRadius = 5f; s.behaviorChance = 0.8f; s.runLegChance = 0f;
+            Awareness(s, aware: 20f, alert: 12f, flee: 6f, gain: 1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.fleeDistanceRange = new Vector2(10f, 18f);
+            s.photoSizeScale = 0.45f; s.clearPhotoDistance = 14f; s.observationTime = 1.2f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 4f, 3f, 7f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.8f, 2f, 4f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
             return s;
         }
 

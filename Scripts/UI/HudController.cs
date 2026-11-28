@@ -67,6 +67,7 @@ namespace WildLens.UI
             RefreshStatus();
             WildLens.Environment.ReserveDestination.Arrived += OnArrived;
             if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged += OnPeriodChanged;
+            if (WildLens.Environment.WeatherCycle.Instance != null) WildLens.Environment.WeatherCycle.Instance.Changed += OnWeatherChanged;
 
             // A scene built by an older package hides every art improvement since. Say so instead of letting it
             // pass for the current look (0.6: a stale scene was mistaken for the 0.5 art).
@@ -91,6 +92,29 @@ namespace WildLens.UI
             if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
             WildLens.Environment.ReserveDestination.Arrived -= OnArrived;
             if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged -= OnPeriodChanged;
+            if (WildLens.Environment.WeatherCycle.Instance != null) WildLens.Environment.WeatherCycle.Instance.Changed -= OnWeatherChanged;
+        }
+
+        private bool _hadRain;
+
+        /// <summary>A field note when the weather turns (1.4): what it means for the light and the wildlife.</summary>
+        private void OnWeatherChanged(WildLens.Environment.WeatherCondition c)
+        {
+            if (_notice == null) return;
+            string title, note;
+            switch (c)
+            {
+                case WildLens.Environment.WeatherCondition.LightRain:
+                    _hadRain = true;
+                    title = "Light rain"; note = "Deer and foxes shelter in the woods. Herons don't mind the wet."; break;
+                case WildLens.Environment.WeatherCondition.Overcast:
+                    title = "Overcast"; note = "Soft, even light: no harsh shadows on fur and feathers."; break;
+                default:
+                    if (!_hadRain) return; // clouds coming and going: let the sky say it
+                    _hadRain = false;
+                    title = "Clearing"; note = "The rain has passed. Wildlife comes back out into the open."; break;
+            }
+            _notice.Show($"<b>{title}</b>\n<size=20>{note}</size>", 6f);
         }
 
         private float _lastPeriodNotice = -100f;

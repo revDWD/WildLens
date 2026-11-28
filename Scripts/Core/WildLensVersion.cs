@@ -7,8 +7,8 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.3.0";
-        public const string ReleaseName = "Trailhead";
+        public const string Package = "1.4.0";
+        public const string ReleaseName = "Changing Skies";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
@@ -21,8 +21,10 @@ namespace WildLens.Core
         /// blackbird, opossum, coyote) with residents at each destination (1.1 in progress).
         /// 13: scanned rock-face outcrops on slopes and the ridge; Environment Kit (free packs by ecological role) (1.2).
         /// 14: readable signs and trailhead board, scanned wood on woodwork, flowing tea-coloured water, sedge banks,
-        /// rounder broadleaf crowns, trail register (1.3).</summary>
-        public const int Environment = 14;
+        /// rounder broadleaf crowns, trail register (1.3).
+        /// 15: sign lettering un-mirrored, landforms v2 (regenerated own terrain), forest floor only under trees, lower ovate
+        /// crowns, weather, Creek Ford, kingfisher and sandpiper (1.4).</summary>
+        public const int Environment = 15;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
@@ -32,7 +34,7 @@ namespace WildLens.Core
             "Animal awareness",
             "Field journal",
             "Habitat hotspots",
-            "Dawn to dusk & wildlife rhythms",
+            "Dawn to dusk, weather & rhythms",
             "Willow Creek & bridges",
             "Reserve Road, bike & pull-offs",
             "Observation blind",
@@ -42,6 +44,7 @@ namespace WildLens.Core
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.4  Changing skies: weather, hills and ridges, the Creek Ford, signs you can read",
             "1.3  Trailhead: signs you can read, real wood, a flowing creek, fuller trees",
             "1.2  Habitat kit: rock outcrops; free Unity trees, grass and ground by habitat",
             "1.1  More life: herons, owls, turkeys, songbirds and seven more species",

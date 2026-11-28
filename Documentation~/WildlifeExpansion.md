@@ -61,6 +61,23 @@ Ordered by how much each adds to the reserve's story for the effort. All fit the
 | 9 | **Coyote** | Quadruped (like fox, larger, grey) | Open grassland, far from paths (Meadow) | Dawn and dusk only; distant otherwise | Rare, wary, memorable | Very large awareness radius; one individual |
 | 10 | **Virginia Opossum** | Quadruped (pale face, bare tail) | Woodland, creek (Woodland, Water) | Night and dusk | Night photography, if night becomes playable | Low priority until night is more than a time-lapse |
 
+All ten above shipped in 1.1. **1.4 added two creek specialists**, because the creek itself (not the pond, not the
+woods) had no wildlife of its own:
+
+| Species | Body | Where | Rhythm | Why it earns its place |
+|---|---|---|---|---|
+| **Belted Kingfisher** | PerchingBird (big head, crest), low flight 1.5–4 m, patrols 8–16 m | Creek Ford only (residence; `groupCount` 0) | Home all day | Moving water plus a fast, wary bird on a snag: a hard, rewarding photograph |
+| **Spotted Sandpiper** | WadingBird (small, short legs) | The ford's gravel bar | Home all day | A patient, close subject on stones and gravel; a reason to sit at the ford |
+
+**What worked in the expansions (lessons):** each species was justified by a *place* (heron → pond shallows, owl →
+grove, kingfisher → riffle), not by a count. Data-only bodies kept the cost to an afternoon each. Residents that
+stay home (`RhythmPlace.Home`) make a place reliably "about" its animal; species that commute make the clock matter.
+Use both deliberately.
+
+**Next candidates, only with a place:** wood duck and painted turtle need a marsh with loafing logs (the wetland
+boardwalk); a green frog chorus needs evening audio, not a body; a pileated woodpecker needs big dead trees in the
+grove. Swimming locomotion would be a new system: avoid until a marsh makes it essential.
+
 **Not planned:** predators actively hunting other species, nests and breeding, population dynamics. These are
 simulation systems with little photographic payoff (see AGENTS.md: what not to build).
 

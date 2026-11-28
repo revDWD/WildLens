@@ -67,7 +67,7 @@ namespace WildLens.EditorTools
             {
                 { "Wood", new Color(1f, 0.94f, 0.86f) },
                 { "WoodDark", new Color(0.6f, 0.53f, 0.46f) },
-                { "SignBoard", new Color(0.44f, 0.36f, 0.3f) },
+                { "SignBoard", new Color(0.66f, 0.56f, 0.47f) }, // 1.4: lighter: 1.3 read as a black slab in shade
             };
 
         public const string WoodTexture = "Surfaces/weathered_brown_planks_diff_1k.jpg";

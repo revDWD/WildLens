@@ -190,7 +190,10 @@ namespace WildLens.Environment
             var clock = DayCycle.Instance;
             if (clock == null) { _nowBig.text = ""; _nowSmall.text = "Welcome"; return; }
             _nowBig.text = $"{DayCycle.PeriodName(clock.Period).ToUpperInvariant()}  {clock.ClockText}";
-            _nowSmall.text = $"{Conditions(clock.Period)}  ·  {RightNow(clock.Period)}";
+            var weather = WeatherCycle.Instance;
+            string conditions = weather != null ? weather.ConditionText(clock.Period) : Conditions(clock.Period);
+            string doing = weather != null && weather.Condition == WeatherCondition.LightRain ? "wildlife sheltering in the woods" : RightNow(clock.Period);
+            _nowSmall.text = $"{conditions}  ·  {doing}";
         }
 
         /// <summary>What the reserve is doing at this time of day: the patterns, said plainly.</summary>

@@ -66,15 +66,21 @@ destinations; footpaths stay for walking.
 
 ## Next steps (proposed, in order)
 
-1. ~~**Time of day.**~~ Done in 0.9. Remaining: weather (overcast, light rain), seasons later.
-2. **Creek, part two.** Stepping stones at a ford, a small cascade where it leaves the ridge, a tributary.
+1. ~~**Time of day.**~~ Done in 0.9. ~~**Weather**~~ done in 1.4 (a four-day forecast). Seasons later.
+2. **Creek, part two.** ~~Stepping stones at a ford~~ (the Creek Ford, 1.4). Remaining: a small cascade where it leaves
+   the ridge (now likely, with 1.4's landforms giving it a real drop), a tributary.
 3. **Wetland edge.** Widen the pond into a marsh: a boardwalk loop, sedges, a second blind. Natural home for a
    future heron or wood duck (new species are data plus a model).
 4. **Forest interior footpath.** A narrow path (no bikes, marked by a gate) through the grove to a hidden glade:
    intimacy and shade as a contrast to the open ridge.
 5. **Ranger cabin.** Near the loop: the journal on a desk, maps on the wall, a porch for golden hour. No NPCs.
 6. **Hand-authored reserve terrain.** A 1–2 km heightmap (ridge, valley, creek line) shipped as CC0 data, so the
-   reserve doesn't depend on the user's terrain.
+   reserve doesn't depend on the user's terrain. 1.4's generated landforms (lowland to upland, ridges, valleys,
+   shelves) are the interim step and set the bar: about 30 m of interior relief, slopes mostly under 8°.
+
+**Design rule from 1.4 playtesting: elevation is the highest-return environment change.** The ridge overlook was the
+strongest place because of height and view. Every new destination should ask what the ground does there (a shelf to
+look out from, a cut the creek drops through, a valley that closes the view) before asking what to build.
 
 ## Scale and performance notes
 

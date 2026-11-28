@@ -552,6 +552,7 @@ namespace WildLens.EditorTools
             var wood = GeneratedAssets.Material("Wood", new Color(0.52f, 0.39f, 0.26f));
             var post = GeneratedAssets.Material("WoodDark", new Color(0.33f, 0.24f, 0.16f));
             if (_creek.Count > 1) BuildCreekLife(parent, wood, post);
+            BuildFord(parent, wood, post); // 1.4
             BuildWoodlandCover(parent);
             BuildTrackMarkers(parent, post);
             BuildRoadMarkers(parent);

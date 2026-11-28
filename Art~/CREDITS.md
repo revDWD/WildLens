@@ -11,6 +11,7 @@ The folder name ends in `~`, so Unity ignores it; **WildLens ▸ Build Vertical 
 |---|---|---|
 | Sky/kloofendal_48d_partly_cloudy_puresky_2k.hdr | Kloofendal 48d Partly Cloudy (Pure Sky) | Late-morning sky, ambient light, reflections |
 | Sky/kloppenheim_06_puresky_2k.hdr | Kloppenheim 06 (Pure Sky) | Golden-hour sky |
+| Sky/kloofendal_overcast_puresky_2k.hdr | Kloofendal Overcast (Pure Sky) | Overcast weather (1.4) |
 | Terrain/leafy_grass_* | Leafy Grass | Terrain: grass and meadow (two tints) |
 | Terrain/forest_leaves_02_* | Forest Leaves 02 | Terrain: forest floor |
 | Terrain/dirt_floor_* | Dirt Floor | Terrain: trail |

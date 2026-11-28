@@ -27,7 +27,9 @@ namespace WildLens.Environment
 
         public static WildLensWind Instance { get; private set; }
         public Vector3 Direction => direction.sqrMagnitude > 0f ? direction.normalized : Vector3.right;
-        public float Strength => strength;
+        public float Strength => strength * WeatherMultiplier;
+        /// <summary>Set by <see cref="WeatherCycle"/> (1.4): stronger wind under cloud and in rain.</summary>
+        public float WeatherMultiplier { get; set; } = 1f;
 
         internal static void Register(FoliageSway s) => Registered.Add(s);
         internal static void Unregister(FoliageSway s) => Registered.Remove(s);
@@ -66,8 +68,8 @@ namespace WildLens.Environment
             float gustHere = Gust(camPos, t);
             if (_zone != null)
             {
-                _zone.windMain = strength * (0.4f + 0.6f * gustHere);
-                _zone.windTurbulence = 0.3f * strength;
+                _zone.windMain = Strength * (0.4f + 0.6f * gustHere);
+                _zone.windTurbulence = 0.3f * Strength;
             }
 
             for (int i = 0; i < Registered.Count; i++)
@@ -76,7 +78,7 @@ namespace WildLens.Environment
                 Vector3 p = s.transform.position;
                 if ((p - camPos).sqrMagnitude > maxSqr) continue;
                 float gust = (1f - gustiness) + gustiness * Gust(p, t);
-                s.Apply(t, gust * strength, dir);
+                s.Apply(t, gust * Strength, dir);
             }
         }
     }

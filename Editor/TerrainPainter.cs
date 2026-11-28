@@ -44,6 +44,7 @@ namespace WildLens.EditorTools
 
             var trailField = new TrailDistanceField(PathDistance, _terrain);
             var trees = new TreeGrid(_treeObjects);
+            _woods = new WoodsField(_treeObjects, _terrain, 12f);
 
             EditorUtility.DisplayProgressBar("WildLens", "Generating terrain textures…", 0.72f);
             data.terrainLayers = ApplyKitLayers(CreateTerrainLayers()); // 1.2: Environment Kit layers fill their slots
@@ -101,7 +102,9 @@ namespace WildLens.EditorTools
                 float d = trail.Sample(p) + (n - 0.5f) * 0.5f;
                 float tread = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half * 0.7f, half + 0.9f, d));
                 float worn = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half, half + 2.6f, d));
-                float forest = Mathf.Max(Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.42f, 0.62f, Forest(p))),
+                // 1.4: the forest field only paints forest floor where trees really stand (Woods): the tree budget runs out
+                // before the field does, which left bare leaf litter (and ferns) on open, sunny ground.
+                float forest = Mathf.Max(Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.42f, 0.62f, Forest(p))) * Woods(p),
                     (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(1.5f, 5f, trees.Nearest(p, 6f)))) * 0.9f);
                 float mid = Mathf.PerlinNoise(_noiseOffset * 0.7f + p.x * 0.045f, p.z * 0.045f + 31f);
                 float meadow = Mathf.Max(MeadowMask(p, n), (1f - forest) * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.58f, 0.78f, broad)) * 0.6f);
@@ -118,6 +121,10 @@ namespace WildLens.EditorTools
                     tread = Mathf.Max(tread, bankCut * 0.3f); // 1.2: a hint of cut bank, not an orange band
                     forest = Mathf.Max(forest, 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(4f, 10f, creek)));
                 }
+
+                // The Creek Ford's gravel bar (1.4).
+                float bar = FordBar(p);
+                if (bar > 0f) { rock = Mathf.Max(rock, bar * 0.85f); forest *= 1f - bar; }
 
                 // The Reserve Road reads as gravel (stone mixed into the dirt), footpaths as worn earth (0.9).
                 if (road != null)
@@ -194,9 +201,10 @@ namespace WildLens.EditorTools
                 if (InKeepOut(p)) continue;     // inside the blind, on its path, under structures
                 float creekD = CreekDistance(p);
                 if (creekD < 2.2f) continue;    // water
+                if (FordBar(p) > 0.3f) continue; // the ford's gravel bar (1.4)
                 float edge = Mathf.InverseLerp(half + 0.35f, half + 2.8f, d); // sparse, trampled edges
                 float n = Mathf.PerlinNoise(_noiseOffset + p.x * 0.15f, p.z * 0.15f);
-                float forest = Mathf.Max(Forest(p), (1f - Mathf.InverseLerp(1.5f, 5f, trees.Nearest(p, 6f))) * 0.8f);
+                float forest = Mathf.Max(Forest(p) * Woods(p), (1f - Mathf.InverseLerp(1.5f, 5f, trees.Nearest(p, 6f))) * 0.8f);
                 float open = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.35f, 0.65f, forest));
                 float meadow = MeadowMask(p, n);
                 float trunk = trees.Nearest(p, 2f);
@@ -647,6 +655,53 @@ namespace WildLens.EditorTools
         }
 
         // ------------------------------------------------------------------ spatial helpers
+
+        private WoodsField _woods;
+
+        /// <summary>1 within 6 m of a real tree, fading to 0 by 12 m (1 if no field was built).</summary>
+        private float Woods(Vector3 p) => _woods == null ? 1f : 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(6f, 12f, _woods.Sample(p)));
+
+        /// <summary>Coarse distance to the nearest placed tree (3 m cells), stamped once per tree.</summary>
+        private class WoodsField
+        {
+            private const float Cell = 3f;
+            private readonly float[,] _d;
+            private readonly Vector3 _origin;
+            private readonly int _w, _h;
+            private readonly float _max;
+
+            public WoodsField(List<GameObject> trees, Terrain terrain, float max)
+            {
+                _max = max;
+                _origin = terrain.transform.position;
+                Vector3 size = terrain.terrainData.size;
+                _w = Mathf.CeilToInt(size.x / Cell) + 1;
+                _h = Mathf.CeilToInt(size.z / Cell) + 1;
+                _d = new float[_w, _h];
+                for (int x = 0; x < _w; x++) for (int z = 0; z < _h; z++) _d[x, z] = max;
+                int r = Mathf.CeilToInt(max / Cell);
+                foreach (var t in trees)
+                {
+                    if (t == null) continue;
+                    Vector3 p = t.transform.position - _origin;
+                    int cx = Mathf.RoundToInt(p.x / Cell), cz = Mathf.RoundToInt(p.z / Cell);
+                    for (int x = Mathf.Max(0, cx - r); x <= Mathf.Min(_w - 1, cx + r); x++)
+                    for (int z = Mathf.Max(0, cz - r); z <= Mathf.Min(_h - 1, cz + r); z++)
+                    {
+                        float d = Mathf.Sqrt((x * Cell - p.x) * (x * Cell - p.x) + (z * Cell - p.z) * (z * Cell - p.z));
+                        if (d < _d[x, z]) _d[x, z] = d;
+                    }
+                }
+            }
+
+            public float Sample(Vector3 p)
+            {
+                float fx = (p.x - _origin.x) / Cell, fz = (p.z - _origin.z) / Cell;
+                int x = Mathf.Clamp(Mathf.FloorToInt(fx), 0, _w - 2), z = Mathf.Clamp(Mathf.FloorToInt(fz), 0, _h - 2);
+                float tx = Mathf.Clamp01(fx - x), tz = Mathf.Clamp01(fz - z);
+                return Mathf.Lerp(Mathf.Lerp(_d[x, z], _d[x + 1, z], tx), Mathf.Lerp(_d[x, z + 1], _d[x + 1, z + 1], tx), tz);
+            }
+        }
 
         /// <summary>Distance to the trail sampled on a grid (bilinear), so painting a million texels stays fast.</summary>
         private class TrailDistanceField

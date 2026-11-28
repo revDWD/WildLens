@@ -88,6 +88,9 @@ namespace WildLens.EditorTools
         public bool trailBike = true;
         [Tooltip("The WildLens fallback terrain is grown to at least this size so the reserve has room (your own terrains are never resized).")]
         public float reserveTerrainSize = 900f;
+        [Tooltip("Regenerate WildLens's own terrain from the seed on every build (1.4 landforms: lowland, upland ridges, valleys, " +
+                 "shelves), so rebuilds are repeatable and terrain improvements arrive. Your own terrains are never touched.")]
+        public bool regenerateWildLensTerrain = true;
 
         [Header("Time of day (0.9)")]
         [Tooltip("Dawn → morning → midday → golden hour → dusk, with lighting, mist and wildlife rhythms. Off: one fixed moment (the sky mood above).")]
@@ -96,6 +99,12 @@ namespace WildLens.EditorTools
         [Range(4.5f, 20.5f)] public float startHour = 7.5f;
         [Tooltip("Real minutes per in-game hour. 1 = a day of daylight in about sixteen minutes. Hold T in game to let time pass.")]
         [Range(0.2f, 5f)] public float minutesPerHour = 1f;
+        [Tooltip("Weather (1.4): a four-day forecast that repeats (fair · grey morning · afternoon shower · overcast with dusk rain). " +
+                 "Off: always fair.")]
+        public bool weather = true;
+        [Tooltip("Which forecast day the first day is: 0 fair, 1 grey morning, 2 afternoon shower, 3 overcast with rain at dusk. " +
+                 "Handy for screenshots of a particular weather.")]
+        [Range(0, 3)] public int firstWeatherDay = 0;
 
         [Header("Wildlife expansion (1.0)")]
         [Tooltip("No longer needed: since 1.1 all fifteen species are always built. Kept so older settings assets load. " +

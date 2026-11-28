@@ -192,12 +192,41 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Weather, landforms, Creek Ford (1.4.0)
+* **Weather** (`Scripts/Environment/WeatherCycle.cs`, execution order -60): four forecast days of (hour, cover, rain)
+  keys, chosen by `(firstDay + DayCycle.Day) % 4`; values eased (rate 0.8/s). `Condition` (Fair / Cloudy > 0.4 /
+  Overcast > 0.68 / LightRain rain > 0.2) raises `Changed`. `OvercastSky` with hysteresis (on > 0.66, off < 0.55).
+  `DayCycle.Apply` applies it: sun × lerp(1, 0.3, cover), shadow strength × lerp(1, 0.3, cover), sun colour toward
+  grey, sky exposure × lerp(1, 0.78, cover) and tint toward grey, the overcast sky material (a Play-mode copy), ambient
+  × lerp(1, 0.9, cover), fog colour toward grey haze and density × (1 + 1.2 cover + 1.6 rain), URP temperature −6 cover,
+  exposure +0.12 cover. Rain: a world-space stretched-billboard particle box 36 × 36 m, 11 m above the camera, up to
+  3800/s, builder-made streak material (URP Particles/Unlit or legacy alpha blended), procedural rain loop.
+  `WildLensWind.WeatherMultiplier` = 1 + 0.35 cover + 0.6 rain. Test looks with *Override Weather* in Play mode.
+* **Shelter** (`WildlifeSchedule`): re-applies on period change *or* when `Raining` (rain > 0.25) flips. In rain,
+  Meadow/MeadowEdge → Woodland, Ridge → Perch; activity bias Resting/Sitting ×2, Grazing/Foraging ×0.6.
+* **Landforms v2** (`WildLensSliceBuilder.GenerateFallbackHeights`): in metres on a 60 m design scale, terrain height
+  ≥ 90 m. `upland` = smoothstep along a seed-chosen direction; `ridge` = (1 − |2·perlin − 1|)^1.6 at 1.5×scale, weighted
+  0.07 + 0.22·upland; `hills` ±0.045; terracing 10 levels at 30% on the upland; all ridge/hill/shelf terms masked to
+  zero inside 0.13 of the centre. `regenerateWildLensTerrain` rebuilds heights every build for WildLens terrains.
+* **Woods field** (`TerrainPainter.WoodsField`): 3 m grid of distance to the nearest placed tree; `Woods(p)` is 1 within
+  6 m and 0 beyond 12 m, and gates the forest field in splat painting (forest floor) and details (ferns, open grass).
+* **Creek Ford** (`Editor/FordBuilder.cs`): `PlanFord` after roads (own RNG): creek samples in the middle 60%, path
+  distance 18–70 m, water drop < 0.8 m over 8 samples, lowest score of |d − 32|·0.6 + drop·20 + forest·25; spur
+  footpath (1.3 m) from the nearest path point to 4.6 m from the centreline; keep-outs. `BuildFord`: stepping stones
+  every 0.75 m at water + 0.06 with box colliders, gravel bar (painted rock, no grass, `FordBar`), snag + Perch hotspot,
+  Water hotspot, seat log, `SignKit` sign and panel, brook voice, Water anchor, residence (kingfisher, sandpiper,
+  heron), viewpoint.
+* **Sign check** (`Editor/SignCheck.cs`): per TextMesh, nearest sibling named Board/Panel/Finger/Plate/Header Plank up
+  to two levels; glyph vertices in board space must lie within ±0.5 (2% slack), stand proud of a face, read outward,
+  and have capitals ≥ 3 cm. Runs three editor frames after a build and from the menu.
+
 ## Signage, woodwork and water (1.3.0)
 * **Sign standard** (`Editor/SignKit.cs`): `Sign(parent, pos, rot, title, line, icons, number, post)` builds a dark
   stained board sized to its words: number disc (destinations), bold title (`TitleSize` 0.024 ≈ 10 cm capitals), one
   row of pictograms plus a short line (`LineSize` 0.015). `Panel(...)` builds the interpretive lectern: pictogram,
   title on a green band, two short lines. `TextWidth` sums the font's glyph advances (TextMesh: one pixel at size 64 is
-  0.1 × characterSize m); `Fit` shrinks text to a width. `TimeIcons(bestTimes)` turns best-times words into sunrise /
+  0.1 × characterSize m); `Fit` shrinks text to a width. **Positions passed to `SignKit.Label`/`Icon` are in reader
+  space** (x to the reader's right); `SignKit.Reader` converts (the sign's -X is the reader's right). `TimeIcons(bestTimes)` turns best-times words into sunrise /
   sun / sunset / moon pictograms. Icons are 128 px generated alpha PNGs in `Generated/Icons` (append to `SignIcon`).
 * **Trailhead board** (`ReserveInfoBoard`): header (name; period, clock, `Conditions()` and `RightNow()`, refreshed
   every 2 s), a 582-unit map with round numbered markers, destinations (number disc, name, best-time icons from

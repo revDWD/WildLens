@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.4.0] Changing Skies
+### Signs fixed
+- **Sign lettering was mirrored** in 1.3: every left-aligned title, line and pictogram was placed on the reader's
+  right, so it hung off the board's far edge or floated in the air (the boards themselves looked fine). A sign's front
+  faces +Z, so its reader's right is the sign's -X. `SignKit` now takes positions in reader space and converts them;
+  fingerposts were re-derived for both faces. Stained boards are lighter (they read as black slabs in shade).
+- **WildLens ▸ Check Sign Lettering**: a probe that measures every label's glyphs against its board (off the edge,
+  buried, facing the wrong way, too small) and lists problems in the Console. It also runs after every build.
+### Elevation
+- **Landforms v2** for WildLens's own terrain: a lowland (where the creek and pond settle) rising to an upland of broad
+  ridges, spurs, small valleys and soft shelves; the meadow heart stays gentle. About 30 m of interior relief instead of
+  7 m, slopes mostly under 8° (at most ~20°). Prototyped and measured before shipping.
+- WildLens's own terrain is regenerated from the seed on every build (setting: *Regenerate WildLens Terrain*), so
+  rebuilds are repeatable and terrain improvements arrive. Terrains of your own are never touched.
+### Weather
+- **A four-day forecast that repeats**, so it can be learned: fair; grey morning clearing by midday; an afternoon
+  shower clearing for golden hour; overcast with rain at dusk. Cloud dims and softens the sun and its shadows, greys and
+  thickens the haze, and cools the grade; when it's truly grey the sky becomes a scanned **overcast sky** (CC0, Poly
+  Haven *Kloofendal Overcast*). **Rain** falls around you with its own sound; the wind picks up.
+- **Wildlife shelters in rain**: meadow animals move into woodland, hawks to their perches, and everything rests more
+  (placement and behaviour weights only). Herons and the creek birds carry on.
+- Field notes when the weather turns; the trailhead board's conditions line shows the weather.
+- Builder settings: *Weather* (off: always fair) and *First Weather Day* (for screenshots of a given weather).
+### The Creek Ford
+- A new landmark where you can watch the creek itself: the calmest open reach of Willow Creek near a path, with a short
+  footpath spur, **stepping stones you can cross**, a gravel bar, a dead snag over the water, a log seat facing
+  upstream, a sign and a panel ("THE RIFFLE"), and a louder brook.
+- **Belted Kingfisher** (fishes from the snag, patrols low along the water) and **Spotted Sandpiper** (teeters on the
+  gravel bar) live there, with a second Great Blue Heron. Seventeen species.
+### Looks
+- Forest floor and ferns only where trees actually stand (the forest field had painted bare leaf litter and ferns on
+  open, sunny ground where the tree budget had run out).
+- Ovate broadleaf crowns start lower (no bare-pole lollipops); crowns with few limbs are filled on every limb.
+- Environment version 15; art import version 5 (**rebuild the slice**).
+
 ## [1.3.0] Trailhead
 A presentation and readability pass from playtest screenshots. No new systems.
 ### Signs you can read

@@ -149,6 +149,7 @@ namespace WildLens.EditorTools
                 AssetDatabase.SaveAssets();
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 Selection.activeGameObject = root;
+                SignCheck.RunAfterBuild(); // 1.4: measure every sign's lettering against its board once glyphs exist
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +
                           $"{veg.TreesPlaced} trees, {veg.BushesPlaced} bushes, {veg.RocksPlaced} rocks, {veg.HotspotsPlaced} habitat hotspots, " +
@@ -223,7 +224,7 @@ namespace WildLens.EditorTools
             if (!s.buildReserve) return size;
             // The reserve needs room to travel: grow our own terrain (never the user's).
             float side = Mathf.Max(size.x, size.z, s.reserveTerrainSize);
-            return new Vector3(side, Mathf.Max(size.y, 60f), side);
+            return new Vector3(side, Mathf.Max(size.y, 90f), side); // 1.4: room for the upland and the rim
         }
 
         private static Terrain FindOrCreateTerrain(SliceBuildSettings s)
@@ -232,13 +233,18 @@ namespace WildLens.EditorTools
             Vector3 size = FallbackSize(s);
             if (terrain != null && terrain.terrainData != null)
             {
-                if (IsWildLensTerrain(terrain) && terrain.terrainData.size.x < size.x - 1f)
+                bool grow = terrain.terrainData.size.x < size.x - 1f;
+                if (IsWildLensTerrain(terrain) && (grow || s.regenerateWildLensTerrain))
                 {
-                    Undo.RegisterCompleteObjectUndo(terrain.terrainData, "Grow WildLens terrain");
-                    Undo.RecordObject(terrain.transform, "Grow WildLens terrain");
+                    // 1.4: WildLens's own terrain is regenerated from the seed on every build, so landform improvements
+                    // reach existing scenes and rebuilds are exactly repeatable (pond, ridge, creek and road are re-carved).
+                    // A terrain of your own is never touched.
+                    Undo.RegisterCompleteObjectUndo(terrain.terrainData, "Regenerate WildLens terrain");
+                    Undo.RecordObject(terrain.transform, "Regenerate WildLens terrain");
                     GenerateFallbackHeights(terrain.terrainData, size, s);
                     terrain.transform.position = new Vector3(-size.x * 0.5f, 0f, -size.z * 0.5f);
-                    Debug.Log($"[WildLens] Grew the WildLens fallback terrain to {size.x:0} m for the reserve.");
+                    Debug.Log(grow ? $"[WildLens] Grew the WildLens fallback terrain to {size.x:0} m for the reserve."
+                                   : "[WildLens] Regenerated the WildLens terrain (landforms v2: lowland, upland ridges, valleys, shelves).");
                 }
                 return terrain;
             }
@@ -261,7 +267,15 @@ namespace WildLens.EditorTools
             return go.GetComponent<Terrain>();
         }
 
-        /// <summary>Rolling country rising to a rim at the edges (which keeps the world enclosed).</summary>
+        /// <summary>
+        /// Landforms v2 (1.4). Playtests found elevation the highest-return improvement (the ridge overlook was the
+        /// strongest place), and the old fallback was nearly flat: 7 m of relief across the interior, mean slope 2.6°.
+        /// Now: a lowland on one side (where the creek and pond settle) rising to an upland on the other, with broad
+        /// ridges and spurs (ridged noise), small valleys between them, rolling hills, and soft shelves on the upland; the
+        /// heart around the centre stays gentle for the meadow loop; a rim keeps the world enclosed. About 30 m of interior
+        /// relief, slopes mostly under 8° and at most ~20°, so it stays walkable and rideable (prototyped in Python first).
+        /// Heights are designed in metres on a 60 m scale and stored against the terrain's own height.
+        /// </summary>
         private static void GenerateFallbackHeights(TerrainData data, Vector3 size, SliceBuildSettings s)
         {
             data.heightmapResolution = size.x > 500f ? 513 : 257;
@@ -270,14 +284,29 @@ namespace WildLens.EditorTools
             var heights = new float[res, res];
             float o = s.seed * 3.1f;
             float scale = size.x / 400f; // keep hill sizes similar on a larger terrain
+            float ang = 0.9f + s.seed * 0.7f; // which side is upland varies with the seed
+            Vector2 tiltDir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
+            const float Design = 60f; // metres per unit of the shaping below
+            float S(float a, float b, float x) { float t = Mathf.Clamp01((x - a) / (b - a)); return t * t * (3f - 2f * t); }
             for (int z = 0; z < res; z++)
             for (int x = 0; x < res; x++)
             {
                 float u = x / (float)(res - 1), v = z / (float)(res - 1);
+                float dc = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f));
                 float rolling = Mathf.PerlinNoise(o + u * 3f * scale, o + v * 3f * scale) * 0.5f +
                                 Mathf.PerlinNoise(o + u * 9f * scale, o + v * 9f * scale) * 0.12f;
-                float rim = Mathf.Clamp01((Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f)) - 0.4f) * 4f);
-                heights[z, x] = 0.12f + rolling * 0.3f + rim * rim * 0.3f;
+                float rim = Mathf.Clamp01((dc - 0.4f) * 4f);
+                float away = S(0.13f, 0.32f, dc);                                   // the heart stays gentle
+                float upland = S(-0.35f, 0.45f, Vector2.Dot(new Vector2(u - 0.5f, v - 0.5f), tiltDir));
+                float ridge = Mathf.Pow(1f - Mathf.Abs(2f * Mathf.PerlinNoise(o + 40f + u * 1.5f * scale, o - 17f + v * 1.5f * scale) - 1f), 1.6f);
+                float hills = Mathf.PerlinNoise(o + 90f + u * 4f * scale, o + 33f + v * 4f * scale);
+                float h = 0.1f + rolling * 0.3f + upland * 0.16f + ridge * (0.07f + 0.22f * upland) * away + (hills - 0.5f) * 0.09f * away;
+                // Soft shelves on the upland: benches you can stand on and look out from.
+                float t = h * 10f, frac = t - Mathf.Floor(t);
+                float terraced = (Mathf.Floor(t) + S(0.25f, 0.75f, frac)) / 10f;
+                h += (terraced - h) * 0.3f * upland * away;
+                h += rim * rim * 0.3f;
+                heights[z, x] = Mathf.Clamp01(h * Design / size.y);
             }
             data.SetHeights(0, 0, heights);
         }
@@ -336,7 +365,73 @@ namespace WildLens.EditorTools
                     day.goldenFog = SkyInfo.ToColor(golden.fogColor);
                 }
             }
+            BuildWeather(root, s);
             Debug.Log($"[WildLens] Time of day on: starts at {s.startHour:0.0}h, {s.minutesPerHour:0.##} real min per hour (hold T to let time pass).");
+        }
+
+        /// <summary>Weather (1.4): the four-day forecast, the CC0 overcast sky and a rain-streak material.</summary>
+        private static void BuildWeather(Transform root, SliceBuildSettings s)
+        {
+            var go = new GameObject("Weather");
+            go.transform.SetParent(root, false);
+            var w = go.AddComponent<WeatherCycle>();
+            w.pattern = s.weather ? WeatherCycle.Pattern.Changing : WeatherCycle.Pattern.AlwaysFair;
+            w.firstDay = s.firstWeatherDay;
+            if (s.useScannedArt && ArtLibrary.Import()) w.overcastSky = ArtLibrary.SkyMaterial("kloofendal_overcast_puresky", 0.95f);
+            w.rainMaterial = RainMaterial();
+            Debug.Log($"[WildLens] Weather: {(s.weather ? $"four-day forecast, starting on day {s.firstWeatherDay + 1}" : "always fair")}" +
+                      (w.overcastSky == null ? " (no overcast sky image: scanned art off or missing)" : "") + ".");
+        }
+
+        /// <summary>Soft vertical streak for rain particles, in the pipeline's particle shader (alpha blended).</summary>
+        private static Material RainMaterial()
+        {
+            string texPath = GeneratedAssets.Folder + "/T_RainStreak.asset";
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+            if (tex == null)
+            {
+                const int w = 16, h = 64;
+                tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                var px = new Color[w * h];
+                for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float across = 1f - Mathf.Abs((x + 0.5f) / w * 2f - 1f);
+                    float along = Mathf.Sin((y + 0.5f) / h * Mathf.PI);
+                    px[y * w + x] = new Color(1f, 1f, 1f, Mathf.Pow(across, 3f) * along);
+                }
+                tex.SetPixels(px);
+                tex.Apply();
+                AssetDatabase.CreateAsset(tex, texPath);
+            }
+            string path = GeneratedAssets.Folder + "/M_Rain.mat";
+            bool urp = PipelineName().Contains("Universal");
+            var shader = urp ? Shader.Find("Universal Render Pipeline/Particles/Unlit") : null;
+            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+            if (shader == null) shader = Shader.Find("Particles/Standard Unlit");
+            if (shader == null) { Debug.LogWarning("[WildLens] No particle shader found: rain is not drawn (weather still dims the light)."); return null; }
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null) { mat = new Material(shader); AssetDatabase.CreateAsset(mat, path); }
+            mat.shader = shader;
+            foreach (var prop in new[] { "_BaseMap", "_MainTex" }) if (mat.HasProperty(prop)) mat.SetTexture(prop, tex);
+            Color tint = new Color(0.82f, 0.86f, 0.9f, 0.45f);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
+            if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", tint * 0.5f);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", tint);
+            if (urp)
+            {
+                // URP particles: transparent, alpha blended, no depth write.
+                if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
+                if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0f);
+                if (mat.HasProperty("_SrcBlend")) mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                if (mat.HasProperty("_DstBlend")) mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         private static Light FindOrCreateSun(Transform root)

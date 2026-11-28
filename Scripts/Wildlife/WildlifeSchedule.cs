@@ -28,6 +28,10 @@ namespace WildLens.Wildlife
 
         private WildlifeSpawner _spawner;
         private DayPeriod _applied = (DayPeriod)(-1);
+        private bool _rainApplied;
+
+        /// <summary>Raining hard enough to send animals to shelter (1.4).</summary>
+        public static bool Raining => WeatherCycle.Instance != null && WeatherCycle.Instance.Rain > 0.25f;
 
         private void Awake() => Instance = this;
         private void OnDestroy() { if (Instance == this) Instance = null; }
@@ -38,9 +42,11 @@ namespace WildLens.Wildlife
             if (clock == null) return;
             if (_spawner == null) _spawner = SceneQuery.FindOne<WildlifeSpawner>();
             if (_spawner == null || _spawner.Spawned.Count == 0) return;
-            if (clock.Period == _applied) return;
+            bool raining = Raining;
+            if (clock.Period == _applied && raining == _rainApplied) return;
             _applied = clock.Period;
-            foreach (var a in _spawner.Spawned) if (a != null) Apply(a, _applied);
+            _rainApplied = raining;
+            foreach (var a in _spawner.Spawned) if (a != null) Apply(a, _applied, raining);
         }
 
         private enum Place { Home, Meadow, MeadowEdge, Brush, Woodland, Water, Ridge, Perch } // same order as RhythmPlace
@@ -79,16 +85,26 @@ namespace WildLens.Wildlife
             }
         }
 
-        private void Apply(AnimalAgent a, DayPeriod p)
+        private void Apply(AnimalAgent a, DayPeriod p, bool raining)
         {
             if (a.Species == null) return;
             string id = a.Species.speciesId;
-            a.ActivityBias = act => Bias(id, p, act);
+            // Rain (1.4): more resting and sitting tight, less foraging out in the open.
+            a.ActivityBias = raining
+                ? act => Bias(id, p, act) * (act == AnimalActivity.Resting || act == AnimalActivity.Sitting ? 2f : act == AnimalActivity.Grazing || act == AnimalActivity.Foraging ? 0.6f : 1f)
+                : (System.Func<AnimalActivity, float>)(act => Bias(id, p, act));
             Vector3 origin = a.OriginHome;
             Vector3 target = origin;
             // Data first (1.0): species with a DailyRhythm need no code here.
             var rhythm = a.Species.rhythm;
             Place place = rhythm != null && rhythm.enabled ? (Place)(int)rhythm.For((int)p) : Where(id, p);
+            // Rain sends animals of open ground into the woods and hawks to their perches; water birds and animals
+            // already in brush or at home stay put. Placement only: no new behaviour.
+            if (raining)
+            {
+                if (place == Place.Meadow || place == Place.MeadowEdge) place = Place.Woodland;
+                else if (place == Place.Ridge) place = Place.Perch;
+            }
             switch (place)
             {
                 case Place.Meadow: target = Nearest(origin, HotspotType.Meadow, null, false) ?? origin; break;

@@ -45,11 +45,13 @@ namespace WildLens.Environment
 
         public static DayCycle Instance { get; private set; }
         public float Hour { get; private set; }
+        /// <summary>Days since Play began (1.4: the weather's forecast day).</summary>
+        public int Day { get; private set; }
         public DayPeriod Period { get; private set; }
         public bool IsWaiting { get; private set; }
         public event Action<DayPeriod> PeriodChanged;
 
-        private Material _morning, _golden, _current;
+        private Material _morning, _golden, _overcast, _current;
         private float _envTimer;
         private bool _started;
 #if WILDLENS_URP
@@ -115,6 +117,7 @@ namespace WildLens.Environment
             if (Instance == this) Instance = null;
             if (_morning != null) Destroy(_morning);
             if (_golden != null) Destroy(_golden);
+            if (_overcast != null) Destroy(_overcast);
         }
 
         private void Update()
@@ -123,7 +126,9 @@ namespace WildLens.Environment
             IsWaiting = GameInput.WaitHeld && PlayerPresence.Exists && PlayerPresence.IsStill && PlayerPresence.EngineNoise <= 0f;
             if (IsWaiting) speed = waitSpeed;
             if (Period == DayPeriod.Night) speed = nightSpeed;
-            Hour = Mathf.Repeat(Hour + Time.deltaTime / (minutesPerHour * 60f) * speed, 24f);
+            float next = Hour + Time.deltaTime / (minutesPerHour * 60f) * speed;
+            if (next >= 24f) Day++;
+            Hour = Mathf.Repeat(next, 24f);
             Apply(false);
         }
 
@@ -193,20 +198,29 @@ namespace WildLens.Environment
             else if (force && _started) PeriodChanged?.Invoke(Period);
 
             var k = Sample(Hour);
+            // 1.4: weather on top of the light. Cloud dims and softens the sun, flattens and cools the scene, and thickens
+            // and greys the haze; rain thickens it more.
+            var weather = WeatherCycle.Instance;
+            float cover = weather != null ? weather.Cover : 0f, rain = weather != null ? weather.Rain : 0f;
             SunPosition(Hour, out float az, out float el);
             Vector3 toSun = Quaternion.Euler(-Mathf.Max(el, -6f), az, 0f) * Vector3.forward;
             if (sun != null)
             {
                 // Below the horizon, keep the light just under it and fade it out; a moonlit fill keeps night readable.
                 sun.transform.rotation = Quaternion.LookRotation(-toSun);
-                sun.intensity = baseSunIntensity * k.sun;
-                sun.color = k.sunColour;
-                sun.shadowStrength = Mathf.Lerp(0.5f, 0.85f, Mathf.Clamp01(k.sun));
+                sun.intensity = baseSunIntensity * k.sun * Mathf.Lerp(1f, 0.3f, cover);
+                sun.color = Color.Lerp(k.sunColour, new Color(0.85f, 0.88f, 0.92f), cover * 0.6f);
+                sun.shadowStrength = Mathf.Lerp(0.5f, 0.85f, Mathf.Clamp01(k.sun)) * Mathf.Lerp(1f, 0.3f, cover);
                 sun.enabled = k.sun > 0.01f;
             }
 
             bool golden = Hour >= 15.5f && Hour < 21f;
             var sky = golden ? (_golden != null ? _golden : _morning) : (_morning != null ? _morning : _golden);
+            if (weather != null && weather.OvercastSky && weather.overcastSky != null)
+            {
+                if (_overcast == null) _overcast = new Material(weather.overcastSky); // a copy: assets stay untouched in Play
+                sky = _overcast;
+            }
             if (sky != null)
             {
                 if (_current != sky || force)
@@ -218,20 +232,22 @@ namespace WildLens.Environment
                 // Turn the sky image so its sun sits where the light is.
                 float skyAz = sky == _golden ? goldenSkySunAzimuth : morningSkySunAzimuth;
                 float targetAz = Mathf.Atan2(toSun.x, toSun.z) * Mathf.Rad2Deg;
-                if (sky.HasProperty("_Rotation")) sky.SetFloat("_Rotation", Mathf.Repeat(skyAz - targetAz, 360f));
-                if (sky.HasProperty("_Exposure")) sky.SetFloat("_Exposure", k.skyExposure * (sky == _golden ? 1.05f : 1f));
-                if (sky.HasProperty("_Tint")) sky.SetColor("_Tint", k.skyTint);
+                if (sky != _overcast && sky.HasProperty("_Rotation")) sky.SetFloat("_Rotation", Mathf.Repeat(skyAz - targetAz, 360f));
+                float exposure = sky == _overcast ? k.skyExposure * 0.95f : k.skyExposure * (sky == _golden ? 1.05f : 1f) * Mathf.Lerp(1f, 0.78f, cover);
+                if (sky.HasProperty("_Exposure")) sky.SetFloat("_Exposure", exposure);
+                if (sky.HasProperty("_Tint")) sky.SetColor("_Tint", Color.Lerp(k.skyTint, new Color(0.47f, 0.48f, 0.5f), cover * 0.6f));
             }
 
-            RenderSettings.ambientIntensity = k.ambient;
+            RenderSettings.ambientIntensity = k.ambient * Mathf.Lerp(1f, 0.9f, cover);
             RenderSettings.reflectionIntensity = Mathf.Lerp(0.25f, 0.9f, Mathf.Clamp01(k.ambient));
             Color fogBase = Color.Lerp(morningFog, goldenFog, golden ? Mathf.InverseLerp(15.5f, 18f, Hour) : 0f);
-            RenderSettings.fogColor = fogBase * k.fogTint;
-            RenderSettings.fogDensity = k.fogDensity;
+            Color greyHaze = new Color(0.66f, 0.68f, 0.7f) * Mathf.Clamp01(k.ambient + 0.1f);
+            RenderSettings.fogColor = Color.Lerp(fogBase * k.fogTint, greyHaze, cover * 0.65f);
+            RenderSettings.fogDensity = k.fogDensity * (1f + cover * 1.2f + rain * 1.6f);
 
 #if WILDLENS_URP
-            if (_wb != null) _wb.temperature.value = _baseTemperature + k.temperature;
-            if (_colour != null) _colour.postExposure.value = _baseExposure + k.exposure;
+            if (_wb != null) _wb.temperature.value = _baseTemperature + k.temperature - cover * 6f;
+            if (_colour != null) _colour.postExposure.value = _baseExposure + k.exposure + cover * 0.12f;
 #endif
             // Re-derive ambient light from the (re-tinted, rotated) sky every few seconds; cheap at this rate.
             _envTimer -= Time.deltaTime;

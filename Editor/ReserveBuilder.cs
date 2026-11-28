@@ -110,6 +110,7 @@ namespace WildLens.EditorTools
             for (int i = 0; i < _sites.Count; i++) _sites[i].number = i + 1;
             PlanParking(shapeTerrain);
             PlanRoads(parent, trackMeshes, shapeTerrain); // the Reserve Road ring through every pull-off (0.9; graded 1.0)
+            PlanFord(parent, trackMeshes);                // 1.4: a place to watch the creek itself, with a footpath spur
 
             // Meadows at the blind and around the pond get meadow grass, flowers and the meadow ground tint.
             foreach (var s in _sites)
@@ -651,12 +652,12 @@ namespace WildLens.EditorTools
             foreach (float face in new[] { 1f, -1f })
             {
                 var side2 = PropBuilder.Group("Face", sign, sign.position, sign.rotation * Quaternion.Euler(0f, face > 0f ? 0f : 180f, 0f));
-                // Each face reads root-to-tip: the front has the root on its right, the back on its left.
-                float root = face > 0f ? -0.2f : 0.2f, dirX = face > 0f ? -1f : 1f;
-                SignKit.Icon(side2, new Vector3(root, 1.45f, 0.03f), SignIcon.Disc, 0.22f, SignKit.Green);
-                SignKit.Label(side2, new Vector3(root, 1.45f, 0.033f), s.number.ToString(), 0.019f, SignKit.Cream, TextAnchor.MiddleCenter, true);
-                SignKit.Label(side2, new Vector3(root + dirX * 0.15f, 1.45f, 0.03f), text, size, SignKit.Cream,
-                    face > 0f ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft, true);
+                // Reader space: the finger runs from the post (x = 0) to the tip, which is on the front reader's right
+                // (+len) and on the back reader's left (-len). Number disc by the post, the words centred along the finger.
+                float k = face;
+                SignKit.Icon(side2, new Vector3(k * 0.2f, 1.45f, 0.03f), SignIcon.Disc, 0.22f, SignKit.Green);
+                SignKit.Label(side2, new Vector3(k * 0.2f, 1.45f, 0.033f), s.number.ToString(), 0.019f, SignKit.Cream, TextAnchor.MiddleCenter, true);
+                SignKit.Label(side2, new Vector3(k * (0.36f + len) * 0.5f, 1.45f, 0.03f), text, size, SignKit.Cream, TextAnchor.MiddleCenter, true);
             }
             Clear(pos, 1.5f);
         }

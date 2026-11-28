@@ -371,6 +371,7 @@ namespace WildLens.EditorTools
             else
             {
                 float fork = h * (form == 0 ? R(0.3f, 0.4f) : R(0.42f, 0.52f));
+                if (form == 1) fork *= 0.78f; // 1.4: crown starts lower (a third of the height): no bare-pole lollipops
                 Vector3 lean = new Vector3(R(-0.06f, 0.06f), 1f, R(-0.06f, 0.06f));
                 Limb(root.transform, "Trunk", _frustumTrunk, bark, Vector3.zero, lean, fork + 0.3f, trunkR);
                 Vector3 forkPt = lean.normalized * fork;
@@ -399,7 +400,7 @@ namespace WildLens.EditorTools
                 // temperate broadleaf crowns rather than flat-topped savanna trees.
                 var detail = new System.Random((Mathf.RoundToInt(p.x * 10f) * 73856093) ^ (Mathf.RoundToInt(p.z * 10f) * 19349663) ^ _s.seed);
                 float D(float a, float b) => a + (float)detail.NextDouble() * (b - a);
-                for (int li = 0; li < limbEnds.Count; li += 2) // alternate limbs: fills the gaps at half the renderer cost
+                for (int li = 0; li < limbEnds.Count; li += limbEnds.Count <= 3 ? 1 : 2) // few limbs: every one; else alternate
                 {
                     var (dir, len) = limbEnds[li];
                     Vector3 mid = forkPt + dir * len * D(0.5f, 0.68f) + new Vector3(D(-0.3f, 0.3f), D(0f, 0.4f), D(-0.3f, 0.3f));

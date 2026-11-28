@@ -57,13 +57,21 @@ namespace WildLens.EditorTools
             return w <= maxWidth || w <= 0f ? preferred : preferred * maxWidth / w;
         }
 
-        /// <summary>Lettering facing +Z (the sign's front), anchored as asked.</summary>
-        public static TextMesh Label(Transform parent, Vector3 localPos, string text, float charSize, Color colour,
+        /// <summary>
+        /// Converts a position in <b>reader space</b> (x to the reader's right, y up, z towards the reader) into the
+        /// parent's local space. A sign's front faces +Z, so its reader looks along -Z and their right-hand side is the
+        /// parent's -X. 1.3 laid signs out as if +X were the reader's right: every left-aligned title, icon and line came
+        /// out mirrored, off the board's far edge (centred labels, the only kind before 1.3, are symmetric and hid this).
+        /// </summary>
+        public static Vector3 Reader(Vector3 p) => new Vector3(-p.x, p.y, p.z);
+
+        /// <summary>Lettering on the sign's front (+Z). <paramref name="readerPos"/> is in reader space (see <see cref="Reader"/>).</summary>
+        public static TextMesh Label(Transform parent, Vector3 readerPos, string text, float charSize, Color colour,
             TextAnchor anchor = TextAnchor.MiddleCenter, bool bold = false)
         {
             var go = new GameObject("Label");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
+            go.transform.localPosition = Reader(readerPos);
             go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // TextMesh reads on its -Z side
             var tm = go.AddComponent<TextMesh>();
             tm.text = text;
@@ -84,10 +92,10 @@ namespace WildLens.EditorTools
 
         // ------------------------------------------------------------------ icons
 
-        /// <summary>An icon quad facing +Z, <paramref name="size"/> metres square.</summary>
-        public static GameObject Icon(Transform parent, Vector3 localPos, SignIcon icon, float size, Color tint)
+        /// <summary>An icon quad facing +Z, <paramref name="size"/> metres square; <paramref name="readerPos"/> in reader space.</summary>
+        public static GameObject Icon(Transform parent, Vector3 readerPos, SignIcon icon, float size, Color tint)
         {
-            var go = PrimitiveMeshes.CreatePart("Icon " + icon, PrimitiveType.Quad, parent, localPos, new Vector3(size, size, 1f),
+            var go = PrimitiveMeshes.CreatePart("Icon " + icon, PrimitiveType.Quad, parent, Reader(readerPos), new Vector3(size, size, 1f),
                 IconMaterial(icon, tint), new Vector3(0f, 180f, 0f));
             go.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go;
