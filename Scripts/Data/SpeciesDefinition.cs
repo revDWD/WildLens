@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
+using WildLens.Sound;
 
 namespace WildLens.Data
 {
@@ -199,7 +200,7 @@ namespace WildLens.Data
     public class SpeciesDefinition : ScriptableObject
     {
         /// <summary>Data layout version. Assets below this are upgraded by the editor (SpeciesAssetMigrator).</summary>
-        public const int CurrentDataVersion = 4; // 4: weather habits (SpeciesDefaults.ApplyHabits)
+        public const int CurrentDataVersion = 5; // 4: weather habits (SpeciesDefaults.ApplyHabits); 5: voices and the turkey's brighter colours (same step)
         [HideInInspector] public int dataVersion; // 0 on assets created before versioning
 
         [Header("Identity")]
@@ -258,6 +259,11 @@ namespace WildLens.Data
         [Header("Weather habits (1.9)")]
         [Tooltip("How rain, grey days and fair days change where this species goes. Off by default.")]
         public WeatherHabits weatherHabits = new WeatherHabits();
+
+        [Header("Voice (2.0)")]
+        [Tooltip("What it sounds like and when it is heard. Off (or empty) here: the VoiceDirector uses the default voice for this species id (VoiceBank), " +
+                 "so an asset from before 2.0 is heard too. Tick Enabled and edit the notes to tune it.")]
+        public VoiceRecipe voice = new VoiceRecipe();
 
         [Header("Behaviours")]
         public List<BehaviorOption> behaviors = new List<BehaviorOption>();

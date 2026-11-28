@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using WildLens.Sound;
 
 namespace WildLens.Data
 {
@@ -10,6 +11,23 @@ namespace WildLens.Data
     public static class SpeciesDefaults
     {
         public static List<SpeciesDefinition> CreateAll()
+        {
+            var all = CreateBase();
+            foreach (var sp in all) AddVoice(sp);
+            return all;
+        }
+
+        /// <summary>2.0: gives a species its default voice (VoiceBank) and the one field-guide sentence that describes it, added last so it ends the notes.</summary>
+        private static void AddVoice(SpeciesDefinition s)
+        {
+            var v = VoiceBank.Copy(s.speciesId);
+            if (v == null) return; // silent species: fox, cottontail, raccoon, opossum, black bear
+            s.voice = v;
+            string note = VoiceBank.Note(s.speciesId);
+            if (!string.IsNullOrEmpty(note)) Hint(s, note);
+        }
+
+        private static List<SpeciesDefinition> CreateBase()
         {
             return new List<SpeciesDefinition>
             {
@@ -51,10 +69,11 @@ namespace WildLens.Data
                 headSize = 0.075f, snoutLength = 0.03f, tailLength = 0.32f, tailThickness = 0.04f,
                 headColor = new Color(0.55f, 0.62f, 0.78f),
             };
-            // 1.9: darker bronze-brown overall, a lighter bronze for the second material, and the bare red of head, wattle and legs as the accent.
-            s.primaryColor = new Color(0.25f, 0.18f, 0.11f);
-            s.secondaryColor = new Color(0.36f, 0.26f, 0.15f);
-            s.accentColor = new Color(0.66f, 0.2f, 0.16f);
+            // 2.0: bronze-brown overall, a lighter bronze for the second material, and the bare red of head, wattle and legs as the accent.
+            // (The 1.9 values were too dark: a tint REPLACES the model's material colour, and the turkey came out almost black.)
+            s.primaryColor = new Color(0.44f, 0.32f, 0.20f);
+            s.secondaryColor = new Color(0.56f, 0.41f, 0.25f);
+            s.accentColor = new Color(0.70f, 0.22f, 0.17f);
             s.habitat = HabitatPreference.ForestEdge;
             s.groupCount = 1; s.groupSize = new Vector2Int(4, 7);
             s.spawnDistanceFromTrail = new Vector2(18f, 50f);
@@ -673,14 +692,29 @@ namespace WildLens.Data
             if (target == null || source == null) return;
             if (source.weatherHabits != null && source.weatherHabits.enabled) target.weatherHabits = source.weatherHabits.Clone();
             MigrateNotes(target, source);
+            // 2.0: a voice arrives only where the asset has none of its own (never over one tuned by hand).
+            if (source.voice != null && source.voice.enabled && (target.voice == null || !target.voice.enabled)) target.voice = VoiceBank.Clone(source.voice);
             if (RhythmRevisedIn19.Contains(source.speciesId) && source.rhythm != null && source.rhythm.enabled && RhythmIsPre19Default(target.rhythm, source.speciesId))
                 target.rhythm = new DailyRhythm(source.rhythm.dawn, source.rhythm.morning, source.rhythm.midday, source.rhythm.goldenHour, source.rhythm.dusk, source.rhythm.night);
-            if (ColoursRevisedIn19.Contains(source.speciesId))
+            if (ColoursRevisedIn19.Contains(source.speciesId) && ColoursMayChange(target, source.speciesId))
             {
                 target.primaryColor = source.primaryColor;
                 target.secondaryColor = source.secondaryColor;
                 target.accentColor = source.accentColor;
             }
+        }
+
+        /// <summary>
+        /// The turkey's colours were revised again in 2.0 (the 1.9 ones rendered almost black): an asset still on the 1.8 or 1.9 default (or any
+        /// colour darker than a luminance of 0.2) takes the new ones; a turkey tuned by hand to something brighter is left alone. The fox is unchanged.
+        /// </summary>
+        private static bool ColoursMayChange(SpeciesDefinition target, string id)
+        {
+            if (id != "wild_turkey") return true;
+            Color p = target.primaryColor;
+            float lum = 0.2126f * p.r + 0.7152f * p.g + 0.0722f * p.b;
+            bool v18 = Mathf.Abs(p.r - 0.3f) < 0.01f && Mathf.Abs(p.g - 0.23f) < 0.01f && Mathf.Abs(p.b - 0.15f) < 0.01f;
+            return lum < 0.2f || v18;
         }
 
         /// <summary>
