@@ -1055,6 +1055,13 @@ namespace WildLens.EditorTools
             var blind = hide.gameObject.AddComponent<ObservationBlind>();
             blind.interiorCentre = new Vector3(0f, 1f, 0f);
             blind.interiorSize = new Vector3(W - 0.2f, 2f, D - 0.2f);
+            // 1.10: the roofed room. The roof slab is (W + 0.5) x (D + 0.7) at z 0.1 (above); cover the room under it, 0.15 m inside its edges, floor to roof.
+            // 'hide' is the group (unit scale, rotated to face the meadow), so these are the blind's own local numbers.
+            var shelter = hide.gameObject.AddComponent<RainShelter>();
+            shelter.placeName = "Meadow Blind";
+            shelter.centre = new Vector3(0f, H * 0.5f, 0.1f);
+            shelter.size = new Vector3(W + 0.2f, H, D + 0.4f);
+            shelter.feather = 0.5f;
 
             // Duckboards from the track's end to the door.
             Vector3 doorWorld = hide.TransformPoint(new Vector3(0f, 0f, -D * 0.5f - 0.3f));

@@ -245,6 +245,9 @@ namespace WildLens.Debugging
             _sb.Append("<b>WildLens camera diagnostics</b>  (F3 hide · F4 zoom self-test)\n");
             string stale = WildLens.Environment.SliceInfo.StaleReason();
             _sb.Append($"WildLens {WildLensVersion.Package} · scene: {(stale == null ? "current" : "<color=#ffb347>STALE, " + stale + " (rebuild)</color>")}\n");
+            _sb.Append(WildLens.Environment.RainShelter.Covered
+                ? $"shelter {WildLens.Environment.RainShelter.ListenerCover:0.00} ({WildLens.Environment.RainShelter.ListenerPlace})\n"
+                : $"shelter {WildLens.Environment.RainShelter.ListenerCover:0.00}{(WildLens.Environment.RainShelter.Count == 0 ? " (no shelters in this scene: rebuild)" : "")}\n");
             _sb.Append("Input backend: ").Append(GameInput.Backend).Append('\n');
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM_1_9
             _sb.Append("Scroll delta behaviour: ").Append(InputSystem.settings.scrollDeltaBehavior).Append('\n');

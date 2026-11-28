@@ -118,6 +118,21 @@ namespace WildLens.EditorTools
             roof.transform.localScale = new Vector3(outR + 0.9f, 0.8f, outR + 0.9f); // unit cone: radius 1 (eaves ~0.45 m past each face)
             roof.AddComponent<MeshFilter>().sharedMesh = roofMesh;
             roof.AddComponent<MeshRenderer>().sharedMaterial = roofMat;
+            // 1.10: the dry strip under the eaves. The three faces are walls (the triangle inside them is shut), so what a reader can stand in is the
+            // roof's overhang: 0.45 m past each face (the roof's apothem is inR + 0.45), 2.92 m up at the eave. One box per face, in the FACE'S local space
+            // (kiosk-parented, +Z out of the face): 0.9 m back (under the roof inside the walls too), 0.45 m out, 3.2 m wide (inside the roof's corners).
+            for (int k = 0; k < 3; k++)
+            {
+                var strip = new GameObject("Rain Shelter " + (k + 1));
+                strip.transform.SetParent(kiosk, false);
+                strip.transform.localPosition = Quaternion.Euler(0f, k * 120f, 0f) * Vector3.forward * inR;
+                strip.transform.localRotation = Quaternion.Euler(0f, k * 120f, 0f);
+                var rs = strip.AddComponent<RainShelter>();
+                rs.placeName = "Reserve Board";
+                rs.centre = new Vector3(0f, 1.47f, -0.225f);
+                rs.size = new Vector3(3.2f, 2.94f, 1.35f);
+                rs.feather = 0.4f;
+            }
             PrimitiveMeshes.CreatePart("Finial", PrimitiveType.Cylinder, kiosk, new Vector3(0f, 3.78f, 0f), new Vector3(0.12f, 0.08f, 0.12f), _woodDark);
 
             Transform Face(int k, string name)

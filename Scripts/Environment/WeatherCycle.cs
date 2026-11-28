@@ -167,6 +167,8 @@ namespace WildLens.Environment
 
         private ParticleSystem _rain;
         private AudioSource _rainAudio;
+        private AudioLowPassFilter _rainMuffle;          // added the first time the listener is under a roof (1.10)
+        private ParticleSystem.Particle[] _rainBuffer;   // preallocated for the shelter pass: no garbage per frame
         private Transform _camera;
         private bool _started;
 
@@ -287,12 +289,34 @@ namespace WildLens.Environment
 
         private void UpdateRain()
         {
-            if (_rain == null) return;
             if (_camera == null && Camera.main != null) _camera = Camera.main.transform;
+            // 1.10 roofs: the listener's cover is kept up to date even when there is no rain system (cheap: five samples a second,
+            // nothing at all when there are no shelters).
+            if (_camera != null) RainShelter.Tick(_camera.position, Time.deltaTime);
+            if (_rain == null) return;
             if (_camera != null) _rain.transform.position = _camera.position + Vector3.up * 11f;
             var emission = _rain.emission;
             emission.rateOverTime = Rain * 3800f;
-            if (_rainAudio != null) _rainAudio.volume = Mathf.Clamp01(Rain) * 0.45f;
+
+            // Drops that fall into a roofed volume are removed (only while it rains and a shelter is within the rain's reach).
+            if (_camera != null && Rain > 0.02f && RainShelter.Count > 0)
+            {
+                if (_rainBuffer == null) _rainBuffer = new ParticleSystem.Particle[_rain.main.maxParticles];
+                RainShelter.KillRain(_rain, _camera.position, 22f, _rainBuffer); // the emitter is 36 m across: 18 m to its edge, a little beyond
+            }
+            float cover = RainShelter.ListenerCover;
+            if (_rainAudio != null)
+            {
+                _rainAudio.volume = Mathf.Clamp01(Rain) * 0.45f * (1f - 0.3f * cover); // under a roof: quieter ...
+                if (cover > 0.01f && _rainMuffle == null) _rainMuffle = _rainAudio.gameObject.AddComponent<AudioLowPassFilter>();
+                if (_rainMuffle != null)
+                {
+                    // ... and duller: the cutoff falls from open (22 kHz) to about 1.6 kHz (drumming on a roof, not hissing on leaves).
+                    bool on = cover > 0.01f;
+                    if (_rainMuffle.enabled != on) _rainMuffle.enabled = on;
+                    if (on) _rainMuffle.cutoffFrequency = 22000f * Mathf.Pow(1600f / 22000f, cover);
+                }
+            }
         }
 
         /// <summary>Rain on leaves: filtered noise with a scatter of soft ticks (synthesised, loops over 6 s).</summary>

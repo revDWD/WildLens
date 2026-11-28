@@ -396,6 +396,15 @@ namespace WildLens.EditorTools
                 MeshPart("Fire Stone", group, Pick(_rocks), Pick(_stone), group.InverseTransformPoint(sp - Vector3.up * sz * 0.2f),
                     new Vector3(sz, sz * 0.6f, sz * 0.9f), Quaternion.Euler(R(0f, 20f), R(0f, 360f), R(0f, 20f)));
             }
+            // 1.10: the alcove is dry. In the crag's local frame (this group: origin at the floor, +Z out of the hill) the alcove runs x ±AlcoveHalfWidth,
+            // z -AlcoveDepth..0, floor to Ceiling (the numbers ProceduralMeshes.Crag cut it from), pulled in 0.1 m for the rock's slight undulation.
+            var rain = new GameObject("Rain Shelter");
+            rain.transform.SetParent(group, false);
+            var rs = rain.AddComponent<RainShelter>();
+            rs.placeName = "Rock Shelter";
+            rs.centre = new Vector3(0f, ShelterPlan.Ceiling * 0.5f, -ShelterPlan.AlcoveDepth * 0.5f);
+            rs.size = new Vector3(ShelterPlan.AlcoveHalfWidth * 2f - 0.2f, ShelterPlan.Ceiling, ShelterPlan.AlcoveDepth - 0.1f);
+            rs.feather = 0.6f;
             AddKeepOut(p - f * 1.4f, 2.8f); // a dry floor: no grass, nothing scattered under the roof
 
             // Prove it: measure the clear height under the roof from the floor, with the real collider.
