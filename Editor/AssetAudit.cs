@@ -77,6 +77,17 @@ namespace WildLens.EditorTools
                 "salamander", "newt", "snail", "slug", "worm", "earthworm"),
         };
 
+        // Compound macro names, checked on the squashed name BEFORE the animal census so "Dragon_Fly" is an insect, not a dragon.
+        private static readonly string[] MacroCompounds =
+            { "dragonfly", "butterfly", "damselfly", "firefly", "ladybug", "ladybird", "bumblebee", "lightningbug" };
+
+        // A STATIC model with one of these words and an animal word is a thing, not a creature ("Cricket_Bat", "Bee_Hive", "Bat_Box").
+        private static readonly string[] StaticThingWords = { "bat", "cricket", "pot", "net", "house", "hive", "lamp", "box" };
+
+        // Folders whose names say "animals live here": models under them are always opened, whatever they are called.
+        private static readonly string[] AnimalContainerWords =
+            { "animal", "animals", "creature", "creatures", "wildlife", "bird", "birds", "insect", "insects", "character", "characters", "fauna", "pet", "pets", "critter", "critters" };
+
         // (d) Vehicles: strong words only. "bike" and "trail" alone are weak (see IsVehicle).
         private static readonly string[] StrongVehicle =
         {
@@ -117,7 +128,7 @@ namespace WildLens.EditorTools
             public string sceneryKind = "";
             // vehicles
             public int wheelNodes; public bool steerNode; public float length; public List<string> pivots = new List<string>();
-            public bool owned;
+            public bool owned, unopened;
             public int ClipCount => clips.Count;
         }
 
@@ -137,11 +148,16 @@ namespace WildLens.EditorTools
                 text = Build(out scanned, out string oneLine);
                 string file = Path.Combine(Directory.GetParent(Application.dataPath).FullName, ReportFileName);
                 File.WriteAllText(file, text, new UTF8Encoding(false));
-                GUIUtility.systemCopyBuffer = text.Length <= ClipboardLimit ? text : _shortText;
+                bool full = text.Length <= ClipboardLimit;
+                GUIUtility.systemCopyBuffer = full ? text : _shortText;
                 Debug.Log($"[WildLens] Asset audit: {oneLine}. Saved {file}" +
-                          (text.Length > ClipboardLimit ? " (clipboard has the summary, animals and species tables only; open the file for the rest)." : " and copied it to the clipboard."));
+                          (full ? " and copied the full report to the clipboard."
+                                : " (the full report is too long for the clipboard: a SHORT version was copied: summary, animals, species coverage, macro, vehicles and unrecognised animated models; open the file for the per-clip detail and the rest)."));
                 if (!Application.isBatchMode &&
-                    EditorUtility.DisplayDialog("WildLens Asset Audit", "Saved WildLensAssetAudit.md in your project folder and copied it to the clipboard. Paste it into the chat with Claude.", "Show file", "Close"))
+                    EditorUtility.DisplayDialog("WildLens Asset Audit",
+                        full ? "Saved WildLensAssetAudit.md in your project folder and copied the FULL report to the clipboard. Paste it into the chat with Claude."
+                             : "Saved WildLensAssetAudit.md in your project folder. The full report is too long for the clipboard, so a SHORT version was copied (summary, animals with their clip names, species coverage, macro subjects, vehicles, unrecognised animated models). Paste it into the chat with Claude; the file has everything.",
+                        "Show file", "Close"))
                     EditorUtility.RevealInFinder(file);
                 return text;
             }
@@ -177,7 +193,7 @@ namespace WildLens.EditorTools
             foreach (var sp in speciesList) if (sp != null && !speciesById.ContainsKey(sp.speciesId)) speciesById[sp.speciesId] = sp;
 
             var infos = new List<Info>();
-            int atFiles = 0, skippedFolders = 0, failed = 0;
+            int atFiles = 0, skippedFolders = 0, failed = 0, notOpened = 0, loaded = 0;
             var dirCache = new Dictionary<string, List<string>>();
             var seen = new HashSet<string>();
             string[] guids = AssetDatabase.FindAssets("t:GameObject", new[] { "Assets" });
@@ -193,8 +209,16 @@ namespace WildLens.EditorTools
                         path.Contains("/Editor/") || path.Contains("/Gizmos/")) { skippedFolders++; continue; }
                     if (path.Contains("@")) { atFiles++; continue; } // animation-only file: counted as a clip source for its model
                     if (index % 5 == 0) EditorUtility.DisplayProgressBar("WildLens Asset Audit", path, (float)index / Mathf.Max(1, total));
+                    if (!ShouldOpen(path))
+                    {
+                        // Named like scenery or a prop (or nothing recognisable) and not under an animal-ish folder: counted, not opened.
+                        infos.Add(Unopened(path));
+                        notOpened++;
+                        continue;
+                    }
                     try
                     {
+                        loaded++;
                         var info = Analyse(path, dirCache, hasRp, hdrp, speciesById);
                         if (info != null) infos.Add(info);
                     }
@@ -203,7 +227,7 @@ namespace WildLens.EditorTools
                         failed++;
                         Debug.LogWarning($"[WildLens] Asset audit skipped {path}: {e.Message}");
                     }
-                    if (index % 200 == 0) EditorUtility.UnloadUnusedAssetsImmediate();
+                    if (loaded % 200 == 0) EditorUtility.UnloadUnusedAssetsImmediate();
                 }
             }
             finally
@@ -237,12 +261,49 @@ namespace WildLens.EditorTools
             // A model that is the real thing for one species is a poorer stand-in for another.
             foreach (var i in infos) i.owned = i.species.Exists(s => s.kind == MatchKind.Exact);
 
-            string report = Compose(infos, speciesList, speciesById, fromAsset, usedBy, builtFrom, rpName, hasRp, atFiles, skippedFolders, failed, out oneLine);
+            string report = Compose(infos, speciesList, speciesById, fromAsset, usedBy, builtFrom, rpName, hasRp, atFiles, skippedFolders, failed, notOpened, out oneLine);
             foreach (var t in temp) if (t != null) Object.DestroyImmediate(t);
             return report;
         }
 
         // --- per asset -------------------------------------------------------------------------------------------
+
+        private static List<string> _allSpeciesKeys;
+
+        /// <summary>
+        /// Whether an asset must be opened to be classified. Decided from the path alone: anything under an animal-ish
+        /// folder, or with a species, other-animal, macro or vehicle word anywhere in its path, is opened; the rest
+        /// (scenery, props, nothing recognisable) is only counted.
+        /// </summary>
+        private static bool ShouldOpen(string path)
+        {
+            var pathWords = AnimalPrefabFactory.Tokens(path);
+            if (Has(pathWords, AnimalContainerWords)) return true;
+            if (_allSpeciesKeys == null)
+            {
+                _allSpeciesKeys = new List<string>();
+                foreach (var kv in Names) { _allSpeciesKeys.AddRange(kv.Value.exact); _allSpeciesKeys.AddRange(kv.Value.standIn); }
+            }
+            if (Has(pathWords, _allSpeciesKeys.ToArray())) return true;
+            foreach (var e in OtherAnimals) if (Has(pathWords, e.keys)) return true;
+            foreach (var e in MacroSubjects) if (Has(pathWords, e.keys)) return true;
+            if (Has(pathWords, StrongVehicle) || Has(pathWords, new[] { "bike" })) return true;
+            string sq = Squash(Path.GetFileNameWithoutExtension(path));
+            foreach (var c in MacroCompounds) if (sq.Contains(c)) return true;
+            return false;
+        }
+
+        /// <summary>An asset counted from its name alone: scenery when its name or folder says so, else other static.</summary>
+        private static Info Unopened(string path)
+        {
+            var info = new Info { path = path, name = Path.GetFileNameWithoutExtension(path), pack = PackOf(path), unopened = true };
+            info.folder = Path.GetFileName(Path.GetDirectoryName(path) ?? "");
+            string scenery = SceneryKind(Words(info.name));
+            if (scenery == "") scenery = SceneryKind(Words(info.folder));
+            if (scenery != "") { info.cat = Cat.Scenery; info.sceneryKind = scenery; }
+            else info.cat = Cat.OtherStatic;
+            return info;
+        }
 
         private static Info Analyse(string path, Dictionary<string, List<string>> dirCache, bool hasRp, bool hdrp, Dictionary<string, SpeciesDefinition> speciesById)
         {
@@ -316,23 +377,43 @@ namespace WildLens.EditorTools
             var nameWords = Words(info.name);
             var folderWords = Words(info.folder);
 
-            // (a) reserve species
-            foreach (var id in Names.Keys)
-            {
-                var kind = MatchAsset(info.name, info.folder, id, out int rank);
-                if (kind != MatchKind.None) info.species.Add((id, kind, rank));
-            }
-            info.species.Sort((a, b) => a.kind != b.kind ? b.kind.CompareTo(a.kind) : a.rank != b.rank ? a.rank.CompareTo(b.rank) : string.CompareOrdinal(a.id, b.id));
+            // A compound macro name ("DragonFly", "Dragon_Fly", "Lightning Bug") is an insect before anything else: the species
+            // and census checks would read the "dragon" in it.
+            string compound = null;
+            string squashedName = Squash(info.name);
+            foreach (var c in MacroCompounds) if (squashedName.Contains(c)) { compound = c; break; }
 
-            // (b) other animals, (c) macro subjects: name words first, then the folder's.
-            info.census = FindEntry(OtherAnimals, nameWords, folderWords, out info.censusWord);
-            info.macro = FindEntry(MacroSubjects, nameWords, folderWords, out info.macroWord);
+            if (compound != null)
+            {
+                foreach (var e in MacroSubjects) if (e.group == "Animals") { info.macro = e; info.macroWord = compound; break; }
+            }
+            else
+            {
+                // (a) reserve species
+                foreach (var id in Names.Keys)
+                {
+                    var kind = MatchAsset(info.name, info.folder, id, out int rank);
+                    if (kind != MatchKind.None) info.species.Add((id, kind, rank));
+                }
+                info.species.Sort((a, b) => a.kind != b.kind ? b.kind.CompareTo(a.kind) : a.rank != b.rank ? a.rank.CompareTo(b.rank) : string.CompareOrdinal(a.id, b.id));
+
+                // (b) other animals, (c) macro subjects: name words first, then the folder's.
+                info.census = FindEntry(OtherAnimals, nameWords, folderWords, out info.censusWord);
+                info.macro = FindEntry(MacroSubjects, nameWords, folderWords, out info.macroWord);
+            }
 
             // (e) scenery words in the model's own name.
             string scenery = SceneryKind(nameWords);
 
             // Static, scenery-named things that also carry an animal word ("Butterfly Bush"): note only.
             bool animalWord = info.species.Count > 0 || info.census != null || info.macro != null;
+            // A static thing with an animal word and a thing word ("Cricket_Bat", "Bee_Hive", "Bat_Box", "Flower_Pot") is neither.
+            if (animalWord && !info.skinned && info.clips.Count == 0 && Has(nameWords, StaticThingWords))
+            {
+                info.cat = Cat.OtherStatic;
+                info.species.Clear(); info.census = null; info.macro = null;
+                return;
+            }
             if (animalWord && !info.animated && scenery != "")
             {
                 info.cat = Cat.Scenery; info.sceneryKind = scenery;
@@ -521,6 +602,18 @@ namespace WildLens.EditorTools
             return miss.Count == 0 ? "none" : string.Join(", ", miss);
         }
 
+        /// <summary>Up to 12 clips as <c>name→Role</c> (a plain name when unrecognised), then "+N more": the short version's per-animal clip summary.</summary>
+        private static string ClipNames(Info i)
+        {
+            if (i.clips.Count == 0) return "-";
+            var parts = new List<string>();
+            for (int k = 0; k < i.clips.Count && k < 12; k++)
+                parts.Add(i.clips[k].Value == "" ? i.clips[k].Key : i.clips[k].Key + "\u2192" + i.clips[k].Value);
+            string r = string.Join(", ", parts);
+            if (i.clips.Count > 12) r += $", +{i.clips.Count - 12} more";
+            return r;
+        }
+
         private static string RolesCell(Info i)
         {
             if (i.roles.Count == 0) return "-";
@@ -530,7 +623,7 @@ namespace WildLens.EditorTools
         }
 
         private static string Compose(List<Info> infos, List<SpeciesDefinition> speciesList, Dictionary<string, SpeciesDefinition> speciesById, bool fromAsset,
-            Dictionary<string, List<string>> usedBy, Dictionary<string, string> builtFrom, string rpName, bool hasRp, int atFiles, int skippedFolders, int failed, out string oneLine)
+            Dictionary<string, List<string>> usedBy, Dictionary<string, string> builtFrom, string rpName, bool hasRp, int atFiles, int skippedFolders, int failed, int notOpened, out string oneLine)
         {
             var species = infos.FindAll(i => i.cat == Cat.Species);
             var others = infos.FindAll(i => i.cat == Cat.OtherAnimal);
@@ -557,6 +650,7 @@ namespace WildLens.EditorTools
             sum.Append("## Summary\n\n");
             sum.Append($"- Unity {Application.unityVersion}; WildLens {WildLensVersion.Package}; render pipeline: {rpName}\n");
             sum.Append($"- Models and prefabs scanned: {infos.Count} (animation-only `@` files counted as clip sources: {atFiles}; skipped as WildLens/Editor/Gizmos: {skippedFolders}; failed: {failed})\n");
+            sum.Append($"- {notOpened} other models not opened (scenery/props by name, outside animal folders); counted from their names only\n");
             sum.Append($"- Species table from: {(fromAsset ? "the SpeciesDatabase asset" : "built-in defaults (no database asset yet)")}\n\n");
             sum.Append("| Category | Assets |\n|---|---|\n");
             sum.Append($"| (a) Reserve species (exact or stand-in) | {species.Count} |\n");
@@ -588,13 +682,13 @@ namespace WildLens.EditorTools
             if (animals.Count == 0) master.Append("No animal models were recognised by name.\n\n");
             else
             {
-                master.Append("| Asset | Pack | Represents | Tris | Size (m) | Skinned | Clips | Roles recognised | Roles missing | Pipeline OK | Used by species |\n|---|---|---|---|---|---|---|---|---|---|---|\n");
+                master.Append("| Asset | Pack | Represents | Tris | Size (m) | Skinned | Clips | Clip names | Roles recognised | Roles missing | Pipeline OK | Used by species |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
                 int n = 0;
                 foreach (var i in animals)
                 {
                     if (++n > RowCap) { master.Append($"\n+{animals.Count - RowCap} more\n"); break; }
                     string used = usedBy.TryGetValue(i.path, out var u) ? string.Join(", ", u) : "-";
-                    master.Append($"| {Esc(i.path)} | {Esc(i.pack)} | {Esc(Represents(i))} | {i.tris} | {Size(i)} | {Yes(i.skinned)} | {i.ClipCount} | {RolesCell(i)} | {(i.animated ? Missing(i) : "n/a (no clips)")} | {Esc(PipelineCell(i))} | {Esc(used)} |\n");
+                    master.Append($"| {Esc(i.path)} | {Esc(i.pack)} | {Esc(Represents(i))} | {i.tris} | {Size(i)} | {Yes(i.skinned)} | {i.ClipCount} | {Esc(ClipNames(i))} | {RolesCell(i)} | {(i.animated ? Missing(i) : "n/a (no clips)")} | {Esc(PipelineCell(i))} | {Esc(used)} |\n");
                 }
                 master.Append("\nSuggested reserve role for the non-species animals:\n\n| Asset | Word | Suggested role | Flag |\n|---|---|---|---|\n");
                 n = 0;
@@ -627,14 +721,22 @@ namespace WildLens.EditorTools
                     if (a.ClipCount != b.ClipCount) return b.ClipCount.CompareTo(a.ClipCount);
                     return string.CompareOrdinal(a.path, b.path);
                 });
-                string status = "placeholder";
-                if (cands.Count > 0)
+                string status = "placeholder: nothing found";
+                if (sp.prefab != null)
+                {
+                    // Already set up: say whether what is in use is the real thing or a stand-in.
+                    MatchKind used = MatchKind.None;
+                    if (builtFrom.TryGetValue(id, out var src))
+                        foreach (var c in cands) if (c.path == src) { used = c.species.Find(s => s.id == id).kind; break; }
+                    if (used == MatchKind.None && cands.Count > 0) used = cands[0].species.Find(s => s.id == id).kind;
+                    status = used == MatchKind.StandIn ? "stand-in in use" : "real model in use";
+                }
+                else if (cands.Count > 0)
                 {
                     var top = cands[0]; var m = top.species.Find(s => s.id == id);
-                    if (!top.animated) status = "placeholder (static model only)";
-                    else status = m.kind == MatchKind.Exact ? "real model" + (sp.prefab != null ? "" : " (found, not set up yet)") : "stand-in available";
+                    if (!top.animated) status = "placeholder: static model only";
+                    else status = m.kind == MatchKind.Exact ? "real model available (not set up yet)" : "stand-in available";
                 }
-                if (sp.prefab != null && cands.Count == 0) status = "real model (assigned)";
                 if (status.StartsWith("real")) real++; else if (status.StartsWith("stand")) standIn++; else placeholder++;
                 string assigned = sp.prefab != null ? "yes" + (builtFrom.TryGetValue(id, out var bf) ? $" (from {Esc(bf)})" : "") : "no";
                 string best = "-", rest = "-";
@@ -650,11 +752,9 @@ namespace WildLens.EditorTools
             }
             cov.Append($"\nReal models: {real}; stand-ins available: {standIn}; placeholders: {placeholder}.\n\n");
 
-            string head = sum.ToString() + master + cov;
-            _shortText = head;
-
-            // ---- Per-clip detail
-            var rest2 = new StringBuilder();
+            // ---- Per-clip detail (the file only)
+            var detailSb = new StringBuilder();
+            var rest2 = detailSb;
             rest2.Append("## Per-clip detail\n\nAnimated animals and unclassified animated models: `clip name → role`.\n\n");
             var detail = new List<Info>(animals.FindAll(i => i.ClipCount > 0));
             detail.AddRange(uncat);
@@ -672,6 +772,8 @@ namespace WildLens.EditorTools
             }
 
             // ---- Macro
+            var macroSb = new StringBuilder();
+            rest2 = macroSb;
             rest2.Append("## Macro subjects\n\n");
             if (macros.Count == 0) rest2.Append("None found by name.\n\n");
             else
@@ -688,6 +790,8 @@ namespace WildLens.EditorTools
             }
 
             // ---- Vehicles
+            var vehSb = new StringBuilder();
+            rest2 = vehSb;
             rest2.Append("## Vehicles\n\n");
             if (vehicles.Count == 0) rest2.Append("None found by name.\n\n");
             else
@@ -704,6 +808,8 @@ namespace WildLens.EditorTools
             }
 
             // ---- Uncategorised animated
+            var uncatSb = new StringBuilder();
+            rest2 = uncatSb;
             rest2.Append("## Animated models nothing recognised\n\nSkinned models with clips but no keyword hit; they may be animals with odd names.\n\n");
             if (uncat.Count == 0) rest2.Append("None.\n\n");
             else
@@ -718,7 +824,9 @@ namespace WildLens.EditorTools
                 rest2.Append('\n');
             }
 
-            // ---- Scenery counts
+            // ---- Scenery counts (the file only)
+            var scenerySb = new StringBuilder();
+            rest2 = scenerySb;
             rest2.Append("## Scenery noticed\n\nCounts only (named like trees, rocks, plants, props; includes things such as a \"Butterfly Bush\" shrub).\n\n");
             if (scenery.Count == 0) rest2.Append("None.\n");
             else
@@ -737,7 +845,68 @@ namespace WildLens.EditorTools
                     rest2.Append($"| {Esc(kv.Key)} | {kv.Value[0]} | {kv.Value[1]} | {kv.Value[2]} | {kv.Value[3]} |\n");
                 }
             }
-            return head + rest2;
+
+            // The clipboard version: the sections that matter most, in this order, with the long tables trimmed to fit.
+            _shortText = HardCap(ShrinkTables(sum.ToString() + master + cov + macroSb + vehSb + uncatSb, ClipboardLimit - 400), ClipboardLimit);
+            return sum.ToString() + master + cov + macroSb + vehSb + uncatSb + detailSb + scenerySb;
+        }
+
+        private static string HardCap(string text, int limit) =>
+            text.Length <= limit ? text : text.Substring(0, limit - 80) + "\n\n(cut off here: open WildLensAssetAudit.md for the rest)\n";
+
+        /// <summary>
+        /// Drops table rows (never headers, never whole sections) from the longest table first until the text fits,
+        /// leaving "+N more rows in the file" where rows were removed.
+        /// </summary>
+        private static string ShrinkTables(string text, int limit)
+        {
+            if (text.Length <= limit) return text;
+            var lines = new List<string>(text.Split('\n'));
+            // Data rows grouped by table: a table is a run of lines starting with '|'; its first two lines are header and separator.
+            var tables = new List<List<int>>();
+            int i0 = 0;
+            while (i0 < lines.Count)
+            {
+                if (!lines[i0].StartsWith("|")) { i0++; continue; }
+                int j = i0;
+                while (j < lines.Count && lines[j].StartsWith("|")) j++;
+                var rows = new List<int>();
+                for (int k = i0 + 2; k < j; k++) rows.Add(k);
+                tables.Add(rows);
+                i0 = j;
+            }
+            var dropped = new HashSet<int>();
+            int length = text.Length;
+            var dropCount = new int[tables.Count];
+            while (length > limit)
+            {
+                int best = -1, bestLeft = 0;
+                for (int t = 0; t < tables.Count; t++)
+                {
+                    int left = tables[t].Count - dropCount[t];
+                    if (left > bestLeft) { best = t; bestLeft = left; }
+                }
+                if (best < 0) break;
+                int row = tables[best][tables[best].Count - 1 - dropCount[best]];
+                dropped.Add(row);
+                dropCount[best]++;
+                length -= lines[row].Length + 1;
+            }
+            var sb = new StringBuilder();
+            for (int n = 0; n < lines.Count; n++)
+            {
+                if (dropped.Contains(n))
+                {
+                    // One marker per table, where its first dropped row was.
+                    int t = tables.FindIndex(r => r.Contains(n));
+                    int first = tables[t][tables[t].Count - dropCount[t]];
+                    if (n == first) sb.Append($"| +{dropCount[t]} more rows in the file |\n");
+                    continue;
+                }
+                sb.Append(lines[n]);
+                if (n < lines.Count - 1) sb.Append('\n');
+            }
+            return sb.ToString();
         }
 
         private static string Cand(Info i, string id)

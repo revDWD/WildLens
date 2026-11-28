@@ -76,25 +76,87 @@ namespace WildLens.EditorTools
         private static bool TokenIs(string token, string key) =>
             token == key || (token.Length > key.Length && token.StartsWith(key, System.StringComparison.Ordinal) && Suffixes.Contains(token.Substring(key.Length)));
 
-        /// <summary>The role a clip name stands for, or false (unrecognised, or a death/attack/hit clip).</summary>
+        // Transition and pose clips ("Jump_ToIdle", "Rest_Pose", "T-Pose") are bridges between states, not a state: never mapped.
+        private static readonly string[] NotStates = { "to", "transition", "pose", "tpose", "bind", "from" };
+
+        // "Wings_Folded" is a bird at rest, not a bird in flight.
+        private static readonly string[] WingsAway = { "folded", "fold", "closed" };
+
+        private static bool AnyToken(List<string> tokens, string[] keys)
+        {
+            foreach (var t in tokens)
+                foreach (var k in keys)
+                    if (t == k) return true;
+            return false;
+        }
+
+        private static bool AnyWord(List<string> tokens, string[] keys)
+        {
+            foreach (var t in tokens)
+                foreach (var k in keys)
+                    if (TokenIs(t, k)) return true;
+            return false;
+        }
+
+        private static bool HeadDown(string squashed) =>
+            squashed.Contains("headlow") || squashed.Contains("headdown");
+
+        /// <summary>The role a clip name stands for, or false (unrecognised, a death/attack/hit clip, or a transition/pose clip).</summary>
         internal static bool TryClassifyName(string clipName, out ClipRole role)
         {
             role = ClipRole.Idle;
             var tokens = Tokens(clipName);
             if (tokens.Count == 0) return false;
             string squashed = string.Concat(tokens);
+            if (AnyToken(tokens, NotStates)) return false;
             foreach (var t in tokens)
                 foreach (var x in Excluded)
                     if (TokenIs(t, x)) return false;
+            // "Idle_HeadLow" is an animal with its head down: grazing, not standing.
+            if (HeadDown(squashed) && !AnyWord(tokens, EatWords()) && AnyWord(tokens, new[] { "idle", "stand" })) { role = ClipRole.Eat; return true; }
+            bool wingsAway = AnyToken(tokens, WingsAway);
             foreach (var (r, words) in Keywords)
                 foreach (var w in words)
                 {
+                    if (w == "wing" && wingsAway) continue;
                     bool hit = false;
                     if (Compound.Contains(w)) hit = squashed.Contains(w);
                     else foreach (var t in tokens) if (TokenIs(t, w)) { hit = true; break; }
                     if (hit) { role = r; return true; }
                 }
             return false;
+        }
+
+        private static string[] EatWords()
+        {
+            foreach (var (r, words) in Keywords) if (r == ClipRole.Eat) return words;
+            return new string[0];
+        }
+
+        /// <summary>Lower is better: fewer words ("Idle" over "Idle_2_Look_Around"); an Idle with its head down is a poor Idle.</summary>
+        internal static int ScoreName(string clipName, ClipRole role)
+        {
+            var tokens = Tokens(clipName);
+            int score = tokens.Count;
+            if (role == ClipRole.Idle && HeadDown(string.Concat(tokens))) score += 100;
+            return score;
+        }
+
+        /// <summary>
+        /// For each role, the index of the best clip name (lowest score; a tie keeps the earlier one). Unrecognised names
+        /// are left out. No fallback for a missing Idle here.
+        /// </summary>
+        internal static Dictionary<ClipRole, int> ClassifyNames(IList<string> names)
+        {
+            var best = new Dictionary<ClipRole, int>();
+            var bestScore = new Dictionary<ClipRole, int>();
+            for (int i = 0; i < names.Count; i++)
+            {
+                if (!TryClassifyName(names[i], out var role)) continue;
+                int score = ScoreName(names[i], role);
+                if (!best.ContainsKey(role) || score < bestScore[role]) { best[role] = i; bestScore[role] = score; }
+            }
+            return best;
         }
 
         // <pure-end>
@@ -130,20 +192,22 @@ namespace WildLens.EditorTools
             return list;
         }
 
-        /// <summary>Clips classified by name into roles; <paramref name="log"/> gets one line per recognised clip.</summary>
+        /// <summary>
+        /// Clips classified by name into roles (the best-named clip per role, see <see cref="ClassifyNames"/>);
+        /// <paramref name="log"/> gets one line per recognised clip.
+        /// </summary>
         public static Dictionary<ClipRole, AnimationClip> Classify(IEnumerable<AnimationClip> clips, StringBuilder log = null)
         {
             var result = new Dictionary<ClipRole, AnimationClip>();
-            AnimationClip first = null;
-            foreach (var clip in clips)
-            {
-                if (clip == null) continue;
-                if (first == null) first = clip;
-                if (!TryClassifyName(clip.name, out var role)) continue;
-                if (!result.ContainsKey(role)) result[role] = clip;
-                log?.Append(clip.name).Append(" → ").Append(role).Append('\n');
-            }
-            if (!result.ContainsKey(ClipRole.Idle) && first != null) result[ClipRole.Idle] = first; // something rather than T-pose
+            var list = new List<AnimationClip>();
+            foreach (var clip in clips) if (clip != null) list.Add(clip);
+            var names = new List<string>();
+            foreach (var clip in list) names.Add(clip.name);
+            foreach (var kv in ClassifyNames(names)) result[kv.Key] = list[kv.Value];
+            if (log != null)
+                for (int i = 0; i < list.Count; i++)
+                    if (TryClassifyName(names[i], out var role)) log.Append(names[i]).Append(" → ").Append(role).Append('\n');
+            if (!result.ContainsKey(ClipRole.Idle) && list.Count > 0) result[ClipRole.Idle] = list[0]; // something rather than T-pose
             return result;
         }
 

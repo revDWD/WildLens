@@ -132,7 +132,12 @@ namespace WildLens.EditorTools
                 }
                 Progress("Undergrowth", 0.7f);
                 veg.BuildUndergrowth(Child(env, "Undergrowth"));
-                if (s.autoMacroFromPacks) MacroPackSetup.AutoSetUp(); // 1.7: small life from the user's packs
+                if (s.autoMacroFromPacks)
+                {
+                    // 1.7: small life from the user's packs. Never allowed to stop a build.
+                    try { MacroPackSetup.AutoSetUp(); }
+                    catch (System.Exception e) { Debug.LogWarning("[WildLens] Small life setup skipped: " + e.Message); }
+                }
                 veg.BuildMacroSubjects(env); // 1.5: small subjects for the macro lens (real plant scans)
 
                 bool details = s.paintTerrain && s.terrainDetailGrass && !hdrp;
@@ -151,7 +156,11 @@ namespace WildLens.EditorTools
                 if (s.postProcessing) BuildPostProcessing(root.transform, s);
 
                 // 1.6: animals from any imported packs, no scanning step (species that already have a model are kept).
-                if (s.autoWildlifeFromPacks) WildlifePackSetup.AutoSetUp(database);
+                if (s.autoWildlifeFromPacks)
+                {
+                    try { WildlifePackSetup.AutoSetUp(database); }
+                    catch (System.Exception e) { Debug.LogWarning("[WildLens] Wildlife pack setup skipped: " + e.Message); }
+                }
 
                 Progress("Player & systems", 0.9f);
                 var player = BuildPlayer(root.transform, trail, s);

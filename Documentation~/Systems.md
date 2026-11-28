@@ -198,7 +198,13 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   window). Read-only: it walks every `GameObject` asset under `Assets/` (skipping `Assets/WildLens` except the bundled
   animals, and `Editor` and `Gizmos` folders; `Name@Clip` files are counted as clip sources, not models), classifies each
   by its name, then by its folder, and writes `WildLensAssetAudit.md` beside the `Assets` folder and to the clipboard
-  (over 60,000 characters the clipboard gets the summary, master table and species coverage only; the file has all).
+  (the clipboard gets the full report when it is under 60,000 characters, otherwise a short version: Summary, Animals
+  master table with a **Clip names** column (up to 12 `name→Role`), Species coverage, Macro subjects, Vehicles and
+  Unrecognised animated models, long tables trimmed with "+N more rows in the file"; the dialog says which was copied;
+  the per-clip detail is in the file only). Models whose path shows only scenery or prop words and no animal-ish folder
+  (animals, creatures, birds, insects...) are counted from their names without being opened (the Summary says how many);
+  "DragonFly" and other compounds (butterfly, firefly, ladybug...) are macro subjects before the animal census, and a
+  static model with bat, cricket, pot, net, house, hive, lamp or box plus an animal word is "other static".
   Categories: (a) reserve species, exact or stand-in; (b) other animals, each with a suggested reserve role and a flag
   for birds and for animals that are not Willow Creek's (lion, zebra...); (c) macro subjects (fungi, plants, small
   animals); (d) vehicles; (e) scenery (counts only: trees, rocks, plants, props); (f) animated models nothing
@@ -243,7 +249,12 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
 * **Reserved list** (`WildlifePackSetup.Reserved`): woodpecker, hummingbird, duck, mallard, goose, swan. A model with one
   of these words in its name matches **no** species, not even as a stand-in, and the folder name is not tried for it
   ("Birds/Woodpecker" must not become the cardinal). They are kept for future species (see WildlifeCampaign.md).
-* **Match order**: the model's own name first; only when that says nothing, the name of its folder ("Deer/Model01").
+* **NeverAnimals** (`WildlifePackSetup.NeverAnimals`): a model whose own name has one of these whole words (beetle, moth,
+  bee, spider, bug, ant, butterfly, dragonfly, firefly, mantis, snail, fish, net, statue, toy, hat, mask, costume,
+  skeleton, bone, skull, meat, trophy, rug, pelt...) matches no species ("Stag_Beetle", "Deer_Skull"). "fly" is not on it
+  ("Eagle_Fly" is a model with a clip in its name).
+* **Match order**: the model's own name first; only when that says nothing, the name of its folder ("Deer/Model01"),
+  and a folder gives a **stand-in at most** (never exact), ranked after every name-based stand-in.
   Candidates for a species sort: the animal itself before a stand-in; a stand-in that is some other species' real model
   after one that is not ("owned elsewhere"); the keyword nearer the front of the list; more recognised clips; then by
   path, so every machine picks the same model. A tie is never left to the order Unity lists files in. The Console line
@@ -301,7 +312,8 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
 * **Finding models** (`Editor/MacroPackSetup.cs`; menu WildLens ▸ Macro Subjects From Packs; run on every rebuild when
   `SliceBuildSettings.autoMacroFromPacks` is on). It looks at every model **and prefab** under `Assets/` outside
   `Assets/WildLens` and `Editor` folders (static meshes are welcome: a mushroom is not animated), skipping `@` files,
-  names with collider, collision or LOD 1 to 9, and anything larger than 3 m. Only a subject whose `prefab` is empty is
+  names with collider, collision or LOD 1 to 9, anything larger than 3 m, and anything with no mesh (a MeshFilter mesh or a
+  skinned mesh). Only files whose name or folder matches a still-wanted subject are loaded; with none wanted, nothing is. Only a subject whose `prefab` is empty is
   touched; the choice is never overwritten. Names (same word rules as the animals; a four-letter key such as "bee" must
   be a whole word):
 
@@ -318,10 +330,14 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   | Snail | snail | slug |
   | Firefly | firefly, lightningbug | |
   | Mushroom | mushroom, toadstool, fungus, fungi, shroom | |
-  | Oxeye Daisy | daisy, oxeye | flower, wildflower (not if the name has pot, vase, bouquet, tree, bush or bed) |
+  | Oxeye Daisy | daisy, oxeye | flower, wildflower |
 
-  A folder name ("Frogs/Model_03.fbx") can name a model, but only as a stand-in. **Ranking**: exact 4 points, a prefab 2,
-  animated 1; the highest score wins; a tie goes to the first in path order. Subjects are served in id order. The
+  A folder name ("Frogs/Model_03.fbx") can name a model, but only as a stand-in. **Exclusions** (one list for every
+  subject, whole words or plurals): hive, house, hut, home, box, nest, lamp, light, lantern, statue, toy, pot, vase,
+  bouquet, bed, bush, net, fish, soup, sign, icon, swarm, particle(s), vfx, fx, ui, sprite, decal, card, tile, pattern,
+  print, cloud, tree, costume, hat, mask ("Spotted_Daisy" is fine, "Flower_Pot" is not). **Ranking**: exact before
+  stand-in; then animated (skinned or with clips) before static; then prefab before raw model; then path order. The
+  automatic run creates no Subjects folder or assets until some pack model matches a subject. Subjects are served in id order. The
   Console lists each subject with its model, "(stand-in)" where it is one, and "no model found: stays out of the
   reserve" where not.
 * **Placement** (`Editor/MacroBuilder.cs`, `BuildSmallLife`, after the dandelions and periwinkles). If no bundled plant and
@@ -349,8 +365,9 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   **Flits**: sits with a slow 4° wing-settle roll; every 6 to 14 s (the first after 2 to 8 s) it flutters over 1.2 to 2 s
   on a 0.08 to 0.16 m arc, half the time back to its flower, otherwise to within 0.15 to 0.5 m of it. **Perches**: still,
   then every 8 to 20 s a loop 1.2 to 2 s long (radius 0.16 to 0.32 m, up to 0.15 m of height) that ends exactly on its
-  perch. **Hops**: still until the camera comes within 0.7 m, then one hop of 0.4 m away from you, 0.1 m high, over
-  0.35 s, keeping its height above the ground; it will not hop again for 6 s. **Glows**: drifts about 0.25 m round its
+  perch. **Hops**: still until the camera comes within 0.9 m **along the ground** (not 3-D: the camera is at eye height),
+  then one hop of 0.4 m away from you, 0.1 m high, over 0.35 s, keeping its height above the ground; it will not hop
+  again for 6 s. A 1.2 m leash on where it started: a hop that would land farther goes back toward the start instead. **Glows**: drifts about 0.25 m round its
   point, and every 2.5 to 5.5 s flashes a soft yellow-green emission for half a second.
 * **Visibility** (`MacroSubject`): `IsShowing` combines the subject's hours, `hidesInRain` and `afterRain`. **Recently
   rained** (`MacroSubject.RecentlyRained`) is true while `WeatherCycle.Rain` > 0.25 and for **3 game hours** after (the
@@ -384,8 +401,10 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   (outside `Assets/WildLens`) for GameObjects with a `SkinnedMeshRenderer` and at least one clip (own clips, the
   Animator controller's, the skinned mesh's source model, and `Name@Clip`/`Name_Clip` files beside it). Matches by
   name words (camel-case and underscores split; words ≤ 4 letters must be whole words or plurals, longer ones may sit
-  inside a word; the folder name is tried too) against `Names`: exact words, then stand-ins. Rows sort exact before
-  stand-in, then by recognised clip count. Size defaults from `AnimalPrefabFactory.DefaultSize`; birds are scaled by
+  inside a word; the folder name is tried too, as a stand-in only) against `Names`: exact words, then stand-ins. Rows sort
+  exact before stand-in, then by recognised clip count. Clips: names with to, transition, pose, tpose, bind or from are
+  ignored ("Jump_ToIdle", "Rest_Pose"); "Wings_Folded" is not Fly; "Idle_HeadLow" is Eat; per role the clip with the fewest
+  words wins (an Idle with its head down loses), ties keep the earlier clip. Size defaults from `AnimalPrefabFactory.DefaultSize`; birds are scaled by
   beak-to-tail length (+Z bounds), mammals by their largest side.
 * **Automatic setup**: `WildlifePackSetup.AutoSetUp` runs at the end of every build (before the player is built) and,
   through `WildlifePackImportWatcher` (an `AssetPostprocessor`), after any `.fbx/.prefab/.blend/.gltf/.glb` import

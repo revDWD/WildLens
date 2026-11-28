@@ -375,6 +375,13 @@ namespace WildLens.EditorTools
                     PrefabUtility.UnpackPrefabInstance(PrefabUtility.GetOutermostPrefabInstanceRoot(go), PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
 
                 StripPackComponents(go);
+                if (!HasVisibleMesh(go))
+                {
+                    if (_noMeshWarned.Add(s.subjectId))
+                        Debug.LogWarning($"[WildLens] Small life: '{s.prefab.name}' has no visible mesh once its scripts and effects are removed; '{s.displayName}' is left out.");
+                    Object.DestroyImmediate(go);
+                    return false;
+                }
                 go.transform.rotation = Quaternion.identity;
                 go.transform.position = surface;
 
@@ -400,7 +407,7 @@ namespace WildLens.EditorTools
                     animator.runtimeAnimatorController = controller;
                     animated = true;
                 }
-                if (animator != null) animator.applyRootMotion = false;
+                if (animator != null) { animator.applyRootMotion = false; animator.cullingMode = AnimatorCullingMode.CullCompletely; }
 
                 var m = go.AddComponent<MacroSubject>();
                 m.subject = s;
@@ -446,15 +453,58 @@ namespace WildLens.EditorTools
             return any;
         }
 
-        /// <summary>Packs ship physics, audio and scripts of their own; a macro subject needs none (the Animator stays).</summary>
+        // Components a pack may ship that a macro subject must not carry (matched by type name, so no module reference is
+        // needed): navigation, particles (renderer first: it requires the system), lights, listeners and cameras.
+        private static readonly string[] StripByTypeName =
+            { "NavMeshAgent", "NavMeshObstacle", "ParticleSystemRenderer", "ParticleSystem", "Light", "AudioListener", "Camera" };
+
+        private static void TryDestroy(Object o)
+        {
+            if (o == null) return;
+            try { Object.DestroyImmediate(o); } catch (System.Exception) { /* a RequireComponent partner goes first on a later pass */ }
+        }
+
+        /// <summary>Packs ship physics, audio, effects and scripts of their own; a macro subject needs none (the Animator stays).</summary>
         private static void StripPackComponents(GameObject go)
         {
-            foreach (var c in go.GetComponentsInChildren<MonoBehaviour>(true)) if (c != null) Object.DestroyImmediate(c);
-            foreach (var c in go.GetComponentsInChildren<Joint>(true)) if (c != null) Object.DestroyImmediate(c);
-            foreach (var c in go.GetComponentsInChildren<Collider>(true)) if (c != null) Object.DestroyImmediate(c);
-            foreach (var c in go.GetComponentsInChildren<Rigidbody>(true)) if (c != null) Object.DestroyImmediate(c);
-            foreach (var c in go.GetComponentsInChildren<AudioSource>(true)) if (c != null) Object.DestroyImmediate(c);
+            // Scripts whose class is gone leave a "missing" component behind that nothing else can remove.
+            foreach (var t in go.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null) continue;
+                try { GameObjectUtility.RemoveMonoBehavioursWithMissingScript(t.gameObject); } catch (System.Exception) { }
+            }
+            // Scripts: up to three passes, so one that another RequireComponent-s is removed after the one needing it.
+            for (int pass = 0; pass < 3; pass++)
+            {
+                var scripts = go.GetComponentsInChildren<MonoBehaviour>(true);
+                int left = 0;
+                foreach (var c in scripts) if (c != null) { TryDestroy(c); left++; }
+                if (left == 0) break;
+            }
+            foreach (var c in go.GetComponentsInChildren<Joint>(true)) TryDestroy(c);
+            foreach (var c in go.GetComponentsInChildren<Collider>(true)) TryDestroy(c);
+            foreach (var c in go.GetComponentsInChildren<Rigidbody>(true)) TryDestroy(c);
+            foreach (var c in go.GetComponentsInChildren<AudioSource>(true)) TryDestroy(c);
+            foreach (string typeName in StripByTypeName)
+                foreach (var c in go.GetComponentsInChildren<Component>(true))
+                    if (c != null && c.GetType().Name == typeName) TryDestroy(c);
         }
+
+        /// <summary>Whether the instance still has an enabled renderer with a mesh (a pack prefab can be all rig, effects and scripts).</summary>
+        private static bool HasVisibleMesh(GameObject go)
+        {
+            foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                if (smr != null && smr.enabled && smr.sharedMesh != null) return true;
+            foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                if (mr == null || !mr.enabled) continue;
+                var mf = mr.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null) return true;
+            }
+            return false;
+        }
+
+        private readonly HashSet<string> _noMeshWarned = new HashSet<string>();
 
         /// <summary>
         /// A one-state, looping controller when the model has clips but nothing to play them (no Animator, or an Animator with

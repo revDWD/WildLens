@@ -54,6 +54,18 @@ namespace WildLens.EditorTools
         /// </summary>
         public static readonly string[] Reserved = { "woodpecker", "hummingbird", "duck", "mallard", "goose", "swan" };
 
+        /// <summary>
+        /// A model whose own name has one of these words is not an animal here (a beetle is not a stag, a skull is not a deer, a
+        /// hat is not a fox). "fly" is deliberately absent ("Eagle_Fly.fbx" is a model with a clip in its name); the insect
+        /// compounds are listed whole instead.
+        /// </summary>
+        public static readonly string[] NeverAnimals =
+        {
+            "beetle", "moth", "bee", "spider", "bug", "ant", "butterfly", "dragonfly", "damselfly", "firefly", "horsefly", "mantis",
+            "snail", "fish", "net", "statue", "toy", "hat", "mask", "costume", "skeleton", "bone", "bones", "skull", "meat", "trophy",
+            "rug", "pelt",
+        };
+
         /// <summary>Lower-case words of a name: split on non-letters and camel case ("RedFox_Idle01" → red, fox, idle).</summary>
         public static List<string> Words(string name)
         {
@@ -99,6 +111,9 @@ namespace WildLens.EditorTools
             if (!Names.TryGetValue(speciesId, out var n)) return MatchKind.None;
             var words = Words(name);
             if (Has(words, Reserved)) return MatchKind.None;
+            foreach (var w in words)
+                foreach (var bad in NeverAnimals)
+                    if (w == bad || w == bad + "s") return MatchKind.None;
             int i = HasIndex(words, n.exact);
             if (i >= 0) { rank = i; return MatchKind.Exact; }
             i = HasIndex(words, n.standIn);
@@ -106,13 +121,23 @@ namespace WildLens.EditorTools
             return MatchKind.None;
         }
 
-        /// <summary>The model's own name first; only when that says nothing, the folder it sits in ("Deer/Model01").</summary>
+        /// <summary>
+        /// The model's own name first; only when that says nothing, the folder it sits in ("Deer/Model01"). A folder can name
+        /// a stand-in at most, never the real thing, and its rank is pushed behind every name-based stand-in.
+        /// </summary>
         internal static MatchKind MatchAsset(string assetName, string folderName, string speciesId, out int rank)
         {
             var kind = Match(assetName, speciesId, out rank);
-            if (kind == MatchKind.None && !string.IsNullOrEmpty(folderName) && !Has(Words(assetName), Reserved))
-                kind = Match(folderName, speciesId, out rank);
-            return kind;
+            if (kind != MatchKind.None || string.IsNullOrEmpty(folderName)) return kind;
+            var nameWords = Words(assetName);
+            if (Has(nameWords, Reserved)) return MatchKind.None;
+            foreach (var w in nameWords)
+                foreach (var bad in NeverAnimals)
+                    if (w == bad || w == bad + "s") return MatchKind.None;
+            var fromFolder = Match(folderName, speciesId, out int folderRank);
+            if (fromFolder == MatchKind.None) return MatchKind.None;
+            rank = 1000 + folderRank; // after every keyword hit in a model's own name
+            return MatchKind.StandIn;
         }
 
         // <pure-end>

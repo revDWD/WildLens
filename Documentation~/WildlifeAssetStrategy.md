@@ -25,7 +25,7 @@ photographic and CC0 or kit-sourced). Animals are exempt: they can be stylised a
 Before choosing packs or models, run **WildLens ▸ Asset Audit Report** (also a button in the builder window). It lists
 every model in your project by pack, which reserve species each can be (the real animal or a stand-in), triangles, size,
 clips and which behaviours they cover, and any shader that needs Unity's material converter. It saves
-`WildLensAssetAudit.md` in the project folder and copies it to the clipboard: paste it into the chat. The 1.7 plan
+`WildLensAssetAudit.md` in the project folder and copies it to the clipboard (a short version when the full one is too long; the file always has everything): paste it into the chat. The 1.7 plan
 ([WildlifeCampaign.md](WildlifeCampaign.md)) is decided from that report, not from guesses about what a pack contains.
 
 ## Shipped with WildLens (1.6.1)

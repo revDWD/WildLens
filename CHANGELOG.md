@@ -8,7 +8,8 @@
   will show pink in your render pipeline. It also lists small-life models (butterflies, frogs, mushrooms, flowers),
   vehicles (with whether they have separate wheels and a steering part), and animated models it could not name.
 - It writes `WildLensAssetAudit.md` in your project folder and **copies it to the clipboard**: paste it into the chat and
-  the next steps can be decided from facts, not guesses. It changes nothing in your project.
+  the next steps can be decided from facts, not guesses. It changes nothing in your project. If the full report is too
+  long for the clipboard, a short version (with each animal's clip names) is copied and the dialog says so.
 ### Better automatic animal matching
 - **More stand-in names**, with the closer look-alike preferred (a wolf before a dog for the coyote). Ties are broken
   the same way on every machine.
@@ -27,7 +28,7 @@
   edge, mantises, beetles and fireflies on the meadow verges, newts on the woodland floor, snails, moths and mushrooms
   on logs and stumps.
 - **Simple movement, patience always works**: butterflies and bees sit, then flutter a short way; a dragonfly keeps a
-  perch and darts out and back; a frog sits until you come within 0.7 m, then makes one small hop; fireflies drift and
+  perch and darts out and back; a frog sits until you come within 0.9 m (along the ground), then makes one small hop, never more than 1.2 m from where it started; fireflies drift and
   flash.
 - **Hours and weather**: butterflies, bees and dragonflies shelter in rain; newts and snails come out only in rain and
   for three game hours after; moths and fireflies are out at dusk, night and dawn (fireflies dusk and night). Plants and

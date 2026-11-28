@@ -6,7 +6,7 @@ namespace WildLens.Photography
     /// <summary>
     /// Small, cheap, purely cosmetic movement for the macro subjects that come from the user's packs (1.7):
     /// butterflies and bees sit on their flower and now and then flutter a few tens of centimetres; a dragonfly keeps a perch
-    /// and darts out on a short loop; a frog sits until the camera comes within 0.7 m and then makes one small hop away;
+    /// and darts out on a short loop; a frog sits until the camera comes within 0.9 m (measured along the ground, not from eye height) and then makes one small hop away;
     /// a firefly drifts and flashes. Nothing here chases the player or leaves its patch, and nothing allocates: a subject
     /// farther than 25 m from the camera does nothing but a once-a-second distance check. The subject's bounds and Focus
     /// child follow the transform, so <see cref="MacroAnalyzer"/> needs no changes.
@@ -17,14 +17,14 @@ namespace WildLens.Photography
         public SubjectBehaviour behaviour = SubjectBehaviour.Flits;
 
         private const float ActiveRange = 25f;
-        private const float HopTrigger = 0.7f, HopLength = 0.4f, HopHeight = 0.1f, HopTime = 0.35f;
+        private const float HopTrigger = 0.9f, HopLeash = 1.2f, HopLength = 0.4f, HopHeight = 0.1f, HopTime = 0.35f;
         private static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly Color Glow = new Color(0.72f, 1f, 0.25f);
 
         private MacroSubject _macro;
-        private Vector3 _home, _from, _to;
+        private Vector3 _home, _from, _to, _spawn;
         private Quaternion _homeRot;
         private float _nextPoll, _phase, _t, _dur, _arc, _nextEvent, _flashEnd, _nextFlash, _hopReady;
         private bool _near, _moving;
@@ -41,6 +41,7 @@ namespace WildLens.Photography
         {
             _macro = GetComponent<MacroSubject>();
             _home = transform.position;
+            _spawn = _home;
             _homeRot = transform.rotation;
             _phase = (Mathf.Abs(_home.x * 12.9898f + _home.z * 78.233f) % 6.2831f);
             _rng = new System.Random(unchecked((int)(_home.x * 1000f) * 31 + (int)(_home.z * 1000f)));
@@ -155,7 +156,7 @@ namespace WildLens.Photography
             _moving = true;
         }
 
-        // ------------------------------------------------------------ Hops: still until you come within 0.7 m
+        // ------------------------------------------------------------ Hops: still until you come within 0.9 m (horizontal)
 
         private void UpdateHops(float now)
         {
@@ -173,11 +174,20 @@ namespace WildLens.Photography
             var cam = Camera.main;
             if (cam == null) return;
             Vector3 away = transform.position - cam.transform.position;
+            away.y = 0f; // horizontal distance: the camera is at eye height, the frog is on the ground
             if (away.sqrMagnitude > HopTrigger * HopTrigger) return;
-            away.y = 0f;
-            if (away.sqrMagnitude < 0.0001f) away = -cam.transform.forward;
-            away.y = 0f;
+            if (away.sqrMagnitude < 0.0001f) away = -Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+            if (away.sqrMagnitude < 0.0001f) { away = _homeRot * Vector3.forward; away.y = 0f; }
+            if (away.sqrMagnitude < 0.0001f) away = Vector3.forward;
             away.Normalize();
+            // The leash: never land farther than HopLeash from the spot it started on; hop back toward it instead.
+            Vector3 land = transform.position + away * HopLength;
+            Vector3 fromSpawn = land - _spawn; fromSpawn.y = 0f;
+            if (fromSpawn.sqrMagnitude > HopLeash * HopLeash)
+            {
+                Vector3 back = _spawn - transform.position; back.y = 0f;
+                if (back.sqrMagnitude > 0.0001f) away = back.normalized;
+            }
             _from = transform.position;
             _to = _from + away * HopLength;
             var terrain = Terrain.activeTerrain;
