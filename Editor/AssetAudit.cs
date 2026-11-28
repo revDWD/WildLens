@@ -627,6 +627,32 @@ namespace WildLens.EditorTools
 
         // --- report ----------------------------------------------------------------------------------------------
 
+        /// <summary>
+        /// True when a serialized object reference points at something that no longer exists (a deleted material), as opposed to a
+        /// slot that was never filled. Unity 6 renamed the member that tells the two apart (objectReferenceInstanceIDValue became a
+        /// compile ERROR in 6000.6; its replacement does not exist in 2021.3), so it is read by reflection under either name.
+        /// </summary>
+        private static bool RefIsMissing(SerializedProperty e)
+        {
+            try
+            {
+                if (e == null || e.objectReferenceValue != null) return false;
+                var t = typeof(SerializedProperty);
+                foreach (string name in new[] { "objectReferenceEntityIdValue", "objectReferenceInstanceIDValue" })
+                {
+                    var prop = t.GetProperty(name);
+                    if (prop == null) continue;
+                    object v = prop.GetValue(e);
+                    if (v == null) continue;
+                    if (v is int n) return n != 0;
+                    // EntityId (Unity 6.3+): a struct; its default value means "nothing".
+                    return !v.Equals(System.Activator.CreateInstance(v.GetType()));
+                }
+            }
+            catch (System.Exception) { }
+            return false;
+        }
+
         private static string Esc(string s) => (s ?? "").Replace("|", "\\|").Replace("\n", " ");
         private static string Num(float f) => f.ToString("0.00", CultureInfo.InvariantCulture);
         private static string Size(Info i) => !i.hasRenderers ? "-" : $"{Num(i.size.x)}\u00d7{Num(i.size.y)}\u00d7{Num(i.size.z)}" + (i.sizeOdd ? " (?)" : "");
@@ -992,7 +1018,7 @@ namespace WildLens.EditorTools
                             if (m == null)
                             {
                                 bool missing = false;
-                                try { if (arr != null && i < arr.arraySize) { var e = arr.GetArrayElementAtIndex(i); missing = e.objectReferenceValue == null && e.objectReferenceInstanceIDValue != 0; } }
+                                try { if (arr != null && i < arr.arraySize) { var e = arr.GetArrayElementAtIndex(i); missing = RefIsMissing(e); } }
                                 catch (System.Exception) { }
                                 file = missing ? "MISSING (points at a deleted material)" : "empty";
                                 shader = "-";

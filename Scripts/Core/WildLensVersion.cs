@@ -7,7 +7,7 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.10.0";
+        public const string Package = "1.10.1";
         public const string ReleaseName = "Voices";
         public const string ReleaseDate = "November 2026";
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.1] A compile error on Unity 6000.6
+1.10.0 did not compile on Unity 6000.6: the Asset Audit used a Unity command (`objectReferenceInstanceIDValue`) that this
+Unity version has turned into an error. WildLens's compile check cannot see such errors, because it checks against older
+Unity libraries. The audit now reads that value in a way that works on every version. Nothing else changed.
+**What to do:** Update the package, wait for the Console to clear, then Rebuild. If any red error remains, send it.
+
 ## [1.10.0] Voices
 Your first 1.9 screenshots, taken in real Unity (URP, Unity 6000.6), were the first time anyone saw 1.9 running. They found in
 minutes what reading code could not. 1.10 answers them, and adds what the reserve has been missing: **sound from the animals
