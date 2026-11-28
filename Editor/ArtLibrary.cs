@@ -45,7 +45,7 @@ namespace WildLens.EditorTools
         /// <summary>1.6: animated CC0 animals (Quaternius) that Wildlife Pack Setup may use as stand-ins.</summary>
         public const string AnimalsFolder = Destination + "/Animals";
         private const string PrefabFolder = Destination + "/Prefabs";
-        private const string ImportVersion = "7"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture. 5: overcast sky. 6: macro plants. 7: animals
+        private const string ImportVersion = "8"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture. 5: overcast sky. 6: macro plants. 7: animals. 8: free-licence animals (fox, rabbit, squirrel, rat, turtle, duck, skunk, snake)
 
         private struct ModelSpec
         {

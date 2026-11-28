@@ -1,8 +1,8 @@
 # Art credits
 
-All assets in this folder are from **Poly Haven** (https://polyhaven.com) and are released under
-**CC0 1.0 (public domain)**: free for any use, including commercial, with no attribution required.
-Credit is given here as a courtesy. License: https://polyhaven.com/license
+Every file in this folder is free and may be passed on. Most are **CC0 1.0 (public domain)**: the skies, terrain,
+surfaces, rocks, wood and plants from **Poly Haven** (https://polyhaven.com/license) and most of the animals. A file under
+an attribution licence (CC BY) is marked as such in its row and its author is credited there, as the licence requires.
 
 The folder name ends in `~`, so Unity ignores it; **WildLens ▸ Build Vertical Slice** copies it into
 `Assets/WildLens/Art` and sets import settings.
@@ -46,3 +46,21 @@ shipped (2–17 M polygons each).
 Converted from the original `.blend` files with Blender 4.0: Diffuse materials replaced by Principled with the same
 colours, the armature turned to face Blender's front (−Y, so +Z in Unity), exported to FBX with all actions (Wolf: Idle,
 Walking; Eagle: Flying, Idle). The pack's dog, cat and piranha are not shipped (no species for them).
+
+## Animals added after 1.9.0 (free licences: CC0, and one CC-BY 4.0)
+
+Every model was downloaded from the OpenGameArt page named below, where the licence was read on the page itself, and
+converted from `.blend` to FBX with Blender 4.0.2 (headless): armature turned to face Blender's front (−Y, so +Z in
+Unity, as Wolf/Eagle), unwanted actions removed, the rest renamed to plain role words (Idle, Walk, Run, Hop, Forage,
+Peck), exported with all actions baked. Where a model had no idle, a one-frame Idle was made from its first pose.
+
+| File | Title and source page | Author | Licence | Use |
+|---|---|---|---|---|
+| Animals/Fox.fbx | "Fox" https://opengameart.org/content/fox-0 (clips Idle, Walk, Run, Forage = the source's DIGGING; BITE and DEATH removed) | br-n518 | CC0 https://creativecommons.org/publicdomain/zero/1.0/ | Red fox: replaces the tinted dog |
+| Animals/Rabbit.fbx | "Rabbit" https://opengameart.org/content/rabbit-0 (clips Idle (pose), Hop, Run) | CDmir (collaborator TinyWorlds) | CC0 | Eastern cottontail |
+| Animals/Squirrel.fbx | "Undead Squirrel (ANIMATED)" https://opengameart.org/content/undead-squirrel-animated (clips Idle, Run, Hop; the pack's red textures and blood marks are NOT used: flat grey-brown materials instead) | CDmir (collaborator TinyWorlds) | CC0 | Eastern gray squirrel |
+| Animals/Rat.fbx | "Rat" https://opengameart.org/content/rat-0 (clips Idle, Walk, Run; attack and death removed) | br-n518 | CC0 | Stand-in for the Virginia opossum (the matcher lists "rat" as a stand-in) |
+| Animals/Turtle.fbx | "Turtle" https://opengameart.org/content/turtle-0 (clips Walk, and an Idle pose) | Heathal | CC0 | Waits for a turtle species |
+| Animals/Duck.fbx | "Rigged Duck" https://opengameart.org/content/rigged-duck (clips Walk, Peck, and an Idle pose; turned 90° to face front) | weirdybeardyman | CC0 | Waits for a duck species |
+| Animals/Skunk.fbx | "Skunk" https://opengameart.org/content/skunk (clips Idle, Walk; the 4096 px texture was scaled to 1024 px and embedded in the FBX) | magicink | CC-BY 4.0 https://creativecommons.org/licenses/by/4.0/ | Waits for a skunk species. **Attribution required: "Skunk" by magicink (OpenGameArt), CC BY 4.0, converted to FBX, texture scaled.** |
+| Animals/Snake.fbx | "Snake low poly animated 3d model" https://opengameart.org/content/snake-low-poly-animated-3d-model (clips Idle, Walk; 256 px texture embedded) | methodical pixel | CC0 | Waits for a snake species |

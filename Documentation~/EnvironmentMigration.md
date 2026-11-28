@@ -42,7 +42,7 @@ the scene. Any migration has to work *through* the builder, or the next Rebuild 
 
 ## 2. Constraints that shape the migration
 
-1. **This is a public git repository, and only CC0 art may be committed.** Asset Store packages, Unity's free ones
+1. **This is a public git repository, and only free art that may be passed on may be committed** (CC0, or CC-BY with credit; relaxed in 1.10 from "CC0 only"). Asset Store packages, Unity's free ones
    included, are under the Asset Store EULA (or the Unity Companion License), which allows use in your game but not
    redistribution. So **no store asset can be committed**. They must be imported by each user into their own
    project, and WildLens has to *find and use* them.

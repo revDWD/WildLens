@@ -8,13 +8,14 @@ documents. If you read nothing else, read §1, §5, §14 and §15.
 
 ## 1. Project Overview
 
-**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.9.0). You walk or
+**What it is:** *Willow Creek Nature Reserve*, a quiet first-person wildlife photography game (v1.10.0). You walk or
 ride a small trail bike around a generated reserve (meadow loop, ridge overlook, Cattail Pond, old-growth grove,
 meadow blind, Willow Creek with its ford and falls, Reserve Road, footpaths, hidden places), notice animals,
 approach without spooking them, and photograph them with a telephoto or, since 1.5, a macro lens (small life from your packs since 1.7, generated small life since 1.9). The day turns, the
 weather follows a four-day forecast, and the wildlife keeps hours and **answers the weather** (since 1.9: deer shelter
 from rain and come out in the first sun, songbirds bathe after it, the hawk soars only in fair weather; fireflies, frogs
-and butterflies come out for their own conditions). These are natural events: conditions, never scripts. **The place is
+and butterflies come out for their own conditions). Since 1.10 the animals **have voices** (bird song, frogs, crickets, made
+in code, heard from the animal itself) and the blind, the Reserve Board and the Rock Shelter are dry. These are natural events: conditions, never scripts. **The place is
 the product; photography is the reason to be there.**
 
 **How it's built:** a Unity UPM package (`com.revdwd.wildlens`, Unity 2021.3+, Unity 6 tested, URP or Built-in).
@@ -122,50 +123,69 @@ Left out on purpose. Don't add them unless the director asks:
 
 → The complete list, with what to build instead: [Documentation~/Roadmap.md](Documentation~/Roadmap.md).
 
-## 6. Current Project State (1.9.0, "After the Rain")
+## 6. Current Project State (1.10.0, "Voices")
 
-**Proven in Unity** (the 1.7 audit and the 1.8 playtest, "a major success; the reserve immediately feels more alive"): the
-automatic pack pipeline and the pack animals (deer, turkey as a tinted chicken, coyote as the shipped wolf, hawk as the
-shipped eagle, the songbirds and the black bear), the approach-and-photograph loop, camera feel, legible grading, named
-places with real elevation, the day cycle and four-day forecast, Willow Creek with its ford and falls, hidden places, the
-Reserve Road and footpaths, the Trail 125-style bike, one sign standard and the three-sided Reserve Board. From the 1.8
-playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turkey like a chicken (a tinted chicken).
+**Proven in Unity** (the 1.7 audit, the 1.8 playtest, "a major success; the reserve immediately feels more alive", and the
+**first 1.9 screenshots** in real Unity, URP, Unity 6000.6): the automatic pack pipeline and the pack animals (deer, turkey as a
+tinted chicken, coyote as the shipped wolf, hawk as the shipped eagle, the songbirds and the black bear), the
+approach-and-photograph loop, camera feel, legible grading, **the 1.9 viewfinder (data row, brackets, grade word) and the keeper
+print**, **the generated wildflowers in the meadow**, the pull-off, the bike, **a distant waterfall**, named places with real
+elevation, the day cycle and four-day forecast, Willow Creek with its ford and falls, hidden places, the Reserve Road and
+footpaths, one sign standard and the three-sided Reserve Board. From the 1.8 playtest: the fox reads a bit like a dog (a tinted
+dog model) and the turkey like a chicken (a tinted chicken).
 
-**Written in 1.9 and not yet run in Unity** (everything compiles in five configurations; nothing has been seen):
-- **Natural wildlife events**: weather habits as data on each species, decided by `WeatherHabitRules`, staggered, from the
-  forecast; hints in the field notes; twenty-seven species (three new birds: eastern bluebird, tufted titmouse, Louisiana
-  waterthrush, all tinted Living Birds stand-ins); the **upgrade rule** (a truer model replaces an auto-chosen stand-in
-  when imported) and re-tinted fox and turkey.
-- **Small life without packs**: 26 generated stylised models, 29 subjects, emergence by sun, rain and evening, wing motion,
-  trunk and rock habitats, one insect per flower; pack models still win.
-- **A quieter screen**: empty by default, context prompts that retire, the controls card (H), one notice style, a tidier
-  viewfinder, a Field notebook page in the journal.
-- **Geography**: Hemlock Ravine with Hemlock Run and a stepped cascade (where the land allows), a footpath, and four more
-  hidden places (seven in all), carved late so the rest of the reserve stays where it was.
+**What the 1.9 screenshots exposed** (fixed in 1.10, **fixes not yet seen**): the **Northern Cardinal rendered solid magenta**
+through the lens (a material URP cannot draw; expected for every Living Birds bird used untinted: cardinal, blue jay, crow, robin,
+chickadee, goldfinch, song sparrow); the **turkey was almost black at dusk** (the 1.9 tint was too dark); **Console errors**
+`AnimationEvent 'ResetHopInt' … has no receiver` (pack clips carry events for scripts WildLens removes).
+
+**Written in 1.10 and not yet run in Unity** (everything compiles in five configurations; nothing has been heard or seen):
+- **Eight free animated models** (a late addition, `Art~/Animals`, import version 8): a red fox (replaces the tinted dog), an
+  eastern cottontail, an eastern gray squirrel, a rat standing in for the opossum, and a duck, turtle, snake and skunk that wait for
+  species of their own. They swap in on the next Rebuild by the upgrade rule. **Size, facing and colours are all unproven.**
+- **Voices**: 22 species with generated calls, three frogs calling in chorus, a bee buzz, a cricket bed; from the animals
+  themselves (3D), sparse and budgeted, a dawn chorus, a burst in the first sun after rain, near-silence in rain, an alarm only
+  on the Alert transition; one tuning point, `VoiceBank`. **Judged only from spectrograms**; timbre is merely plausible for
+  several species. Night lasts about 11 real seconds, so night voices are in practice heard at dusk.
+- **Shelter from rain**: `RainShelter` volumes at the Meadow Blind, the Reserve Board's eaves and the Rock Shelter (rain removed
+  inside, a quieter and duller rain sound, an F3 `shelter` line).
+- **The material repair**: a structural test of what URP can draw, empty slots filled, existing models repaired, a Console
+  material summary per model and the Asset Audit's "WildLens animals as built" table. `FactoryVersion` 4; data version 5.
+
+**Written in 1.9 and still mostly unseen**: natural wildlife events (`WeatherHabitRules`, twenty-seven species, the upgrade
+rule), generated small life (26 models, 29 subjects; only the wildflowers have been seen), the quieter screen's other parts
+(prompts, controls card, field notebook), and the geography (Hemlock Ravine and Run, the cascade, four more hidden places).
 
 **Weakest, in order** (honest):
-1. **Eight species are placeholder bodies** (cottontail, squirrel, heron, raccoon, owl, groundhog, opossum, sandpiper)
-   because no imported pack has them, and **the fox and the turkey are stand-ins** whose silhouettes read as a dog and a
-   chicken. The 1.9 build machine could not reach any CC0 model host (quaternius.com, poly.pizza, opengameart.org,
-   itch.io and kenney.nl are all blocked), so **finding models is the director's job**, from the shopping list in
-   [CHANGELOG.md](CHANGELOG.md) and [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md); the upgrade rule
-   swaps them in. → [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md).
-2. **Trees** read as lollipops at distance: leaf cards lit like paper, no LODs or billboards. The Environment Kit can swap
-   in Unity's free SpeedTree trees, **never run in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
-3. **The generated small life is unseen**: stylised models made in code; sizes, colours, wing motion and the grading
-   arithmetic are all unproven in the engine.
-4. **The new geography is unseen.** Willow Falls' curtain has never been seen in its real place. The Rock Shelter's crag and the cascade's ledges are the least proven shapes. The
-   ravine exists only where the land falls far enough toward the creek (it does on the default seed 7).
-5. **Grass** is flat billboards unless the kit supplies mesh grass.
-6. **Props are boxes** (with scanned wood). Sign text is unlit TextMesh in the built-in font.
-7. **Sky and water**: three HDRIs re-tinted, no night sky, no moving clouds; rain has no wet surfaces and **falls through
-   roofs** (the Rock Shelter's too); water has no refraction or foam.
-8. **The journal's Wildlife page still lists unseen species as "???" rows and "Species X of N".** That sits uneasily with
-   "no checklists" (§5); the Field notebook page does it right. A decision for the director.
-9. **Untested at scale on low-end hardware.** About 200 generated small-life instances plus twenty-seven species, and
-   schedules that move groups.
-10. **The authors of 0.7–1.9 never ran Unity.** Everything compiles in five configurations; everything visual was verified
-    only through screenshots. Expect tuning.
+1. **Five species are placeholder bodies** (heron, raccoon, owl, groundhog, sandpiper), **the turkey is still a tinted chicken**
+   and **the opossum is a stand-in rat**. The director relaxed the asset rule (§9: free and redistributable, no longer CC0 only);
+   the model search then **finished**: eight free models were added (see above: the fox, cottontail and squirrel now have real
+   bodies, unseen), but no free, redistributable model of a turkey, raccoon, owl, heron, groundhog or sandpiper was found. Of the
+   hosts, opengameart.org and quaternius.com answer; poly.pizza asks for a browser check, kenney.nl refuses, and Quaternius'
+   downloads sit on Google Drive, so the rest is a **browser job for the director**. The upgrade rule swaps a better model in. → [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md).
+2. **Voices are unheard.** Contours were checked on spectrograms (convincing for cardinal, chickadee, waterthrush, owl, coyote,
+   goldfinch, treefrog, leopard frog, hawk, kingfisher, crickets); timbre is only plausible for jay, crow, heron, turkey, squirrel,
+   deer, blackbird, sparrow, bluebird. Loudness, frequency and balance are untested. Ask for ears.
+3. **The magenta cause is unproven.** 1.10 replaces any material URP cannot draw and reports what every model has: **read the
+   audit's "animals as built" table and the Console's `materials:` lines first** if anything is still pink.
+4. **Three unidentified things from one wide screenshot (open, not fixed):** a tan flat block on top of a rock by a viewing
+   platform; a purple speck on distant rocks; trees that read as low-poly (possibly a low-poly tree pack pulled in by the
+   Environment Kit). Ask for close-ups and the `[WildLens] Environment Kit` Console line.
+5. **Trees** read as lollipops at distance: leaf cards lit like paper, no LODs or billboards. The Environment Kit can swap in
+   Unity's free SpeedTree trees, **never confirmed in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
+6. **The generated small life is mostly unseen**, and the new geography: Willow Falls' curtain in its real place, the Rock
+   Shelter's crag and the cascade's ledges are the least proven shapes. The ravine exists only where the land falls far enough
+   toward the creek (it does on the default seed 7).
+7. **Grass** is flat billboards unless the kit supplies mesh grass.
+8. **Props are boxes** (with scanned wood). Sign text is unlit TextMesh in the built-in font.
+9. **Sky and water**: three HDRIs re-tinted, no night sky, no moving clouds; **rain still falls under tree canopy** (only three
+   roofs stop it); water has no refraction or foam.
+10. **The journal's Wildlife page still lists unseen species as "???" rows and "Species X of N".** That sits uneasily with "no
+    checklists" (§5); the Field notebook page does it right. A decision for the director.
+11. **Untested at scale on low-end hardware.** About 200 generated small-life instances, twenty-seven species, schedules that move
+    groups, and ten pooled voices.
+12. **The authors of 0.7–1.10 never ran Unity.** Everything compiles in five configurations; everything visual was verified only
+    through screenshots, and sound only through spectrograms. Expect tuning.
 
 → Per-system state and tuning: [Systems.md](Documentation~/Systems.md). Visual weaknesses and fixes:
 [VisualRoadmap.md](Documentation~/VisualRoadmap.md). The recommended next milestone, **2.0 "True to Life"**:
@@ -188,7 +208,9 @@ playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turk
   `AnimalAgent` → `GroundAnimal`/`FlyingAnimal` run behaviour with `WildlifeAwareness`;
   `CameraModeController` → `ZoomLens`/`FocusController` → `PhotoCamera` → `PhotoAnalyzer`/`MacroAnalyzer` →
   `JournalService`; `TrailBike` rides. The screen is `HudController` composing `ViewfinderView`, `PromptView`, `NoticeView`,
-  `ControlsCardView` and the journal, all styled from `UiStyle`.
+  `ControlsCardView` and the journal, all styled from `UiStyle`. **Since 1.10:** `VoiceDirector` (created at runtime) plays the
+  calls in `VoiceBank` (one recipe per species, rendered once by `VoiceSynth`, scheduled by the pure `VoiceRules`; `Scripts/Audio/`),
+  and `RainShelter` volumes (`Scripts/Environment/`) stop the rain and muffle its sound under three roofs.
 - **Data, not code, for content:** species are `SpeciesDefinition` assets (`SpeciesDefaults`), small subjects are
   `NaturalistSubject` (`SubjectDefaults`, 29 since 1.9, 26 with generated models in `SmallLifeShapes`). Twenty-seven species,
   each with optional `WeatherHabits` (natural events are data too). Enums are serialized as integers: **append, never reorder.** Species
@@ -202,8 +224,11 @@ playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turk
 - The compile check passes. New file or folder → commit its `.meta`.
 - Builder output changed → bump `WildLensVersion.Environment` (old scenes are then flagged stale). `Art~` changed →
   bump `ArtLibrary.ImportVersion` and update `Art~/CREDITS.md`.
-- Factory output changed, or a species' colours changed → bump `AnimalPrefabFactory.FactoryVersion` (auto-built models are
-  then refreshed; colours are baked into the model's materials).
+- Factory output changed, a species' colours changed, **or anything about how models' materials are made** → bump
+  `AnimalPrefabFactory.FactoryVersion` (auto-built models are then refreshed; colours are baked into the model's materials).
+- Retune a voice → edit its one line in `VoiceBank` (assets leave `voice` off). A new species gets a voice there too, or is
+  silent on purpose (say why in the file).
+- A new roofed place → add a `RainShelter` sized from the roof's own numbers, in the builder that makes the roof.
 - Changed a generated small-life model → bump `SmallLifeModels.ModelVersion`.
 - New terrain shaping → carve it in the **late geography step** and settle what stands there; **prototype and measure
   first** (outside Unity), and use a private random stream.
@@ -238,7 +263,7 @@ playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turk
 | [Documentation~/EnvironmentMigration.md](Documentation~/EnvironmentMigration.md) | the environment audit, free scenery packs, the Environment Kit |
 | [Documentation~/VisualRoadmap.md](Documentation~/VisualRoadmap.md) | art sourcing, licensing, visual weaknesses |
 | [Documentation~/TrailBike.md](Documentation~/TrailBike.md) | the bike model, free models reviewed, dropping one in |
-| [Art~/CREDITS.md](Art~/CREDITS.md) | every committed art file and its CC0 source |
+| [Art~/CREDITS.md](Art~/CREDITS.md) | every committed art file, its source and licence |
 | `Tools~/CompileCheck/` | compiling without Unity (add a stub member when you use a new uGUI/Input System/URP API) |
 
 ## 9. Asset Strategy
@@ -246,7 +271,7 @@ playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turk
 - **Committed: free, and free to pass on** (director, November 2026: "assets no longer need to be CC0, just free"). Any
   free licence that allows redistribution is welcome in `Art~`: CC0, and attribution licences such as CC-BY **with the
   author credited** in `Art~/CREDITS.md`. So far: Poly Haven skies, terrain, surfaces, rocks, wood, plants; Quaternius
-  animals. Keep sizes modest (2k): `Art~` ships to every user.
+  animals; and, since 1.10, eight animals from OpenGameArt by several authors (all CC0 but the skunk, CC BY 4.0, credited). Keep sizes modest (2k): `Art~` ships to every user.
 - **Store assets, free ones included, are never committed** (the Asset Store EULA forbids redistribution). The user
   imports them locally; WildLens finds and places them: the **Environment Kit** for scenery (by ecological role),
   **Animal Model Setup** and **Wildlife Pack Setup** for animals, a named-pivot model for the bike.
@@ -268,11 +293,15 @@ need to be photorealistic or share one style.** Recognisable silhouette → anim
 species → realism, in that order. A stylised owl is a fine barred owl; one tinted songbird model can be five species.
 Mixed packs are fine; the environment stays photographic.
 
-**Next:** playtest 1.9 (each pack animal at 4× and 16×; the habits through the day-3 shower and the day-4 dusk rain) and
-fix what the pictures show. Then **real models for the fox and the turkey**, then the eight species still on placeholder
-bodies (cottontail, squirrel, heron, raccoon, owl, groundhog, opossum, sandpiper). The build machine cannot reach any CC0
-model host, so the director downloads them (the shopping list is in the 1.9.0 changelog entry) and the upgrade rule swaps
-them in. The plan in [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) is filled in from the user's audit. New species still need a place they'd really live, never a count, an entry in
+**Since 1.10 they also have voices** (`VoiceBank`: 22 of the 27 species; the fox, cottontail, raccoon, opossum and black bear are
+silent on purpose). A new species should get a voice, or a stated reason for silence.
+
+**Next:** playtest 1.10 (the pack birds through the lens for any magenta; the voices by ear; the habits through the day-3 shower and
+the day-4 dusk rain) and fix what the pictures and the director's ears show (including the eight new models: size, facing, colours).
+Then **new species for the waiting models** (painted turtle, mallard, striped skunk, a snake, each with a place). Then **real models
+for the turkey** and the five species still on placeholder bodies (heron, raccoon, owl, groundhog, sandpiper), plus a truer opossum.
+The model search is finished: no free, redistributable model of those was found on the hosts the build machine can reach, so the
+director downloads them in a browser and the upgrade rule swaps a better model in when one is imported. The plan in [WildlifeCampaign.md](Documentation~/WildlifeCampaign.md) is filled in from the user's audit. New species still need a place they'd really live, never a count, an entry in
 `WildlifePackSetup`'s name table, a real size and a place in the spawner's own-stream set.
 → [WildlifeAssetStrategy.md](Documentation~/WildlifeAssetStrategy.md), [WildlifeExpansion.md](Documentation~/WildlifeExpansion.md).
 
@@ -300,11 +329,12 @@ record: no scores, no completion.
 
 ## 13. Future Opportunities
 
-**Recommended next milestone: 2.0 "True to Life"** (detail in [Roadmap.md](Documentation~/Roadmap.md)), in order: **playtest
-1.9 and fix what the pictures show** (a tuning release, no new features) → **real models** for the fox and turkey, then the
-eight placeholders → **sound** (calls and choruses driven by the same natural conditions) → **more relief** and the
-remaining hidden places → **trees** via the Environment Kit → **night** → the journal's "???" rows. After that: real prop
-shapes and lit sign text, bike bodywork, wet weather, new species with their places, a hand-authored CC0 terrain.
+**Recommended next milestone: 2.0 "True to Life"** (detail in [Roadmap.md](Documentation~/Roadmap.md)), in order: **tuning from
+the screenshots and the director's sound feedback** (1.9 and 1.10 are both unproven; no new features) → **real models** for the fox
+and turkey, then the five remaining placeholders, and new species where a place waits (the duck, turtle, snake and skunk models are already in) → **more relief** and the remaining hidden places →
+**trees** via the Environment Kit → **night** (note: a game night lasts about 11 real seconds, so night work must first decide
+whether nights should be playable) → the journal's "???" rows. **Sound is written (1.10) and awaiting ears.** After that: real prop
+shapes and lit sign text, bike bodywork, wet weather, a hand-authored free-licence terrain.
 
 ## 14. Common Mistakes
 
@@ -344,6 +374,12 @@ Each of these has cost at least one milestone. Details and stories in [History.m
 - **Events that react to the player.** A natural event answers the hour, the weather and the forecast; if it needs the
   player to be present, near or watching, it is a script (§3).
 - **World-coordinate meshes under a moved parent (1.9):** a mesh built in world coordinates must sit on an identity transform, and `MeshPart` takes a LOCAL position. Willow Falls' water and the pond's lily pads were drawn far away for four releases because nobody could see they were missing: ask for a screenshot of each new thing, not just of the place.
+- **A shader's NAME does not tell you whether URP can draw it** (1.10: magenta birds). Test its passes, fill empty slots, and print
+  what each model ended up with.
+- **Sounds and animation events from a pack's clips call the pack's scripts:** turn `Animator.fireEvents` off on models whose
+  scripts were removed.
+- **Version strings:** 1.10 comes after 1.9; never compare them as text (nothing in WildLens does: scenes compare the integer
+  `Environment`).
 - **Committing store assets** (free ones included), secrets or generated `Assets/` content.
 
 ## 15. Recommended Reading Order For New Agents

@@ -4,7 +4,8 @@ A quiet, first-person wildlife photography game set in a nature reserve. Walk th
 along the Reserve Road to a ridge overlook, a reedy pond, an old-growth grove and a meadow blind; learn where and
 *when* the deer, foxes, hawks, crows, chickadees, a shy black bear and the rest of its twenty-seven species are; approach without spooking them; and take photographs
 worth keeping. The reserve changes from dawn mist to golden hour to dusk, and its wildlife keeps hours and answers the
-weather: deer shelter from rain and step out in the first sun, songbirds bathe after it, fireflies rise on fair evenings.
+weather: deer shelter from rain and step out in the first sun, songbirds bathe after it, fireflies rise on fair evenings. Since 1.10
+the reserve has **sound**: bird song and a dawn chorus, frogs and crickets at dusk, all made in code and heard from the animal itself.
 
 **New here?** Players: read *Install & run* and *Controls* below. Contributors (people or AI agents): start with
 [`AGENTS.md`](AGENTS.md), then [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -127,6 +128,17 @@ a lady beetle, a mantis, three frogs, two salamanders, a snail, three fungi, wil
 would live (flowers, trunks, boulders, the water's edge, logs, the woodland floor) and come out for the conditions: butterflies
 and bees in sunshine (more after a shower), dragonflies on warm days, fireflies on fair evenings, frogs after rain and at dusk,
 treefrogs on wet nights. Details: [`Documentation~/Systems.md`](Documentation~/Systems.md).
+
+### What's new in 1.10 ("Voices")
+- **The animals have voices** (22 of the 27 species; the fox, cottontail, raccoon, opossum and bear stay silent), plus frogs, a
+  soft bee buzz and crickets at dusk. A dawn chorus, a burst of song in the first sun after rain, near-silence in rain, an owl
+  at dry dusks. Calls come from the animal, sparse and gentle. **Nothing is downloaded: it is all made in code.** Nothing has been
+  heard in Unity yet: tell us what is too loud, too frequent or wrong-sounding.
+- **Shelter from rain**: under the Meadow Blind, the Reserve Board's roof and the Rock Shelter the rain stops and its sound goes
+  quieter and duller. (F3 shows a `shelter` line.)
+- **Fixes from your first 1.9 screenshots**: pack birds that rendered magenta, a turkey that was almost black, and a flood of
+  animation-event errors. After updating, **Rebuild** (required), then run **WildLens ▸ Asset Audit Report** and paste it.
+- Controls are unchanged. There is no on-screen volume setting yet (the settings are `wildlifeVoices` and `masterVolume`, kept as PlayerPrefs).
 
 ### What's new in 1.9 ("After the Rain")
 - **The wildlife answers the weather** (never scripted): rain, the first sun after it, grey days and fair evenings change where

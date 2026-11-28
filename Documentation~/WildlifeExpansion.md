@@ -16,7 +16,7 @@ bear were added in 1.8, and eastern bluebird, tufted titmouse and Louisiana wate
    a hotspot, a rhythm or behaviour weights can express it.
 3. **Recognisable at a distance, even as a placeholder.** Silhouette, colour blocks and field marks (mask, ringed tail,
    red epaulettes) matter more than detail.
-4. **Licence safety is absolute.** Only CC0 art in the repo; store assets are imported locally (see below).
+4. **Licence safety is absolute.** Only free art that may be passed on is committed (CC0, or CC-BY with credit; since 1.10); store assets and "personal use" models are imported locally (see below).
 
 ## The framework (implemented in 1.0)
 
@@ -122,13 +122,27 @@ counter or anything aimed at the player. To give a species a habit:
    `foulPlace`. `overcastEarly` brings the next period's hours on a grey day. `RhythmPlace.Roost` with `roostLabel` gathers it at one of its own residences.
 2. Add **one short natural sentence** to its field notes with `Hint(s, "...")`: a hint, never an instruction. The same
    sentence lets the migration add it to an existing asset without overwriting hand-edited notes.
-3. Existing assets receive it by `SpeciesDefaults.ApplyHabits` (data version 4). A species whose **rhythm or colours** changed
+3. Existing assets receive it by `SpeciesDefaults.ApplyHabits` (data version 4; 5 since 1.10). A species whose **rhythm or colours** changed
    must be listed in `RhythmRevisedIn19` / `ColoursRevisedIn19` (or a new set) so they reach assets that still have the old values.
 4. Check the day: forecast day 3's shower (about 13:30 to 16:06 and the hours after) and day 4's dusk rain are the test days.
    Animals must never all move on one frame (the stagger handles it) and **standing still must still let an animal settle**.
 
+### Giving a species a voice (1.10)
+
+Every species has a voice or a stated reason for silence (the fox, cottontail, raccoon, opossum and black bear are silent on
+purpose: see `VoiceBank`). A **new species should get a voice**:
+1. Add **one entry** to `Scripts/Audio/VoiceBank.cs` (`Add("species_id", "one field-guide sentence", V(...))`): its calls as notes (a
+   pitch sweep, length, gap and texture, written as birders describe it), then when and how far it is heard (calls per minute,
+   dawn/dusk multipliers, rain and after-rain behaviour, range). Follow a similar species' line. Assets leave `voice` disabled; the
+   director uses the bank. Ticking **Enabled** on one asset overrides only that species, by hand.
+2. The field-guide sentence is added to the species' notes by `SpeciesDefaults`; no other code changes. Existing assets receive it
+   by `ApplyHabits` (data version 5).
+3. A voice is a **condition, never a script**: it follows the hour, the weather and the animal's own timer. The one allowed
+   player-linked sound is an **alarm on the Alert transition** (`alarmChance`, `alarmCooldown`).
+4. A species with no honest voice is left silent, and says why in a comment.
+
 **Next candidates, only with a place:** wood duck and painted turtle need a marsh with loafing logs (the wetland
-boardwalk); a green frog chorus needs evening audio, not a body; a pileated woodpecker needs big dead trees in the
+boardwalk); a green frog chorus now has its evening audio (1.10) and needs only its pond; a pileated woodpecker needs big dead trees in the
 grove. Swimming locomotion would be a new system: avoid until a marsh makes it essential.
 
 **Not planned:** predators actively hunting other species, nests and breeding, population dynamics. These are

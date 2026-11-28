@@ -184,7 +184,7 @@ from a real measurement. Add new species on their own random streams, so a build
 improves must be able to refresh what it made before, without touching what a person tuned. None of 1.8 has run in Unity
 yet; its first test is the user's screenshots.
 
-**1.9.0 After the Rain** (current). The 1.8 playtest was the first full run of the pack pipeline in Unity, and the director
+**1.9.0 After the Rain**. The 1.8 playtest was the first full run of the pack pipeline in Unity, and the director
 called it a major success: "the reserve immediately feels more alive". Two notes: the fox reads like a dog (it is a tinted
 dog model) and the turkey like a chicken. It also cost a round: the Living Birds pack's `scripts` and `demo` folders do not
 compile on Unity 6, and compile errors **block every package update** until the folders are deleted (WildLens needs only the
@@ -211,3 +211,34 @@ rule swaps the files in. If a pasted audit shows an older WildLens version than 
 lines first. Left honest: nothing of 1.9 has run in Unity, the generated models and the Rock Shelter's crag and the cascade's
 ledges are the least proven shapes, rain still falls through roofs, and the journal's Wildlife page still shows "???" rows beside
 "no checklists" (a decision for the director).
+
+
+**1.10.0 Voices** (current). The director's **first 1.9 screenshots, taken in real Unity** (URP, Unity 6000.6), were the first time
+1.9 was seen running. What worked: the viewfinder (data row, brackets, grade word), the keeper print, the generated wildflowers, the
+pull-off, the bike, a distant waterfall. What was wrong: the **Northern Cardinal rendered solid magenta** (and every Living Birds bird
+used untinted was expected to), the **turkey was almost black at dusk**, and the Console filled with `AnimationEvent 'ResetHopInt' … has
+no receiver`. 1.10 answers them and adds what the reserve lacked, **sound**. **Voices** are generated in code (22 species, three
+frogs, a bee, crickets), come from the animal itself, follow the same conditions as everything else (dawn chorus, the first sun after
+rain, near-silence in rain, the owl at dry dusks, crows at the roost; the one player-linked sound is an alarm at the moment an animal
+turns Alert), and are tuned in one file, `VoiceBank`. **Shelter from rain** stops the rain and softens its sound under the blind, the
+Reserve Board's eaves and the Rock Shelter. The **material repair** replaces anything URP cannot draw (a structural test of the shader's
+passes, empty slots, models already built) and prints what every model has; the audit gained an "animals as built" table.
+*Lessons:* **the first real screenshots found in minutes what code reading could not**, the same lesson as 1.8 and 1.9 (magenta
+birds, a black turkey, event errors): ask for a screenshot of every new thing the moment it exists. **A shader's name is not evidence**:
+a pack's surface shader can be called anything and still carry only built-in passes, so 1.10 asks the shader what it draws, and prints the
+answer, because the magenta's true cause could not be proven from code and a probe is better than a guess. **Pack clips call the pack's
+scripts**: animation events survive when the scripts are stripped, so `fireEvents` is off. **A tint replaces a material's colour and
+multiplies its texture**, so a "dark bronze" on a textured model came out black: tints on textured materials are now lifted. **The licence
+rule was relaxed, and why:** the director decided "assets no longer need to be CC0, just free". CC0 only had kept out good free models
+(CC-BY ones with the author credited) while the build machine could not reach model sites anyway; free and redistributable is enough to
+commit with credit, and Asset Store packs and personal-use models still cannot be committed because their licences forbid passing files
+on. The build environment's allowlist now includes opengameart.org, quaternius.com, poly.pizza and kenney.nl, and a model search was started; it
+finished later the same day and eight free models were added to 1.10 (see the changelog's "New models"). **Sound was verified by spectrogram only**: a harness outside Unity rendered every call
+and checked its pitch contour against how birders describe it (convincing for cardinal, chickadee, waterthrush, owl, coyote, goldfinch,
+treefrog, leopard frog, hawk, kingfisher and crickets; the timbre is only plausible for jay, crow, heron, turkey, squirrel, deer,
+blackbird, sparrow and bluebird), which says nothing about loudness or taste: the director's ears decide. **Night lasts about 11 real
+seconds**, so night voices are in practice heard at dusk, and any "night" feature must first decide whether nights should be playable.
+Left honest: nothing in 1.10 has been heard or run in Unity; the magenta cause is unproven; a tan block on a rock by a viewing platform,
+a purple speck on distant rocks and low-poly-looking trees in one wide screenshot are unidentified; rain still falls under tree canopy;
+the fox and the turkey are still stand-ins and eight species are still placeholders; the journal's "???" rows are still a decision for
+the director.

@@ -10,8 +10,9 @@ For the environment audit, the free asset list and the migration plan, see **`En
 | Sign pictograms | Generated in code (no third-party art) | Best times and meanings at a glance |
 | Water | Generated ripple normal map + `WaterFlow` | Tea-coloured water; the creek flows |
 
-**Fonts:** free signage-style fonts (Overpass, Atkinson Hyperlegible, Public Sans) are SIL OFL, not CC0, so none is
-committed; signs use the built-in font, bold and large. Revisit only if a CC0 font of comparable quality turns up.
+**Fonts:** free signage-style fonts (Overpass, Atkinson Hyperlegible, Public Sans) are SIL OFL, not CC0, so none was committed under the
+old rule; signs use the built-in font, bold and large. Since 1.10 (free and redistributable is enough) an OFL font could be committed
+with credit: revisit when lit sign lettering is built.
 
 ## Integrated in 1.2.0
 | Area | Asset(s) | Result |
@@ -52,7 +53,7 @@ and fallen trunk (13 MB) or ship 1k ground diffuse maps.
 | OpenGameArt *Deer Low Poly rigged* ([link](https://opengameart.org/content/deer-low-poly-rigged)) | CC0 | Safe, but low-poly and lightly animated: clashes with photographic ground and sky; would look worse in a photo than a fixed-up placeholder. |
 | Quaternius *Animated Animals* ([link](https://quaternius.itch.io/lowpoly-animated-animals)) | CC0 | Farm animals only; no target species. |
 | Asset Store *Animals FREE* by ithappy ([link](https://assetstore.unity.com/packages/3d/characters/animals/animals-free-260727)) | Asset Store EULA | Includes a deer, but stylised; EULA allows use in your game, **not** redistribution, so it cannot be committed to this public repo. You may import it locally. |
-| Sketchfab toon deer ([example](https://sketchfab.com/3d-models/toon-deer-animated-70d87082ee584e9896aa6b06cd764e77)) | varies (often CC-BY / non-commercial) | Licences vary per model; stylised. Not used. |
+| Sketchfab toon deer ([example](https://sketchfab.com/3d-models/toon-deer-animated-70d87082ee584e9896aa6b06cd764e77)) | varies (often CC-BY / non-commercial) | Licences vary per model; stylised. Not used (CC-BY ones could be committed with credit since 1.10; non-commercial and personal-use ones never). |
 
 **Conclusion:** there is no free, licence-safe, realistic, animated deer/fox/hawk/rabbit/squirrel for Unity. Free
 low-poly animals would make the game look *less* coherent next to the scanned environment. Licensed realistic

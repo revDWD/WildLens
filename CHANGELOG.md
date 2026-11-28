@@ -1,5 +1,146 @@
 # Changelog
 
+## [1.10.0] Voices
+Your first 1.9 screenshots, taken in real Unity (URP, Unity 6000.6), were the first time anyone saw 1.9 running. They found in
+minutes what reading code could not. 1.10 answers them, and adds what the reserve has been missing: **sound from the animals
+themselves**, and **somewhere dry to stand when it rains**. **None of 1.10 has been heard or run in Unity yet.** Everything
+compiles in five configurations; the voices were judged only from pictures of their sound (spectrograms).
+### New models (a late addition, found the same day)
+With the asset rule relaxed and four model sites opened to the build machine, eight free animated models were found, checked
+for a licence that allows passing them on, converted and added. They ship with WildLens and **swap in by themselves on the next
+Rebuild**. None has been seen in Unity: their size, facing and colours all need a screenshot.
+- **Red fox**: a real fox (pointed muzzle, brush tail; idle, walk, run and a foraging clip). It replaces the tinted dog.
+- **Eastern cottontail**: a rabbit (idle, hop, run). Its ears are long, so it leans towards a hare.
+- **Eastern gray squirrel**: an upright squirrel with a curled tail (idle, hop, run).
+- **Virginia opossum**: a rat stands in for it (idle, walk, run). Crude, but the outline is close.
+- **Waiting for species of their own** (the next step): a duck, a turtle, a snake and a skunk.
+- Sources and authors are in `Art~/CREDITS.md`. All are CC0 from OpenGameArt except the skunk, which is CC BY 4.0 (credited).
+- **Not found:** a turkey, a raccoon, an owl, a heron, a groundhog or a sandpiper that may be passed on. Poly Pizza, Kenney and
+  the Quaternius downloads could not be reached even after the sites were allowed (a browser check, a refusal, and files kept
+  on Google Drive). Those remain a job for a browser: download, drop into `Assets`, and WildLens swaps them in.
+### From your first 1.9 screenshots
+**What worked**, seen for the first time: the 1.9 viewfinder (data row, brackets, grade word), the keeper print, the generated
+wildflowers in the meadow, the road pull-off, the bike, and a distant waterfall.
+**What was wrong:**
+1. **The Northern Cardinal rendered solid magenta through the lens.** Magenta means a material the render pipeline cannot draw.
+   The same is expected of every Living Birds bird used without a tint: cardinal, blue jay, crow, robin, chickadee, goldfinch and
+   song sparrow. **The cause could not be proven from code**, so 1.10 does not guess at it. It makes the problem impossible
+   instead (see "Magenta birds" below) and prints what every animal's materials really are, so the cause shows itself.
+2. **The Wild Turkey was almost black at dusk.** A tint replaces the model's colour, and the 1.9 "darker bronze" was too dark.
+   The colours are lighter, and tints on textured materials are now brightened a little.
+3. **Console errors** `AnimationEvent 'ResetHopInt' on animation 'forwardHop (looped)' has no receiver` for Living Birds models.
+   The pack's clips carry events for the pack's own scripts, which WildLens removes. Animal animators now ignore animation events.
+4. **Three things in one wide screenshot are not yet identified.** They are open questions, **not fixed**: a tan flat block on top
+   of a rock by a viewing platform; a purple speck on distant rocks; and trees that read as low-poly (which may mean the
+   Environment Kit pulled in a low-poly tree pack). Close-up screenshots are asked for below.
+### Voices (new)
+Twenty-two of the twenty-seven species now have a voice, made in code (nothing is downloaded or committed). A call comes **from
+the animal that made it**, in 3D, so hearing a cardinal means a cardinal is there.
+- **Songbirds and small birds:** northern cardinal (a whistled *cheer, cheer, cheer*, then *birdie-birdie*), blue jay (a harsh
+  *jay!*), black-capped chickadee (*fee-bee* and *chick-a-dee-dee-dee*), tufted titmouse (*peter-peter-peter*), American robin
+  (a carolled *cheerily, cheer-up*), American goldfinch (a canary-like twitter), song sparrow (three clear notes and a buzzy
+  trill), red-winged blackbird (*conk-la-REE*), eastern phoebe (a raspy *fee-bee*), Louisiana waterthrush (falling whistles over
+  the water), eastern bluebird (a soft, low warble).
+- **Water and big birds:** belted kingfisher (a dry rattle), spotted sandpiper (a thin *peet-weet*), great blue heron (a hoarse
+  *fraaank*, now and then), American crow (*caw, caw, caw*), wild turkey (soft clucks and yelps), red-tailed hawk (a falling
+  scream from high up, fair weather only).
+- **At dusk and after:** barred owl (*who-cooks-for-you*, at dry dusks), coyote (one long howl, then yips, at dusk).
+- **Mammals, mostly only alarms:** white-tailed deer (a breathy snort), gray squirrel (a stuttering scold), groundhog (a sharp
+  whistle).
+- **Silent on purpose:** the red fox, cottontail, raccoon, opossum and black bear. A fox's scream or a bear's huff is either
+  startling or impossible to make believable from code, and in a quiet game their silence is how you meet them.
+- **Frogs** (green frog, northern leopard frog, gray treefrog) call from the small-life frogs themselves, in a chorus by their
+  own conditions: more in the hours after rain, the gray treefrogs only on wet nights.
+- **A soft bee buzz** when a visible bee is within 3 m (never in rain), and **a cricket bed** from dusk (about 18:30, full by 19:30)
+  through the night, thinner just after rain and silent in it.
+- **Sparse and budgeted:** at most six animal voices and four frog voices sound at once; nothing is heard beyond its range, and
+  it fades over the last third of it. Songbirds are loudest at **dawn** (the chorus) and burst out in the **first sun after
+  rain**; in rain nearly everything falls silent; crows are loudest at dusk (the roost); the owl calls at dry dusks. Neighbours
+  of the same species sometimes **answer** each other (counter-singing).
+- **The one sound tied to you:** an animal may give an **alarm call**, only at the moment it first turns Alert (a snort, a scold),
+  rarely, with a cooldown. Everything else follows the hour, the weather and the animal's own timer, never where you are.
+- **Night is short.** A game night lasts about 11 real seconds, so the owl, the coyote and the treefrogs are in practice heard at
+  **dusk**. While time runs fast (the night, or holding T) the animals thin to a fifth and only the beds (crickets, frogs) stay.
+- **Cost:** every call is rendered once in code, cached (about 4 MB in all) and warmed gently after you press Play (one clip
+  every tenth frame, never two in one frame), so no chorus stalls.
+- **One tuning point:** each species' voice is one entry in `VoiceBank`. Assets leave their `voice` disabled; ticking **Enabled**
+  on a species asset overrides that one species by hand. The journal's field notes for each voiced species gain one sentence
+  describing the voice.
+- **Settings:** `wildlifeVoices` (on) and `masterVolume` (0.8) on the Voices object; saved as the PlayerPrefs keys
+  `WildLens.Voices` and `WildLens.VoiceVolume`. There is no on-screen setting yet.
+- **How it was judged:** only from spectrograms. The contours look right for cardinal, chickadee, waterthrush, owl, coyote,
+  goldfinch, treefrog, leopard frog, hawk, kingfisher and crickets. The timbre is only plausible for jay, crow, heron, turkey,
+  squirrel, deer, blackbird, sparrow and bluebird. **Your ears decide.**
+### Shelter from rain (new)
+- **The Meadow Blind, the Reserve Board's eaves and the Rock Shelter are now dry.** Under their roofs the rain is removed while it
+  keeps falling outside; the rain sound goes **quieter and duller** under cover (like drumming on a roof) and eases back when you
+  step out.
+- Press **F3**: a new line reads `shelter 0.00` out in the open and up to `shelter 1.00 (place)` under a roof.
+- **Rain still falls under tree canopy.** The game has no runtime canopy data, so only these three roofs stop it.
+### Magenta birds: how 1.10 makes it impossible
+- **A shader's name is not evidence.** 1.9 decided "can URP draw this?" mostly from the shader's name. 1.10 tests the shader
+  itself: no material, no shader, the error shader, a shader not supported here or with compile errors, or a shader none of whose
+  passes URP draws (a pack's own surface shader keeps built-in passes whatever it is called).
+- **Every material URP cannot draw is replaced**, including empty slots (a plain URP material stands in), after the tint too.
+  Materials are updated in place, never deleted and recreated, so saved prefabs keep their references.
+- **Models already built are repaired** on the next Rebuild without being rebuilt (their size, facing and tint stay).
+- **The Console now says what each animal got**: `materials: 2 (Universal Render Pipeline/Lit ×2)` on every model line, and the
+  `[WildLens] Wildlife models refreshed …` line lists each species. Anything repaired is reported in its own warning.
+- **Asset Audit Report has a new section, "WildLens animals as built":** one row per material slot of each species prefab: the
+  material file, shader, whether URP draws it, the main texture and the colour.
+- **Factory version 4:** every model WildLens built itself is rebuilt on the next Rebuild.
+### Other fixes
+- **The turkey** is lighter: bronze-brown overall, a lighter bronze second colour and a red head and legs.
+- **Tints on textured materials are brightened** (up to 1.5× when the texture's brightness is known, otherwise 25% toward white)
+  and never go below a luminance of 0.16. Only the crow, the blackbird and the bear, which really are black, keep the old rule.
+- **Pack animation events** are ignored by every animal and by the small-life animators the builder makes.
+- **Species assets: data version 5.** A species asset below 5 is upgraded gently: weather habits arrive
+  **only where the asset has none of its own**; field notes that are empty or still the default take the new text (with the voice
+  sentence), and a note you edited keeps your words and only gains the missing sentences; the owl's and crow's rhythm change only
+  if still exactly the pre-1.9 default; the **fox** takes its 1.9 colours only if still exactly the pre-1.9 default; the
+  **turkey** takes the new colours only if it is still the 1.8 default or darker than a luminance of 0.2 (a turkey you tuned
+  brighter is left alone). Voices are never copied onto assets.
+### What to do
+1. Update the package in Package Manager and wait for Unity to finish compiling. **Nothing to import.**
+2. **Rebuild** (WildLens ▸ Vertical Slice Builder ▸ Rebuild Slice In Open Scene). **This one is required:** every animal model is
+   rebuilt (factory version 4), and the shelters are added to the scene.
+3. Run **WildLens ▸ Asset Audit Report** and **paste it into the chat.** Its new "WildLens animals as built" table shows each
+   bird's materials, which is how we find the cause of the magenta.
+4. Press Play and take the screenshots and notes below.
+### What to look at, listen for and screenshot next
+**Look:**
+1. **The Northern Cardinal and a blue jay through the lens.** Any magenta?
+2. **The Console text starting `[WildLens] Wildlife models refreshed`.** Copy the full text, every line.
+3. **The turkey in daylight**, and again at dusk.
+4. **Close-ups of the three unidentified things:** the tan block on the rock by the viewing platform, the purple speck on the
+   distant rocks, and the trees, plus the Console line starting `[WildLens] Environment Kit`.
+**Listen** (headphones help; say which animal if anything is wrong):
+5. **Dawn at the meadow:** robins and cardinals, answering each other.
+6. **The first sun after the day-3 shower:** a burst of song.
+7. **A wet dusk:** the gray treefrog's trill and the frog chorus at the pond.
+8. **A dry dusk near the grove:** the owl. **The crows at the trailhead** at dusk.
+9. **Walk towards a deer** until it snorts. **Crickets** at dusk.
+10. **Is anything too loud, too frequent, or wrong-sounding?** Name the animal.
+**Rain:**
+11. **Press F3 inside the Meadow Blind and inside the Rock Shelter** while it rains (and under the Reserve Board's roof). Take a
+    screenshot showing the `shelter` line and, if you can, the rain stopping at the roof.
+### Not done, honestly
+- **Nothing in 1.10 has been heard or run in Unity.** The voices are judged from spectrograms only.
+- **The cause of the magenta is unproven.** 1.10 repairs every material URP cannot draw and reports what each model has; read the
+  audit's "animals as built" table first.
+- **The three unidentified things** (tan block, purple speck, low-poly trees) are open.
+- **Rain still falls under tree canopy,** and the cricket bed is not yet muffled under a roof.
+- **The turkey still reads as a chicken, and five species are still placeholder bodies** (heron, raccoon, owl, groundhog,
+  sandpiper): no free model that may be passed on was found for them. See "New models" below for the ones that were.
+- **The asset rule has changed (your decision, same day): "Assets no longer need to be CC0, just free."** Files committed to
+  the repository may now carry any free licence that allows passing them on (CC0, or CC-BY with the author credited in
+  `Art~/CREDITS.md`). Asset Store packs and "personal use" models still cannot be committed, because their licences forbid
+  passing the files on; you may import anything free into your own project. The build machine can now reach opengameart.org,
+  quaternius.com, poly.pizza and kenney.nl.
+- **The journal's Wildlife page still lists unseen species as "???" rows.** Still your decision.
+- Night is about 11 seconds long, so "night" work (a night sky, night-only calls) first needs a decision on whether nights should
+  be playable.
+
 ## [1.9.0] After the Rain
 The 1.8 playtest was the first full run of the pack pipeline in Unity, and it was a success: the reserve "immediately feels
 more alive". Two notes came back: the fox reads a little like a dog (it is a tinted dog model) and the turkey a little like a

@@ -192,6 +192,187 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Voices, shelter and material repair (1.10.0)
+
+Three workstreams: wildlife voices, shelter from rain, and the repair of materials URP cannot draw (from the first 1.9
+screenshots). **None has been heard or run in Unity.** It supersedes earlier notes where they differ (corrections at the end).
+The code calls the sound work "2.0 Sound" in places: that is the milestone name it was written under; it ships as 1.10.0.
+
+### Voices (`Scripts/Audio/`)
+
+Five files, the first four **pure C#** (no UnityEngine), so a harness outside Unity can render every call to a WAV and a
+spectrogram and simulate a day of the scheduler (this is how the voices were judged).
+
+| File | Role |
+|---|---|
+| `VoiceRecipe.cs` | the data: `VoiceNote` (a pitch sweep with an envelope), `VoiceCall` (a named list of notes at a sample rate), `VoiceRecipe` (up to three calls and when, how often and how far it is heard) |
+| `VoiceSynth.cs` | notes to PCM; the cricket bed; the bee buzz |
+| `VoiceRules.cs` | the scheduling rules as pure functions: `Rate`, `Chance`, `Edge`, `CricketLevel` |
+| `VoiceBank.cs` | **the single tuning point**: one entry per voiced species (22) and per frog (3), plus one field-guide sentence each |
+| `VoiceDirector.cs` | the one manager (a MonoBehaviour): polls, rolls the dice, plays, caches |
+
+* **The idea** (the same as 1.9's events): a voice is a **condition**, never a script. An animal calls because of the hour, the
+  weather, its own state and its own timer, never because of where you are. The one exception is a natural alarm (below).
+* **Data model.** A `VoiceNote` has `f0`, `f1` (the sweep, Hz), optional `fm`/`mAt` (a rounded peak or dip), `dur`, `gap` (negative
+  overlaps the next note), `amp`, vibrato (`vib`, `vibDepth`), `buzz` (0 whistle to 1 harmonics), `noise` and `noiseBw`,
+  amplitude pulsing (`am`, `amDepth`: trills, rattles), `atk`, `decay` and `curve`. A `VoiceRecipe` has `enabled`, three calls
+  (`song`, `call`, `alarm`), `songShare` (chance a calm call is the song), `perMinute`, `period[6]` (night, dawn, morning, midday,
+  golden hour, dusk), `rain`, `afterRain`, `wet`, `fairOnly`, `needsWetNight`, `atRest`, `inFlight`, `awareOk` (none sets it),
+  `alarmChance`, `alarmCooldown`, `answer`, `minGap`, `range`, `near`, `volume`.
+* **Where the voice lives.** In `VoiceBank`, **not** on the assets: `SpeciesDefinition.voice` exists but stays **disabled**, and the
+  director then uses `VoiceBank.For(speciesId)`. So every asset, old or new, is heard and follows retuning. Tick `Enabled` on one
+  asset (and give it notes) to override that species by hand. `VoiceBank.Copy` makes an independent copy to start from.
+  Recipes are written at natural rates per bird and **multiplied by 0.4** (`Sparse`) in one place, for a calm game.
+* **The voices** (rate is calls per minute per bird after the 0.4; range and the full-volume distance `near` in metres; "dawn ×4"
+  is the period multiplier; "after rain ×2.2" the first-sun boost; rain multiplier 0.05 unless noted):
+
+  | Species | The voice | When | Rate | Range / near |
+  |---|---|---|---|---|
+  | Northern cardinal | whistled *cheer ×3*, then *birdie ×5*; a chip; chips as alarm (40%) | dawn ×4; after rain ×2.2 | 0.8 | 85 / 5 |
+  | Blue jay | *jay ×2*; a four-note scream as alarm (60%, 45 s) | dawn ×2, morning ×1.2; after rain ×1.6 | 0.48 | 90 / 7 |
+  | Black-capped chickadee | *fee-bee*; *chick-a-dee-dee-dee*; a longer *dees* alarm (50%) | dawn ×3; after rain ×1.8 | 0.6 | 60 / 3 |
+  | Tufted titmouse | *peter ×4*, or ×2 | dawn ×3; after rain ×1.8 | 0.64 | 75 / 4 |
+  | American robin | a carol of eight notes; *tut* calls; *tut-tut* alarm (30%) | dawn ×5, dusk ×2; after rain ×3 | 0.88 | 90 / 5 |
+  | American crow | *caw ×3*, or one caw; also in flight | golden hour ×1.5, dusk ×2.4, dawn ×1.5; rain ×0.2 | 0.44 | 110 / 9 |
+  | American goldfinch | a ten-note twitter; *po-ta-to-chip*; also in flight | dawn ×2, morning ×2; after rain ×1.8 | 0.56 | 75 / 3.5 |
+  | Song sparrow | three notes and a buzzy trill; a *chimp* | dawn ×4; after rain ×2 | 0.72 | 80 / 4 |
+  | Red-winged blackbird | *conk-la-REE* with a rasping end; a *check* | dawn ×4, morning ×1.6 | 0.8 | 95 / 5 |
+  | Eastern phoebe | a raspy *fee-bee* | dawn ×3 | 0.64 | 70 / 4 |
+  | Belted kingfisher | a 1.15 s rattle; also in flight | morning ×1.3 | 0.32 | 100 / 8 |
+  | Louisiana waterthrush | ten falling whistles and a trill | dawn ×3; after rain ×2.5 | 0.56 | 100 / 6 |
+  | Eastern bluebird | a soft warble; *chur-lee* | dawn ×3; after rain ×2.5 | 0.4 | 55 / 3 |
+  | Spotted sandpiper | *peet-weet*; also in flight | morning ×1.5 | 0.48 | 60 / 3 |
+  | Red-tailed hawk | a falling scream, in flight only | **fair weather only**; morning ×1.3, none in rain | 0.18 | 120 / 12 |
+  | Barred owl | *who-cooks-for-you* (eight hoots); *hoo-hoo* | **dusk ×3**, night ×1; none in rain | 0.64 | 120 / 14 |
+  | Wild turkey | *yelps*; *clucks* | dawn ×2, morning ×1.5 | 0.24 | 70 / 4 |
+  | Great blue heron | *fraaank* (rare; 40 s apart at least) | dawn ×2, dusk ×1.5 | 0.048 | 90 / 8 |
+  | White-tailed deer | a snort, **alarm only** (80%, 25 s) | | 0 | 90 / 8 |
+  | Eastern gray squirrel | *kuk ×3*; *kuk-quaa* alarm (70%, 30 s) | dawn ×1, morning ×1.5 | 0.1 | 55 / 3 |
+  | Coyote | one long howl, then six yips | dusk ×1.5, night ×1.2, dawn ×0.6; none in rain | 0.1 | 120 / 20 |
+  | Groundhog | a sharp whistle, **alarm only** (60%, 40 s) | | 0 | 60 / 5 |
+  | Green frog (small life) | *gunk* | dusk ×1.2, night ×1; within 6 h of rain ×1.6 | 0.56 | 45 / 3 |
+  | Northern leopard frog | a 0.75 s snore | dawn ×1, night ×0.8; within 6 h of rain ×2 | 0.4 | 45 / 3 |
+  | Gray treefrog | a 0.75 s trill; **wet nights only** | dusk ×1.4, night ×1.4; rain ×0.8 | 1.2 | 55 / 3 |
+
+  **Silent on purpose:** red fox, cottontail, raccoon, opossum, black bear.
+* **Scheduling** (`VoiceDirector.Poll`, four times a second, `PollInterval` 0.25 s). Conditions come from `DayCycle`, `WeatherCycle`
+  and `NaturalConditions.WetNight`. `VoiceRules.Rate` = `perMinute` × the period multiplier × (rain, else after-rain boost) ×
+  `wet` (within 6 game hours of rain); 0 when `fairOnly` and not fair, or `needsWetNight` and not a wet night. The last
+  hour of the night (04:24 to 05:00) already counts as 35% of dawn (robins start in the dark). `Chance` is a Poisson process, so
+  the jitter is wide. An animal calls only while **Calm** (Aware too if `awareOk`, which no recipe sets), at rest or in flight
+  as the recipe allows. After a call it waits its length plus `minGap` × 0.7 to 1.5.
+* **Counter-singing.** After a call, same-species neighbours within 25 m (`InhibitRadius`) stay quiet for 3 to 6 s; the nearest one
+  within 40 m (`AnswerRadius`) answers with chance `answer`, 1 to 3 s after the call ends (a stale answer older than 3 s is
+  dropped, never played late). An answer does not start another. Frogs: a call invites up to two neighbours of its kind
+  within 20 m, 0.4 × the call plus 0.4 to 1.8 s later.
+* **The alarm** is the only player-linked sound: **only on the transition to Alert** (not back from Fleeing), with the species'
+  `alarmChance`, a per-animal cooldown (×0.8 to 1.3) and 3 s between alarms anywhere; 15% louder (`AlarmBoost` 1.15). An Alert or
+  Fleeing animal is otherwise silent. A deferred alarm (clip not rendered yet) keeps the transition pending, no dice thrown.
+* **Budget.** At most **6 animal voices** and **4 frog voices** at once (`MaxAnimalVoices`, `MaxFrogVoices`); the last two animal
+  places go to animals within half their range. Nothing beyond its `range` (or 125 m) is considered. Ten `AudioSource`s are pooled,
+  never one per animal. **Fast time** (the night, or T held, `VoiceConditions.accelerated`): animals at **0.2×** (`AcceleratedAnimals`),
+  frogs and the beds unchanged. A menu sets `timeScale` to 0, so the poll simply stops.
+* **Spatial.** 3D sources (`spatialBlend` 1, logarithmic rolloff, spread 30°, no Doppler) follow the animal, 0.3 m up; `minDistance` =
+  `near` (at least 0.5), `maxDistance` = `range`. A further smooth fade (`VoiceRules.Edge`) takes the last 30% of the range to
+  silence, so nothing cuts off. Each play has pitch ±3% and volume ±15%.
+* **The beds.** *Crickets*: seven insects at 4.3 to 4.9 kHz in short pulse trains, a 6 s seamless loop at 22.05 kHz, 2D, level
+  `cricketLevel` 0.16 × master; `CricketLevel` rises from 18:30 to full at 19:30, stays through the night, fades out from 04:30 to
+  05:30, is ×0.35 within 3 game hours of rain and 0 in rain. Eases at 0.25 per second. *Bee*: a one-second 190 Hz hum with
+  harmonics, 3D (0.3 to 3 m), plays at 0.07 × master and nearer is louder, for the nearest **visible** bee subject within 3 m;
+  never in rain. (`BedCover` is a hook that returns 1 today: the beds are **not** muffled under a roof yet.)
+* **Synthesis.** Every call is rendered once on demand, cached (`Clips`, about **4 MB** in all by the file's own estimate) and never
+  touched per frame. Low voices (crow, owl, turkey, heron, squirrel, coyote, the green frog and leopard frog) are 16 kHz, the rest
+  22.05 kHz. `Normalise` removes DC, scales the sounding parts to an **RMS of 0.14** unless the peak would pass 0.9, and fades the
+  ends over 6 ms, so loudness is only the recipe's `volume`. At most **one clip is rendered per frame** (a render is a 30 to
+  100 ms stall); a second request waits for a later poll.
+* **Warming.** From 3 s into play, every tenth frame (never in a frame that already rendered one), the cache is filled in order of
+  likely use: the species actually present (song, call, alarm), the frogs, then crickets and the bee. Without a spawner it waits
+  12 s, then warms what there is. By the first dawn everything is ready.
+* **Creation and settings.** The director is **created at runtime** when a scene with a `DayCycle` loads (so scenes built by older
+  versions work); one placed by hand wins. Fields: `wildlifeVoices` (true), `masterVolume` (0.8), `cricketLevel` (0.16).
+  PlayerPrefs: `WildLens.Voices` (int, written by `SetVoices(bool)`) and `WildLens.VoiceVolume` (float, read at start; **nothing writes
+  it yet**; no on-screen setting exists).
+* **Field notes.** `SpeciesDefaults.CreateAll` adds one voice sentence to each voiced species' notes, last (`AddVoice`, text from
+  `VoiceBank.Note`). It is registered like the 1.9 hints, so a migration can tell it from your own words.
+* **Data version 5** (`SpeciesDefinition.CurrentDataVersion`). `SpeciesAssetMigrator` upgrades an asset at version 3 or 4 with
+  `SpeciesDefaults.ApplyHabits` only (an asset below 3 gets the full `ApplyTuning`). Exactly: **habits** arrive only where the
+  asset has none enabled of its own; **notes** that are empty or equal the base default take the new default (with the voice
+  sentence), a hand-edited note keeps its text and gains each missing hint sentence; the **owl's and crow's rhythm** is replaced only
+  if still equal to its pre-1.9 default; **colours** (fox, turkey): the fox only if all three still equal the pre-1.9 default, the
+  turkey only if its primary is the 1.8 default or darker than luminance 0.2. **Voices are never copied onto assets.**
+* **Cost.** Nothing is drawn. CPU: a poll over the spawner's animals four times a second; one clip render at most per frame.
+
+### Shelter from rain (`Scripts/Environment/RainShelter.cs`)
+
+* **`RainShelter`** is an oriented box (`centre`, `size`, in the object's **local** space, so it follows its builder's group) with a
+  `feather` (metres outside its sides over which cover falls from 1 to 0; above the roof or below the floor it is 0). Instances
+  register in a static list (no scene searches). It changes no weather.
+* **The boxes** (all built by the builders, so a Rebuild adds them; `WildLensVersion.Environment` 22):
+
+  | Place | Boxes | Size (x × y × z) | Feather |
+  |---|---|---|---|
+  | Meadow Blind (`ReserveBuilder.BuildBlind`, W 4.2, D 3.2, H 2.35) | one, centre (0, H/2, 0.1) | 4.4 × 2.35 × 3.6 | 0.5 |
+  | Reserve Board (`PropBuilder.BuildKiosk`) | **three**, one under the eaves of each face, centre (0, 1.47, −0.225) in the face's frame | 3.2 × 2.94 × 1.35 each | 0.4 |
+  | Rock Shelter (`HiddenPlacesBuilder.BuildRockShelter`) | one in the crag's frame, from the numbers the crag was cut with | 4.8 × 2.6 × 2.7 (alcove 5.0 × 2.8, less 0.2 and 0.1) | 0.6 |
+* **The rain** (`WeatherCycle.UpdateRain`): while it rains and a shelter is within 22 m of the rain emitter, `RainShelter.KillRain`
+  copies the live particles through one preallocated buffer and sets `remainingLifetime` to 0 for each drop inside a box, so it
+  stops at the roof and still falls outside the opening. No allocation per frame; **zero cost with no shelters or no rain.**
+* **The sound.** `RainShelter.Tick` (called from `WeatherCycle`) samples the camera's cover five times a second and eases to it in
+  about half a second (`ListenerCover` 0..1, `ListenerPlace`). The rain sound's volume is × (1 − 0.3 × cover) and a low-pass filter
+  (added the first time you are under a roof) falls from 22 kHz to about 1.6 kHz as cover rises: drumming, not hissing.
+* **F3** (`CameraDiagnostics`): `shelter 0.00` in the open; `shelter 1.00 (Meadow Blind)` under cover; with no shelters in the scene
+  it adds "(no shelters in this scene: rebuild)".
+* **Not done:** rain still falls under tree canopy (no runtime canopy data); the cricket bed is not muffled by a roof.
+
+### What URP can draw, and the repair (`Editor/AnimalPrefabFactory.cs`)
+
+* **The probe** (`UrpDrawIssue`, shared by the factory, the repair and the audit, so the probe and the fix agree). A material is
+  undrawable when: it is null (an empty slot is magenta); its shader is null or the error shader; its name is a built-in pipeline
+  one (`BuiltinShaderIssue`: Standard, Legacy Shaders/, Mobile/, Nature/, Autodesk Interactive; built-in Unlit is "flat"); the shader
+  is not supported on this machine; it has compile errors (asked of every shader but URP's own, so a false report can never loop
+  URP Lit); or **none of its passes has a LightMode URP draws** (`UrpDrawsLightMode`: untagged, SRPDefaultUnlit, UniversalForward,
+  UniversalForwardOnly, UniversalGBuffer, LightweightForward; ForwardBase, ForwardAdd, Deferred and the like are drawn with the
+  error shader). **A shader's name does not tell you whether URP can draw it.**
+* **The target** (`UrpLitShader`): `Shader.Find("Universal Render Pipeline/Lit")` if usable; else the active pipeline asset's
+  own default shader, else its default material's shader (both read by reflection, as the members are obsolete in some Unity 6
+  versions); else Simple Lit; else none. The Console says where it came from when it was not the first.
+* **The conversion** (`ConvertMaterialsForPipeline`, URP only). For each undrawable slot, a converted **copy** (same carried
+  properties as before: texture, colour, normal map, emission, metallic, smoothness, alpha clip, transparency, two-sidedness). An
+  **empty slot** gets a plain opaque URP material in the species' primary colour, named `{prefix}_Fallback{rr}_{ss}_URP.mat`
+  (renderer, slot). Materials are written with `SaveInPlace`: an existing material at the path is overwritten **in place** (its GUID
+  survives, so saved prefabs keep their references); nothing is ever deleted.
+* **Verify after the tint.** The order in `AnimalPrefabFactory.Create`: convert, tint, then convert again with the prefix `{id}_Fix`
+  (the tint is the last step that touches materials), then `DescribeMaterials`. Conversion copies a tint made unused stay on disk
+  on purpose: an orphan material is harmless, deleting one is not.
+* **Repair of models already built** (`RepairBuiltPrefabs`, run by `WildlifePackSetup.AutoSetUp` after the models are set up):
+  for each species prefab in `Assets/WildLens/Animals` that has any undrawable slot, only those slots change; size, yaw, tint and
+  the model stay. One warning lists each repair.
+* **The Console probe.** Every model line ends `materials: N (shader ×count)` and, under URP, `STILL NOT DRAWABLE IN URP: …` for
+  anything left. The `[WildLens] Wildlife models refreshed for factory version 4 …` line now lists each species' full build message;
+  the upgrade lines carry it too.
+* **Tint rules** (`TintColour`). A tint **replaces** the material colour and multiplies its texture. For species not meant to be
+  black: the colour is lifted by `0.55 / (the texture's average brightness)` capped at ×1.5 when the texture is readable, else 25%
+  toward white; then kept at or above luminance **0.16**, hue kept. The crow, the red-winged blackbird and the black bear keep the old
+  rule (only a true black is lifted, to a dark floor). The turkey's colours: primary (0.44, 0.32, 0.20), secondary (0.56, 0.41, 0.25),
+  accent (0.70, 0.22, 0.17).
+* **Animation events.** `AnimalAnimatorBridge` and the factory set `Animator.fireEvents = false` on every animal, and
+  `MacroBuilder` on small-life animators (`Environment` 22), because pack clips carry events for scripts WildLens removes.
+* **`FactoryVersion` 4.** Every model built before is rebuilt on the next Rebuild.
+* **The audit** (`WildLens ▸ Asset Audit Report`, section "WildLens animals as built", near the top of both the short and long
+  versions): factory version and whether URP is active; one row per material slot of each species prefab WildLens built (up to
+  120 rows): renderer, slot, material file (or `MISSING` for a deleted material, `empty`), shader, **whether URP draws it**, main
+  texture, colour; then the converted small-life pack materials (up to 40). A summary line counts the slots URP cannot draw.
+  Elsewhere the audit now also flags, under URP, an empty slot and any shader with no pass URP draws.
+
+### Corrections to earlier notes
+
+* "Materials are converted **by shader name**" (1.8 and 1.9.0 notes below) is superseded: the name test is only the first step; the
+  structural test above decides.
+* "Copies the tint then replaces are **deleted again**" is superseded: nothing is deleted; materials are updated in place.
+* "Factory version 3" is superseded by 4; the 1.9 turkey colours ("darker bronze") were too dark and are replaced.
+* "Rain **falls through** the Rock Shelter's roof (and every roof)" is true no longer for the blind, the Reserve Board's eaves and the
+  Rock Shelter; it is still true under tree canopy and for anything else roofed.
+
 ## After the Rain (1.9.0)
 
 Four workstreams: natural wildlife events, small life without packs, the screen, and the reserve's geography. **None has
@@ -537,8 +718,8 @@ deer, turkey, coyote and hawk models were in use). It supersedes the 1.7.0 and 1
   `_NormalTex`, `_Normal`), emission, metallic (0 when the source has none), smoothness (`_Glossiness` or `_Smoothness`,
   else 0.1), alpha clip (shader name "Cutout", `_Mode` 1, or the keyword) and transparency (name "Transparent"/"Fade",
   `_Mode` 2 to 3), and two-sided drawing (cutout, "Double", "TwoSided" or "2Sided" shaders). The pack's own materials
-  are never edited. Copies the tint then replaces are deleted again (this species' own only). The Console line says how
-  many were converted. Small life uses the same function (below).
+  are never edited. (1.10: "which materials" is decided by the structural test in "What URP can draw" above, not the name alone;
+  copies are updated in place and never deleted.) The Console line says how many were converted. Small life uses the same function (below).
 * **Component stripping** (`StripPackComponents`, on an unpacked copy of the model, never the pack's asset). Removed:
   every MonoBehaviour that is not in a `WildLens` namespace (up to three passes, since one may require another; missing
   scripts too), then joints, colliders, rigid bodies, audio sources, and by type name NavMeshAgent, NavMeshObstacle,
@@ -1104,9 +1285,9 @@ Plan, asset list and instructions: `EnvironmentMigration.md`.
 
 ## Data migrations
 
-* Species assets: `dataVersion` 4 (1.9: weather habits). `SpeciesAssetMigrator` applies current gameplay tuning to the
+* Species assets: `dataVersion` 5 (1.10: the turkey's brighter colours and the voice sentence in the field notes, same `ApplyHabits` step; 4 was 1.9's weather habits). `SpeciesAssetMigrator` applies current gameplay tuning to the
   built-in species after script reload (**WildLens ▸ Upgrade Species Assets** to run manually); an asset already at 3 gets only
   the natural-events data (`SpeciesDefaults.ApplyHabits`).
 * Small-subject assets: `dataVersion` 2 (1.9: generated model, condition, second tier; `NaturalistSubject.UpgradeToV2`).
-* Generated small-life models: `SmallLifeModels.ModelVersion` 2. Animal prefabs: `AnimalPrefabFactory.FactoryVersion` 3.
+* Generated small-life models: `SmallLifeModels.ModelVersion` 2. Animal prefabs: `AnimalPrefabFactory.FactoryVersion` 4.
 * Journal save: version 3 (adds `identifiedBy`, `observedBehaviors`); version-1 scores were converted in 0.2.0.

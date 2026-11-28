@@ -23,7 +23,7 @@ practical side.
 ## Rules that keep the project healthy
 - **Every file outside `~` folders needs a `.meta`** with a unique GUID (Unity can't generate them inside an
   immutable package). Folders ending in `~` (`Art~`, `Documentation~`, `Tools~`) are ignored by Unity.
-- **Only CC0 art is committed** (`Art~/CREDITS.md`). Store assets stay in users' projects.
+- **Only free art that may be passed on is committed**: CC0, or a free licence such as CC-BY with the author credited (`Art~/CREDITS.md`; director's decision, 1.10). Store assets (free ones included) and "personal use" models stay in users' projects.
 - **Enums that are serialised are append-only** (`AnimalActivity`, `HotspotType`, `PlaceholderBody`, `RhythmPlace`...).
 - **Species assets and journal saves are versioned and migrated** (`SpeciesAssetMigrator`, `JournalData`): never
   break a user's tuned assets or journal.

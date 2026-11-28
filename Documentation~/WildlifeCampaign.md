@@ -8,10 +8,13 @@ to build).
 
 **Status, 1.9.** The 1.8 playtest was a success ("the reserve immediately feels more alive"): the pack pipeline works in Unity.
 Twenty-seven species now; sixteen of the older twenty-four have pack or shipped models, three new birds stand in on tinted Living
-Birds models, and **eight are still placeholder bodies**. The fox (a tinted dog) and the turkey (a tinted chicken) read as
-what they are; 1.9 re-tints them (factory version 3), and the **upgrade rule** swaps in a truer model by itself when one is
-imported. The build machine cannot reach any CC0 model host, so **the director fetches models** from the shopping list in
-section 3. Natural events (weather habits) are in [Systems.md](Systems.md) 1.9.0; small life no longer needs packs (section 4).
+Birds models, and **eight were placeholder bodies**. The fox (a tinted dog) and the turkey (a tinted chicken) read as
+what they are; 1.9 re-tinted them (factory version 3; 1.10 lightened the turkey, factory version 4), and the **upgrade rule** swaps in a truer model by itself when one is
+imported. At 1.9 the build machine could not reach any model host; since 1.10 (asset rule relaxed to "free and redistributable") its
+allowlist reached opengameart.org and quaternius.com, and the **model search finished within 1.10**: eight free animated models were
+added (red fox, cottontail, gray squirrel, a rat for the opossum, and a duck, turtle, snake and skunk for species still to come), none yet seen
+in Unity. **Five species are still placeholder bodies** (heron, raccoon, owl, groundhog, sandpiper) and the turkey is still a tinted chicken;
+no free, redistributable model was found (poly.pizza wants a browser check, kenney.nl refuses, Quaternius' downloads are on Google Drive). The shopping list in section 3 stands. Natural events (weather habits) are in [Systems.md](Systems.md) 1.9.0; small life no longer needs packs (section 4).
 
 **Art direction (director, 1.7):** recognisable wildlife → biodiversity → animation quality → environmental
 storytelling → realism. A good stylised animal beats a placeholder. The environment stays photographic.
@@ -70,12 +73,12 @@ automatic setup looks for (exact names; then stand-ins, closest first).
 | Species | Home | Model today | A pack model called… sets it up automatically |
 |---|---|---|---|
 | White-tailed deer | meadows, pond at dusk | **ithappy deer** (exact) | whitetail, deer, doe, stag, buck, fawn; else roe, elk, reindeer, caribou, moose, antelope, gazelle, impala |
-| Eastern cottontail | brush, meadow edge | **placeholder: no model in the packs** | cottontail, rabbit, bunny, hare |
-| Red fox | meadow edge, grove | **ithappy dog**, tinted (stand-in) | fox; else shiba, fennec, jackal, dog |
+| Eastern cottontail | brush, meadow edge | **OpenGameArt rabbit** (1.10, unseen; long ears) | cottontail, rabbit, bunny, hare |
+| Red fox | meadow edge, grove | **OpenGameArt red fox** (1.10, unseen; replaces the tinted dog) | fox; else shiba, fennec, jackal, dog |
 | Coyote | open grass, ridge | **shipped CC0 wolf** (stand-in) | coyote; else wolf, dingo, dhole, jackal, husky, shepherd, dog |
-| Eastern gray squirrel | mature trees, falls | **placeholder: no model in the packs** | squirrel, squirel; else chipmunk |
+| Eastern gray squirrel | mature trees, falls | **OpenGameArt squirrel** (1.10, unseen) | squirrel, squirel; else chipmunk |
 | Raccoon | creek, pond at dusk | **placeholder: no model in the packs** | raccoon, racoon; else badger, red panda, coati |
-| Virginia opossum | creek at night | **placeholder: no model in the packs** | opossum, possum; else rat, mouse |
+| Virginia opossum | creek at night | **OpenGameArt rat** (1.10, unseen; a stand-in) | opossum, possum; else rat, mouse |
 | Groundhog | meadow edge | **placeholder: no model in the packs** | groundhog, woodchuck, marmot; else beaver, gopher, prairie dog, capybara, hamster, guinea pig |
 | Wild turkey | blind meadow | **ithappy chicken**, tinted (stand-in) | turkey; else pheasant, grouse, partridge, quail, guinea fowl, chicken, rooster, hen, peacock |
 | Red-tailed hawk | ridge | **shipped CC0 eagle** (stand-in) | hawk, buteo; else eagle, falcon, buzzard, harrier, osprey, kite, vulture, raptor |
@@ -97,8 +100,9 @@ automatic setup looks for (exact names; then stand-ins, closest first).
 | **Tufted titmouse** (1.9) | the Rock Shelter's woods | **Living Birds chickadee**, tinted (stand-in) | titmouse; else chickadee, tit, sparrow, songbird, bird |
 | **Louisiana waterthrush** (1.9) | Hemlock Run | **Living Birds sparrow**, tinted (stand-in) | waterthrush, thrush; else sparrow, wren, songbird, bird |
 
-Nineteen species have a model (sixteen pack or shipped, three tinted stand-ins from Living Birds added in 1.9); **eight are
-still placeholder bodies**. The fox and the turkey are the two most worth a truer model. **Weather habits** (1.9) are
+Twenty-two species have a model (sixteen pack or shipped, three tinted stand-ins from Living Birds added in 1.9, and since 1.10 the
+cottontail, the squirrel and a rat for the opossum; the fox's model became a real fox); **five are
+still placeholder bodies** (heron, raccoon, owl, groundhog, sandpiper). The turkey is the one most worth a truer model. **Weather habits** (1.9) are
 on every one that has them, whatever its model (table in [Systems.md](Systems.md) 1.9.0); the table's last column is unchanged. Words of four letters or fewer ("fox", "owl", "jay",
 "tit") must be a whole word in the model's name, so "Foxglove" is not a fox; longer ones may sit inside a word.
 **Reserved:** woodpecker, hummingbird, duck, mallard, goose and swan are held for future species, so a model with one of
@@ -109,13 +113,13 @@ ranking rules are in [Systems.md](Systems.md) (1.7.0 and 1.8.0).
 
 ### Existing: all eighteen kept (and nine more since)
 Every one has a place and hours. None should be cut. Their bodies change; their ecology does not. With models today:
-deer, red fox (dog, tinted), coyote (wolf), turkey (chicken), hawk (eagle), cardinal, blue jay, blackbird, kingfisher and
-phoebe (the last three the tinted sparrow). Without: the eight below.
+deer, red fox (a real fox since 1.10), coyote (wolf), turkey (chicken), hawk (eagle), cardinal, blue jay, blackbird, kingfisher and
+phoebe (the last three the tinted sparrow). Without: the five below.
 
 ### Replacement
 **Done:** every species a pack could fill (the sixteen above, with the six new ones).
-**Still needed, with no model in the packs:** eastern cottontail, eastern gray squirrel, great blue heron, raccoon, barred
-owl, groundhog, Virginia opossum, spotted sandpiper. Their placeholder bodies stay until a model turns up. Rules for
+**Still needed:** great blue heron, raccoon, barred owl, groundhog, spotted sandpiper (placeholder bodies until a model turns up),
+a turkey, and a truer opossum. (1.10 added the fox, cottontail and squirrel from OpenGameArt, and a rat standing in for the opossum.) Rules for
 choosing when a new audit shows several candidates:
 - The real animal beats a stand-in; among stand-ins, the closer silhouette wins (wolf over dog, egret over flamingo).
 - Then the one with more recognised clips. **An animated stylised model beats a realistic statue.**
@@ -161,18 +165,18 @@ still serve as *stand-ins* when the outline fits (a dog tinted as a fox, a husky
 2. **Fix sizes and facing from the screenshots.** Size and yaw are one field each in **Wildlife Pack Setup**; a wrong
    model choice is a pick in the same row. Check walk, graze, alert and fly all animate and loop.
 3. **Run the Asset Audit again and paste it.**
-4. **Find free models, the fox and the turkey first, then the eight placeholders** (cottontail, squirrel, heron, raccoon, owl,
-   groundhog, opossum, sandpiper), most photographed first. **The build machine cannot open any of the sites below** (1.9:
-   quaternius.com, poly.pizza, opengameart.org, itch.io and kenney.nl are all blocked from it), so this is the director's
+4. **Find free models, the turkey first, then the five placeholders** (heron, raccoon, owl, groundhog, sandpiper), most photographed first.
+   **The 1.10 search is finished**: opengameart.org and quaternius.com were reachable (and gave the fox, cottontail, squirrel and more), but
+   poly.pizza asks for a browser check, kenney.nl refuses and Quaternius' downloads are on Google Drive, so the rest is the director's
    job. The upgrade rule means an imported `Fox.fbx` or `Turkey.fbx` takes over from the dog and the chicken on the next
    Rebuild; a model chosen by hand in a setup window is never replaced.
-   **Shopping list** (from search snippets only; **check each page for "CC0" before use**): a fox with idle, walk and run on
+   **Shopping list** (from search snippets only; **check each page's licence before use: CC0 or CC-BY (with credit) may be committed, anything free may be imported locally**): a fox with idle, walk and run on
    OpenGameArt, `https://opengameart.org/node/90146`; Quaternius packs at `https://quaternius.com` and
    `https://quaternius.itch.io` (their farm-animal pack has cow, horse, llama, pig and pug, **no fox**). **Not usable:** the
-   glTF sample "Fox" (its rig and animation are CC-BY) and Sketchfab personal-use foxes. Steps: download, unzip, drag the
+   glTF sample "Fox" (its rig and animation are CC-BY: committable only with credit since 1.10) and Sketchfab personal-use foxes (never). Steps: download, unzip, drag the
    `.fbx` into the project's `Assets` with a plain name (`Fox.fbx`, `Turkey.fbx`, `Rabbit.fbx`, `Owl.fbx`...). Good places to look, **checking each listing for its licence and contents
    before importing** (do not assume what a pack holds): the Quaternius CC0 animal packs (itch.io and quaternius.com), the
-   Asset Store's free animal packs, and Poly Pizza filtered to CC0. Fox, rabbit and squirrel are the likeliest to turn up
+   Asset Store's free animal packs (local import only), and Poly Pizza filtered to CC0 or CC-BY. Fox, rabbit and squirrel are the likeliest to turn up
    in a stylised forest-animals pack. Import, let the automatic setup run, and read the Console.
 5. **Small life models** (section 4): the packs gave mushrooms only. Look for butterflies, bees, dragonflies, frogs and
    snails the same way.

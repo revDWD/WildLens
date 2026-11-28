@@ -54,7 +54,11 @@ Scripts/
                  RideableSurface (bridge decks the bike rides), AmbientSound (procedural wind/brook),
                  DayCycle (clock, sun, sky, fog, grading), MistPatch (dawn mist), ScheduleAnchor (water/woodland/ridge),
                  WeatherCycle (four-day forecast, cloud cover, rain, overcast sky), WaterFlow (moving ripples),
-                 Waterfall (spray, roar, spate after rain), ReserveDiscovery (hidden place), ReflectionRefresh
+                 Waterfall (spray, roar, spate after rain), ReserveDiscovery (hidden place), ReflectionRefresh,
+                 RainShelter (1.10: covered boxes at the blind, the Reserve Board and the Rock Shelter; the rain asks them)
+  Audio/         (1.10, the voices; the first four are pure C#, no UnityEngine) VoiceRecipe (data: notes, calls, when and how far),
+                 VoiceSynth (notes to PCM, crickets, bee buzz), VoiceRules (scheduling as pure functions), VoiceBank (one recipe per
+                 species: the tuning point), VoiceDirector (the one runtime manager: polls, rolls, plays, caches)
   Journal/       JournalService, JournalData (save + migration)
   UI/            HudController (owns views), ViewfinderView, PhotoPreviewView (prints, keeper), ShutterEffectView,
                  NoticeView (1.9: quiet notices, the hidden-place name), PromptView (1.9: context prompts), ControlsCardView (1.9:
@@ -79,7 +83,7 @@ Editor/
   GeographyBuilder and HiddenPlacesBuilder (1.9: VegetationBuilder partials: the late geography step, Hemlock Ravine and
   four hidden places), SmallLifeShapes (1.9: the recipes of the generated small-life models, plain C#), SmallLifeGeometry
   (their geometry, no UnityEngine), SmallLifeModels (1.9: turns them into meshes, materials and prefabs; ModelVersion)
-Art~/            CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
+Art~/            free, redistributable art: CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
 Documentation~/  Systems.md (systems and tuning), VisualRoadmap.md (assets, licensing, weaknesses),
                  ReserveExpansion.md (reserve design and next steps), WildlifeExpansion.md (species framework & roadmap),
                  EnvironmentMigration.md (environment audit, free assets, migration plan, before/after),
@@ -121,6 +125,17 @@ Key flows:
   re-places animals when rain starts or stops; HUD field notes and board conditions on `Changed`.
 - **Macro (1.5):** M → `ZoomLens.MacroMode` (24° FOV) → `FocusController` focuses on `MacroAnalyzer.Centred` (≥ 8 cm) →
   shutter → `MacroAnalyzer.Analyze` grades frame fill, focus, centring → `JournalService.RecordNotebook` → HUD note.
+- **Voices (1.10):** `VoiceDirector` (created at runtime when a scene has a `DayCycle`) polls four times a second over
+  `WildlifeSpawner.Spawned` and the visible frogs in `MacroSubject.Active` → `VoiceRules.Rate` from `DayCycle`, `WeatherCycle` and
+  `NaturalConditions.WetNight` → a species' recipe is its asset's `voice` if ticked Enabled, else `VoiceBank.For(speciesId)` →
+  `VoiceSynth` renders the call once (one per frame at most, cached) → a pooled 3D `AudioSource` follows the animal. An alarm plays
+  only on the transition to Alert. Crickets (2D) and the bee follow `VoiceRules.CricketLevel` and the nearest visible bee.
+- **Rain shelter (1.10):** builders add `RainShelter` boxes (blind, Reserve Board eaves, Rock Shelter) → `WeatherCycle.UpdateRain`
+  calls `RainShelter.Tick` (the listener's cover) and `RainShelter.KillRain` (drops inside a box are removed) → the rain sound is
+  quieter and low-passed under cover → F3 shows `shelter`.
+- **Model materials (1.10):** `AnimalPrefabFactory.Create` → convert (every slot `UrpDrawIssue` rejects) → tint → verify and convert
+  again → `DescribeMaterials` line to the Console; `WildlifePackSetup.AutoSetUp` then runs `RepairBuiltPrefabs`; the Asset Audit's
+  "WildLens animals as built" section reads the same test.
 - **Riding:** `TrailBike` disables the walking controller and parents the player to the seat; it reports presence
   (with `EngineNoise`) and blocks camera raise while moving; parking puts the player back on foot beside it.
 

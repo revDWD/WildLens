@@ -7,8 +7,8 @@ namespace WildLens.Core
     /// </summary>
     public static class WildLensVersion
     {
-        public const string Package = "1.9.0";
-        public const string ReleaseName = "After the Rain";
+        public const string Package = "1.10.0";
+        public const string ReleaseName = "Voices";
         public const string ReleaseDate = "November 2026";
 
         /// <summary>7: reserve destinations and tracks, trailhead kiosk, trail bike, open conifer tiers (0.7.0).
@@ -34,8 +34,10 @@ namespace WildLens.Core
         /// brush, the Creek Alcove and the deep woods (crow, robin, chickadee, goldfinch, song sparrow, black bear) (1.8).
         /// 21: Hemlock Ravine with Hemlock Run and its cascade, four more hidden places (Cascade Overlook, Hidden Pond, Rock Shelter,
         /// Old Cabin Ruins), residents for them (bluebird, titmouse, waterthrush), generated small life with its emergence rules,
-        /// trunk and rock habitats, one insect per flower (1.9).</summary>
-        public const int Environment = 21;
+        /// trunk and rock habitats, one insect per flower (1.9).
+        /// 22: rain shelters (RainShelter volumes at the Meadow Blind, the Reserve Board's eaves and the Rock Shelter) and small-life
+        /// animators that ignore pack animation events (1.10).</summary>
+        public const int Environment = 22;
 
         /// <summary>What a visitor can do. Shown on the trailhead board.</summary>
         public static readonly string[] Features =
@@ -51,11 +53,13 @@ namespace WildLens.Core
             "Reserve Road, bike & pull-offs",
             "Observation blind",
             "Trail signs & nature sounds",
+            "Bird song, frogs & crickets",
         };
 
         /// <summary>Newest first; the board shows the first few.</summary>
         public static readonly string[] RecentChanges =
         {
+            "1.10  Voices: bird song, frogs and crickets; shelter from rain; magenta birds repaired",
             "1.9  After the rain: wildlife that reads the weather, a ravine and its cascade, small life without packs",
             "1.8  New neighbours: six new species, true animal sizes, pack models that render right",
             "1.7  Small life from your packs for the macro lens; an audit of what you imported",

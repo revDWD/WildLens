@@ -76,10 +76,10 @@ search snippets only:
 - **A fox with idle, walk and run** on OpenGameArt: `https://opengameart.org/node/90146`.
 - **Quaternius** packs: `https://quaternius.com` and `https://quaternius.itch.io`. Their farm-animal pack has a cow, horse, llama, pig
   and pug: **no fox**.
-- **Not usable:** the glTF sample "Fox" (its rig and animation are CC-BY), and Sketchfab "personal use" foxes.
+- **Check the licence first:** the glTF sample "Fox" (its rig and animation are CC-BY) may be committed only with the author credited; Sketchfab "personal use" foxes are not usable.
 - Steps: download, unzip, drag the `.fbx` into the project's `Assets` with a **plain name** (`Fox.fbx`, `Turkey.fbx`, `Rabbit.fbx`,
-  `Owl.fbx`, `Raccoon.fbx`...). The fox and turkey first, then the eight placeholders (cottontail, squirrel, heron, raccoon, owl,
-  groundhog, opossum, sandpiper). Never commit them.
+  `Owl.fbx`, `Raccoon.fbx`...). The turkey first, then the five placeholders (heron, raccoon, owl,
+  groundhog, sandpiper), and a truer opossum (1.10 brought the fox, cottontail and squirrel). Never commit them.
 - **A pack with scripts can block every update.** The Living Birds pack's `scripts` and `demo` folders do not compile on
   Unity 6 and stop **all** package updates until deleted; WildLens needs only the models and clips. If a pasted audit shows an
   older WildLens version than the one released, ask for the Console's red lines first.
@@ -166,9 +166,8 @@ Research was done from search results (most store and CC0 hosts can't be opened 
 
 Paid, if a gap remains after the free route: **BundleSmith Animated Forest Animals** (~$13–33: deer, fox, rabbit,
 squirrel, raccoon, wolf, with clips that match WildLens's states exactly ([itch.io](https://bundlesmith.itch.io/animated-forest-animals-pack-low-poly-stylized-models)));
-**Low Poly Bird: Predator Pack** (eagles, barn owl, falcon) for the hawk and owl. Not usable: CC-BY rigs (Khronos
-Fox), "personal use" Sketchfab models, free-plan AI generator output (CC-BY), Unreal-only packs, re-uploads of paid
-packs.
+**Low Poly Bird: Predator Pack** (eagles, barn owl, falcon) for the hawk and owl. Not usable: "personal use" Sketchfab models, Unreal-only packs, re-uploads of paid
+packs (CC-BY rigs such as the Khronos Fox and free-plan AI generator output are usable only with credit, since 1.10).
 
 ## Suggested order
 
@@ -182,8 +181,14 @@ wolf and eagle. What is left, most photographed first:
 After each step, playtest: photograph the animal at 4× and 16× at dawn and golden hour, and send screenshots. Note
 any that are the wrong size (fix with the row's size field) or face backwards (yaw 180).
 
-## Licence rules (unchanged)
+## Licence rules (relaxed in 1.10)
 
-Only CC0 is committed to the repository. Store packs, free ones included, are imported into your own project and never
-committed; Wildlife Pack Setup and Animal Model Setup use them from there and write prefabs to your own
+Since 1.10 (director: "assets no longer need to be CC0, just free") the repository may hold any free model that **may be passed
+on**: CC0, or an attribution licence such as CC-BY with the author credited in `Art~/CREDITS.md`. Store packs (free ones included)
+and "personal use" models can never be committed, because their licences forbid passing the files on; you may import anything
+free into your own project. **The model search finished within 1.10**: eight free animated models from OpenGameArt (a fox, rabbit, squirrel, rat, duck, turtle,
+snake and skunk; all CC0 but the skunk, CC BY 4.0, credited in `Art~/CREDITS.md`) are committed in `Art~/Animals` and swap in on the next Rebuild
+by the upgrade rule, unseen in Unity. Nothing free that may be passed on was found for a turkey, raccoon, owl, heron, groundhog or sandpiper
+(poly.pizza wants a browser check, kenney.nl refuses, Quaternius' downloads are on Google Drive): that is a browser job for the director.
+Wildlife Pack Setup and the factory use whatever you import; Wildlife Pack Setup and Animal Model Setup use them from there and write prefabs to your own
 `Assets/WildLens/Animals`.
