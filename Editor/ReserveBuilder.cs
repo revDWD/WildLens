@@ -818,8 +818,9 @@ namespace WildLens.EditorTools
                 Vector3 c = s.centre + dir * r;
                 if (Vector3.Dot(dir, -f) > 0.9f) continue;
                 float size = R(0.18f, 0.32f);
-                MeshPart("Lily Pad", group, discMesh, pad, new Vector3(c.x, level + 0.012f, c.z), new Vector3(size, 1f, size), Quaternion.Euler(0f, R(0f, 360f), 0f));
-                if (R() < 0.15f) MeshPart("Lily Flower", group, PrimitiveMeshes.Get(PrimitiveType.Sphere), flower, new Vector3(c.x, level + 0.05f, c.z), new Vector3(0.09f, 0.05f, 0.09f), Quaternion.identity);
+                // 1.9: MeshPart takes a LOCAL position and the group sits at the pond centre; these were world coordinates (pads drawn far away).
+                MeshPart("Lily Pad", group, discMesh, pad, group.InverseTransformPoint(new Vector3(c.x, level + 0.012f, c.z)), new Vector3(size, 1f, size), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                if (R() < 0.15f) MeshPart("Lily Flower", group, PrimitiveMeshes.Get(PrimitiveType.Sphere), flower, group.InverseTransformPoint(new Vector3(c.x, level + 0.05f, c.z)), new Vector3(0.09f, 0.05f, 0.09f), Quaternion.identity);
             }
 
             // Jetty from the loop-side shore out over the water.

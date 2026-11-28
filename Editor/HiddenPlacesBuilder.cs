@@ -12,7 +12,7 @@ namespace WildLens.EditorTools
     /// Each is chosen from the land for a reason a photographer would come, and skipped cleanly where the land has no site.
     ///   Cascade Overlook  a ledge on the ravine's rim above the cascade, with a line of sight to it; a log seat, no rail.
     ///   Hidden Pond       a small still pond in a wooded hollow ≥ 45 m from every path: reeds, a half-sunk log, water for
-    ///                     herons, blackbirds, raccoons and deer at dusk (and the small life another builder puts at water).
+    ///                     a heron, blackbirds and raccoons, a water stop at dusk (and the small life another builder puts at water).
     ///   Rock Shelter      an overhanging crag set into an upland hillside, its alcove dry underfoot (≥ 2.2 m clear), a
     ///                     long-cold fire ring, a view out.
     ///   Old Cabin Ruins   a stone foundation and chimney stub in a small clearing taken back by ferns and young trees, rotted
@@ -227,7 +227,8 @@ namespace WildLens.EditorTools
                 Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
                 Vector3 c = s.centre + dir * HiddenPondRadius(s, s.centre + dir * s.radius) * R(0.4f, 0.8f);
                 float size = R(0.16f, 0.3f);
-                MeshPart("Lily Pad", group, disc, pad, new Vector3(c.x, level + 0.012f, c.z), new Vector3(size, 1f, size), Quaternion.Euler(0f, R(0f, 360f), 0f));
+                // MeshPart places in the group's space; the group stands at the pond's centre.
+                MeshPart("Lily Pad", group, disc, pad, group.InverseTransformPoint(new Vector3(c.x, level + 0.012f, c.z)), new Vector3(size, 1f, size), Quaternion.Euler(0f, R(0f, 360f), 0f));
             }
 
             // A half-sunk log reaching in from the bank: a perch for turtles one day, a heron's stand now.
@@ -247,15 +248,35 @@ namespace WildLens.EditorTools
             log.transform.rotation = Quaternion.LookRotation(Vector3.Cross(Vector3.up, ldir)) * Quaternion.Euler(0f, 90f, 7f);
             Mist(group, new Vector3(s.centre.x, level + 0.5f, s.centre.z), new Vector3(maxR * 2f + 4f, 1.2f, maxR * 2f + 4f), 0.9f);
 
-            // Wildlife: the shallows (a hotspot centred on the pond, its ring on the banks), water at dusk, the residents.
-            AddHotspot(group, "Hidden Pond Shallows", HotspotType.Water, s.centre, s.radius * 2f);
+            // Wildlife, as at Cattail Pond: two shallows hotspots on the shore (just outside the waterline, on the two gentlest
+            // banks), water at dusk on the far bank, and the residents' home on dry ground by the first shallows (the spawner
+            // samples a residence's whole disc). The banks are found without the random stream (nothing after them moves).
+            Vector3 gentle1 = Vector3.right, gentle2 = Vector3.left;
+            float g1 = float.MaxValue, g2 = float.MaxValue;
+            for (int i = 0; i < 24; i++)
+            {
+                float a = i / 24f * Mathf.PI * 2f;
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                float sl = TerrainUtil.SlopeDegrees(s.centre + dir * (HiddenPondRadius(s, s.centre + dir * s.radius) + 2f));
+                if (sl < g1) { g1 = sl; gentle1 = dir; }
+            }
+            for (int i = 0; i < 24; i++)
+            {
+                float a = i / 24f * Mathf.PI * 2f;
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                if (Vector3.Dot(dir, gentle1) > -0.05f) continue; // the other side of the pond (more than a right angle round)
+                float sl = TerrainUtil.SlopeDegrees(s.centre + dir * (HiddenPondRadius(s, s.centre + dir * s.radius) + 2f));
+                if (sl < g2) { g2 = sl; gentle2 = dir; }
+            }
+            Vector3 Shore(Vector3 dir, float beyond) => TerrainUtil.Ground(s.centre + dir * (HiddenPondRadius(s, s.centre + dir * s.radius) + beyond));
+            AddHotspot(group, "Hidden Pond Shallows", HotspotType.Water, Shore(gentle1, 1.2f), 7f);
+            AddHotspot(group, "Hidden Pond Shallows", HotspotType.Water, Shore(gentle2, 1.2f), 7f);
             Vector3 far = TerrainUtil.Ground(s.centre - ldir * (HiddenPondRadius(s, s.centre - ldir * s.radius) + 4f));
             Anchor(group, ScheduleRole.Water, far, 12f);
-            Residence(group, "Hidden pond", TerrainUtil.Ground(s.centre + Vector3.Cross(Vector3.up, ldir) * (s.radius + 3f)), 10f,
-                "great_blue_heron", "red_winged_blackbird", "raccoon");
+            Residence(group, "Hidden pond", Shore(gentle1, 7f), 5f, "great_blue_heron", "red_winged_blackbird", "raccoon");
             Vector3 bank = TerrainUtil.Ground(s.centre + ldir * (maxR + 4f));
             AddViewpoint(group, "Hidden Pond", bank + Vector3.up * 1.4f, new Vector3(s.centre.x, level + 0.5f, s.centre.z) - ldir * s.radius * 0.5f);
-            Discovery(hidden, s.centre, "Hidden Pond", "Still water in a hollow of the woods, far from any path. Herons know it; so do the deer at dusk.", s.radius + 8f);
+            Discovery(hidden, s.centre, "Hidden Pond", "Still water in a hollow of the woods, far from any path. A heron fishes it; blackbirds call from the reeds.", s.radius + 8f);
         }
 
         // ================================================================== Rock Shelter
@@ -350,9 +371,10 @@ namespace WildLens.EditorTools
                 float sgn = i == 0 ? -1f : 1f;
                 Vector3 q = TerrainUtil.Ground(p + r * sgn * R(6.6f, 8.2f) - f * R(1f, 3f));
                 if (InKeepOut(q) || PathDistance(q) < 6f || WaterDistance(q) < 5f) continue;
-                var face = InstantiatePrefab(_artOutcrops[_rng.Next(_artOutcrops.Count)], group, q, R(0.45f, 0.65f));
+                var prefab = _artOutcrops[_rng.Next(_artOutcrops.Count)];
+                var face = InstantiatePrefab(prefab, group, q, R(0.45f, 0.65f));
                 var ef = face.GetComponent<EnvironmentFeature>();
-                float k = face.transform.localScale.x / Mathf.Max(0.0001f, _artOutcrops[0].transform.localScale.x);
+                float k = face.transform.localScale.x / Mathf.Max(0.0001f, prefab.transform.localScale.x); // the scale it was given
                 float hh = ef != null ? ef.height * k : 2.5f;
                 face.transform.position = q - Vector3.up * hh * R(0.2f, 0.28f);
                 face.transform.rotation = Quaternion.LookRotation(f) * Quaternion.Euler(0f, R(-20f, 20f), 0f);
@@ -394,6 +416,8 @@ namespace WildLens.EditorTools
             AddViewpoint(group, "Rock Shelter", p - f * 1.6f + Vector3.up * 1.6f, TerrainUtil.Ground(p + f * 60f) + Vector3.up * 2f);
             Discovery(hidden, p - f * 1.0f, "Rock Shelter", "An overhang in the rock, dry underfoot. Someone sheltered here long ago; the view hasn't changed.", 7f);
             Residence(hidden, "Rock shelter woods", TerrainUtil.Ground(p + f * 14f), 12f, "tufted_titmouse", "eastern_gray_squirrel");
+            // The titmouse keeps to the woods all day (its rhythm sends it to the nearest woodland cover): this is that cover.
+            Anchor(hidden, ScheduleRole.Woodland, TerrainUtil.Ground(p + f * 14f), 12f);
         }
 
         // ================================================================== Old Cabin Ruins
@@ -570,6 +594,10 @@ namespace WildLens.EditorTools
             PropBuilder.Box("Rail", rail, new Vector3(0f, 0.05f, 0f), new Vector3(0.12f, 0.1f, 2.6f), weathered);
 
             AddHotspot(group, "Fence Perch", HotspotType.Perch, fenceMid, 4f);
+            // The clearing itself, a little meadow: by day the bluebird's rhythm sends it to the nearest meadow (its edge nearest the
+            // fence is a metre or two from the posts, its middle ~6 m), and the cottontails come out to it at dawn and dusk. Small,
+            // so it is a clearing, not a pasture: a deer wandering by may graze it.
+            AddHotspot(group, "Cabin Clearing Meadow", HotspotType.Meadow, TerrainUtil.Ground(c), 6f);
             Residence(hidden, "Cabin fence", TerrainUtil.Ground(fenceMid), 6f, "eastern_bluebird");
             Residence(hidden, "Cabin clearing", TerrainUtil.Ground(c - across * 5f), 10f, "eastern_cottontail", "groundhog");
             AddViewpoint(group, "Old Cabin Ruins", TerrainUtil.Ground(c - across * 7.5f - along * 3f) + Vector3.up * 1.6f, c + Vector3.up * 0.8f);

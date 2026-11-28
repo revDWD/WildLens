@@ -39,6 +39,8 @@ namespace WildLens.EditorTools
         private const float BankSample = 20f;     // banks read outside the carve, so a rebuild never digs deeper
         private const float RimExtend = 8f;
         private const float DrainCell = 5f;
+        private const float RunRibbonHalf = 2.3f; // the water ribbon's half-width, as Willow Creek's: its edges lie under the banks (wetted ≈ 1.8 m)
+        private const float NarrowReach = 6.5f;   // carve reach at the mouth and footpath crossings (for clearance checks)
 
         private bool _trackMeshes = true;
         private readonly List<Vector3> _run = new List<Vector3>();
@@ -50,7 +52,7 @@ namespace WildLens.EditorTools
         private int _ravineViewIndex = -1;
         private Vector3 _ravineView;
         private readonly List<(Vector3 p, float r)> _newHidden = new List<(Vector3, float)>();
-        private int _settledMoved, _settledRemoved;
+        private int _settledMoved, _settledRemoved, _settledNudged;
         private float _ravineDepth;
 
         private class RunCascade
@@ -136,7 +138,7 @@ namespace WildLens.EditorTools
             string ravineText = ravine
                 ? $"Hemlock Ravine {RunLength():0} m (cascade {(_cascade != null ? _cascade.height : 0f):0.0} m in {(_cascade != null ? _cascade.lips.Length : 0)} drops, up to {_ravineDepth:0.0} m deep, footpath {(_ravinePath != null ? _ravinePath.Length : 0f):0} m{(_runCrossings.Count > 0 ? $", {_runCrossings.Count} footbridge(s) over the run" : "")})"
                 : "no ravine";
-            Debug.Log($"[WildLens] Reserve: {ravineText}, hidden places {DiscoveriesPlaced} of 7; settled {_settledMoved} objects onto the new ground, removed {_settledRemoved}." +
+            Debug.Log($"[WildLens] Reserve: {ravineText}, hidden places {DiscoveriesPlaced} of 7; settled {_settledMoved} objects onto the new ground, removed {_settledRemoved}, moved {_settledNudged} wildlife markers out of the water or rock." +
                       (notes.Count > 0 ? " Notes: " + string.Join("; ", notes) + "." : ""));
         }
 
@@ -440,14 +442,15 @@ namespace WildLens.EditorTools
             if (n < 40) { why = "too short"; return null; }
             for (int i = 0; i < n; i++) run[i] = TerrainUtil.Ground(run[i]);
 
-            // Banks 20 m out (outside the carve), the ground under the line, distance to the mouth.
-            var bankL = new float[n]; var bankR = new float[n]; var low = new float[n]; var toMouth = new float[n];
+            // Banks 20 m out (outside the carve), the ground under the line and at the ribbon's edges, distance to the mouth.
+            var bankL = new float[n]; var bankR = new float[n]; var low = new float[n]; var toMouth = new float[n]; var wet = new float[n];
             for (int i = 0; i < n; i++)
             {
                 Vector3 side = Side(run, i, out _);
                 bankR[i] = TerrainUtil.SampleHeight(run[i] + side * BankSample);
                 bankL[i] = TerrainUtil.SampleHeight(run[i] - side * BankSample);
                 low[i] = Mathf.Min(Mathf.Min(bankL[i], bankR[i]), run[i].y + 1.5f);
+                wet[i] = Mathf.Min(TerrainUtil.SampleHeight(run[i] + side * RunRibbonHalf), TerrainUtil.SampleHeight(run[i] - side * RunRibbonHalf));
             }
             for (int i = n - 2; i >= 0; i--) toMouth[i] = toMouth[i + 1] + TerrainUtil.FlatDistance(run[i], run[i + 1]);
             float mouthBed = _creekBed[mouth] + 0.05f;
@@ -490,6 +493,12 @@ namespace WildLens.EditorTools
                 float run2 = mouthBed + bestG * toMouth[i];
                 bed[i] = i < bestK ? up[i] : Mathf.Min(run2, up[i]);
                 bed[i] = Mathf.Min(bed[i], low[i] - 1.4f); // always a channel
+                // ...and 0.3 m below the ground at both edges of the water ribbon, so the water (0.22 m deep) lies below the ground
+                // on both sides, never on top of it (in a natural gully the line above alone left it floating). The carve then
+                // brings the line itself down to the bed, so it is always wet. Measured at the ribbon's edges, not on the line: on
+                // carved ground those are the bed plus the bank's rise, so a rebuild on a terrain that is not regenerated (not
+                // WildLens's own) gives the same bed instead of cutting 0.3 m deeper each time.
+                bed[i] = Mathf.Min(bed[i], wet[i] - 0.3f);
                 if (i > 0) bed[i] = Mathf.Min(bed[i], bed[i - 1]);
                 bed[i] = Mathf.Max(bed[i], mouthBed);
             }
@@ -497,7 +506,21 @@ namespace WildLens.EditorTools
             for (int i = 0; i < n; i++) rise[i] = 0.45f;
             var water = new float[n];
             for (int i = 0; i < n; i++) water[i] = bed[i] + 0.22f;
-            var cascade = PlanRunCascade(bed, water, rise, bestK, up[bestK] - (mouthBed + bestG * toMouth[bestK]));
+            var runLine = new float[n];
+            for (int i = 0; i < n; i++) runLine[i] = mouthBed + bestG * toMouth[i];
+            var cascade = PlanRunCascade(bed, water, rise, bestK, up[bestK] - runLine[bestK], runLine);
+            // Below the pool the water never stands higher than the pool (its outflow is the pool's own lip): one level, no step.
+            if (cascade != null)
+                for (int i = cascade.pool[cascade.pool.Length - 1] + 1; i < n; i++)
+                    water[i] = Mathf.Min(water[i], Mathf.Max(cascade.poolWater, bed[i] + 0.15f));
+            // The mouth: the last samples run just under Willow Creek's surface (its water covers the join), and the bed follows them
+            // down so they are never dry (≥ 0.15 m deep). Only a cut, inside the run's own notch, never below the creek's bed.
+            float joinWater = _creekWater[mouth] - 0.04f;
+            for (int i = Mathf.Max(0, n - 4); i < n; i++)
+            {
+                water[i] = Mathf.Min(water[i], joinWater);
+                bed[i] = Mathf.Min(bed[i], Mathf.Max(water[i] - 0.15f, mouthBed));
+            }
 
             var cand = new RavineCandidate { run = run, bed = bed, water = water, bankL = bankL, bankR = bankR, rise = rise, mouth = mouth, cascade = cascade };
             cand.crossings = FindRunCrossings(run);
@@ -517,19 +540,23 @@ namespace WildLens.EditorTools
             return cand;
         }
 
-        /// <summary>The knickpoint becomes two or three drops over ledges into a plunge pool (the bed is only lowered).</summary>
-        private static RunCascade PlanRunCascade(float[] bed, float[] water, float[] rise, int K, float drop)
+        /// <summary>
+        /// The knickpoint becomes two or three drops over ledges into a plunge pool (the bed is only lowered). The drops take the
+        /// whole fall from the top lip to the run line at the pool's end (1.9 review: measured from the knickpoint alone, the pool
+        /// stood above the run by the upper channel's own fall over the drops, and spilled out of its bowl in an uncurtained step).
+        /// </summary>
+        private static RunCascade PlanRunCascade(float[] bed, float[] water, float[] rise, int K, float drop, float[] runLine)
         {
             int n = bed.Length;
             if (drop < 2.4f) return null;
-            float H = Mathf.Min(drop, 8f);
-            int steps = H >= 4.5f ? 3 : 2;
+            int steps = Mathf.Min(drop, 8f) >= 4.5f ? 3 : 2;
             float[] frac = steps == 3 ? new[] { 0.42f, 0.33f, 0.25f } : new[] { 0.58f, 0.42f };
             int L = Mathf.Max(2, K - 3 * steps); // the drops end at the knickpoint
             if (L + 3 * (steps - 1) + 4 >= n - 1) return null;
             var lips = new int[steps];
             for (int k = 0; k < steps; k++) lips[k] = L + 3 * k;
             float top = bed[L], acc = 0f;
+            float H = Mathf.Clamp(top - runLine[Mathf.Min(n - 1, L + 3 * steps)], 2.4f, 12f);
             for (int k = 0; k < steps; k++)
             {
                 acc += H * frac[k];
@@ -583,6 +610,17 @@ namespace WildLens.EditorTools
             return false;
         }
 
+        /// <summary>
+        /// How far the carve at sample i is the narrow channel (1) rather than the full ravine (0): narrow over the last nine samples
+        /// (the mouth) and within six of a footpath crossing, blending over the four samples outside them so the walls taper in.
+        /// </summary>
+        private static float NarrowWeight(List<RunCrossing> crossings, int n, int i)
+        {
+            float w = Mathf.Clamp01((i - (n - 14)) / 5f);
+            foreach (var c in crossings) w = Mathf.Max(w, Mathf.Clamp01((11 - Mathf.Abs(i - c.index)) / 5f));
+            return w;
+        }
+
         /// <summary>Wall width and the carve's full reach at a sample (for clearance checks).</summary>
         private static float RavineReach(float bankHigh, float bed) =>
             Mathf.Clamp(RavineFloor + WallRun * (bankHigh - bed), 6f, WallMax) + RimExtend;
@@ -602,8 +640,8 @@ namespace WildLens.EditorTools
             for (int i = 0; i < n; i++)
             {
                 Vector3 p = c.run[i];
-                bool narrow = i > n - 8 || NearCrossing(c.crossings, i, 10); // the mouth and crossings are a narrow channel only
-                float r = narrow ? 6.5f : RavineReach(Mathf.Max(c.bankL[i], c.bankR[i]), c.bed[i]);
+                // The mouth and crossings are a narrow channel only (blending to the full ravine: the carve's own reach).
+                float r = Mathf.Lerp(RavineReach(Mathf.Max(c.bankL[i], c.bankR[i]), c.bed[i]), NarrowReach, NarrowWeight(c.crossings, n, i));
                 if (!NearCrossing(c.crossings, i, 6) && PathDistance(p) < r + 3f) { why = "too close to a path"; return false; }
                 if (HasRoads && RoadDistance(p) < r + 3f) { why = "too close to the road"; return false; }
                 foreach (var k in _keepOut) if (TerrainUtil.FlatDistance(p, k.p) < r + k.r) { why = "a structure in the way"; return false; }
@@ -658,17 +696,25 @@ namespace WildLens.EditorTools
                 float d = RunDistance(p, out int seg, out float t, out float side);
                 if (d > outer) continue;
                 int next = Mathf.Min(seg + 1, n - 1);
-                bool narrow = seg >= n - 9 || NearCrossing(_runCrossings, seg, 6);
                 // Willow Creek keeps its own banks: only the run's channel cuts through them at the mouth.
                 if (d > 2.3f && CreekDistance(p) < 4.6f) continue;
                 float bed = Mathf.Lerp(_runBed[seg], _runBed[next], t);
                 float bank = side > 0f ? Mathf.Lerp(_runBankR[seg], _runBankR[next], t) : Mathf.Lerp(_runBankL[seg], _runBankL[next], t);
                 float rise = Mathf.Lerp(_runRise[seg], _runRise[next], t);
-                float target = RavineProfile(d, bed, bank, rise, narrow, out float reach);
-                if (d > reach) continue;
+                float target = RavineProfile(d, bed, bank, rise, false, out float reach);
+                if (d > reach) continue; // the narrow reach (≤ 5.5 m) is always inside the full one
                 float cur = tPos.y + heights[z, x] * size.y;
+                // At the mouth and footpath crossings the cut is a narrow channel: blended in over four samples, and faded into the
+                // ground over the last 2 m of its reach, so it ends in a slope, never a step or a plug across the ravine.
+                float wn = Mathf.Lerp(NarrowWeight(_runCrossings, n, seg), NarrowWeight(_runCrossings, n, next), t);
+                if (wn > 0f)
+                {
+                    float nt = RavineProfile(d, bed, bank, rise, true, out float nreach);
+                    nt = Mathf.Lerp(nt, cur, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(nreach - 2f, nreach, d)));
+                    target = Mathf.Lerp(target, nt, wn);
+                }
                 if (target < cur) heights[z, x] = Mathf.Clamp01((target - tPos.y) / size.y);
-                if (!narrow) _ravineDepth = Mathf.Max(_ravineDepth, Mathf.Min(_runBankL[seg], _runBankR[seg]) - _runBed[seg]);
+                if (wn < 0.5f) _ravineDepth = Mathf.Max(_ravineDepth, Mathf.Min(_runBankL[seg], _runBankR[seg]) - _runBed[seg]);
             }
             data.SetHeights(x0, z0, heights);
         }
@@ -697,10 +743,15 @@ namespace WildLens.EditorTools
             List<Vector3> best = null;
             float bestCost = float.MaxValue;
             Vector3 bestEnd = Vector3.zero;
+            PathGrid grid = null;
             foreach (float sgn in new[] { 1f, -1f })
             {
                 Vector3 end = TerrainUtil.Ground(_run[j] + side * sgn * 2.7f);
-                var route = RouteRavinePath(end, out float cost);
+                // Both ends nearly always give the same grid (it spans the whole run): built once, searched twice.
+                PathGridBounds(end, out Vector2 min, out int nx, out int nz);
+                if (nx < 4 || nz < 4) continue;
+                if (grid == null || grid.min.x != min.x || grid.min.y != min.y || grid.nx != nx || grid.nz != nz) grid = BuildPathGrid(min, nx, nz);
+                var route = RouteRavinePath(grid, end, out float cost);
                 if (route != null && cost < bestCost) { bestCost = cost; best = route; bestEnd = end; }
             }
             if (best == null) { notes.Add("no footpath into Hemlock Ravine (no gentle way down): the ravine is unmarked"); return; }
@@ -720,43 +771,86 @@ namespace WildLens.EditorTools
             _ravinePath = track;
         }
 
-        private List<Vector3> RouteRavinePath(Vector3 end, out float cost)
+        /// <summary>The footpath search grid (2.5 m cells): what each cell costs, where it may not go, where a path already is.</summary>
+        private class PathGrid
         {
-            cost = float.MaxValue;
-            const float cell = 2.5f, margin = 260f;
+            public Vector2 min;
+            public int nx, nz;
+            public float[] height, baseCost;
+            public bool[] bad, goal;
+            public Vector3 At(int id) => new Vector3(min.x + (id % nx) * PathCell, 0f, min.y + (id / nx) * PathCell);
+        }
+
+        private const float PathCell = 2.5f;
+
+        private void PathGridBounds(Vector3 end, out Vector2 min, out int nx, out int nz)
+        {
+            const float margin = 260f;
             Vector3 tPos = _terrain.transform.position, size = _terrain.terrainData.size;
-            Vector2 min = new Vector2(end.x, end.z), max = min;
+            min = new Vector2(end.x, end.z);
+            Vector2 max = min;
             foreach (var p in _run) { min = Vector2.Min(min, new Vector2(p.x, p.z)); max = Vector2.Max(max, new Vector2(p.x, p.z)); }
             min -= Vector2.one * margin; max += Vector2.one * margin;
             min = Vector2.Max(min, new Vector2(tPos.x + 4f, tPos.z + 4f));
             max = Vector2.Min(max, new Vector2(tPos.x + size.x - 4f, tPos.z + size.z - 4f));
-            int nx = Mathf.FloorToInt((max.x - min.x) / cell), nz = Mathf.FloorToInt((max.y - min.y) / cell);
-            if (nx < 4 || nz < 4) return null;
+            nx = Mathf.FloorToInt((max.x - min.x) / PathCell);
+            nz = Mathf.FloorToInt((max.y - min.y) / PathCell);
+        }
+
+        private PathGrid BuildPathGrid(Vector2 min, int nx, int nz)
+        {
             int count = nx * nz;
-            var height = new float[count];
-            var baseCost = new float[count];
-            var bad = new bool[count];
-            var goal = new bool[count];
+            var g = new PathGrid { min = min, nx = nx, nz = nz, height = new float[count], baseCost = new float[count], bad = new bool[count], goal = new bool[count] };
             float half = _s.trailWidth * 0.5f;
-            Vector3 At(int id) => new Vector3(min.x + (id % nx) * cell, 0f, min.y + (id / nx) * cell);
+            // Goals are within 1.2 m of a path's edge: a cell outside a path's bounding box (grown by that and a 1 m margin) can't
+            // be one, so its exact distance is only measured inside the box. Same goals as measuring every cell, far fewer tests.
+            Vector4 Box(IReadOnlyList<Vector3> pts, float grow)
+            {
+                var b = new Vector4(float.MaxValue, float.MaxValue, float.MinValue, float.MinValue);
+                foreach (var q in pts) { b.x = Mathf.Min(b.x, q.x); b.y = Mathf.Min(b.y, q.z); b.z = Mathf.Max(b.z, q.x); b.w = Mathf.Max(b.w, q.z); }
+                return new Vector4(b.x - grow, b.y - grow, b.z + grow, b.w + grow);
+            }
+            bool InBox(Vector4 b, Vector3 p) => p.x >= b.x && p.z >= b.y && p.x <= b.z && p.z <= b.w;
+            var trailBox = Box(_trail.Points, 1.2f + 1f);
+            var feet = new List<(ReserveTrack t, Vector4 box)>();
+            foreach (var t in _tracks)
+                if (t.kind == TrackKind.Footpath && t.Points.Count > 0) feet.Add((t, Box(t.Points, Mathf.Max(0f, 1.2f + t.Width * 0.5f - half) + 1f)));
             for (int id = 0; id < count; id++)
             {
-                Vector3 p = At(id);
-                height[id] = TerrainUtil.SampleHeight(p);
+                Vector3 p = g.At(id);
+                g.height[id] = TerrainUtil.SampleHeight(p);
                 float slope = TerrainUtil.SlopeDegrees(p);
                 float dt = RunDistance(p);
                 float c = 1f + (slope / 30f) * (slope / 30f);
-                bad[id] = dt < 2.2f || InKeepOut(p) || slope > 42f || NearHiddenPlace(p, 38f - 6f);
+                g.bad[id] = dt < 2.2f || InKeepOut(p) || slope > 42f || NearHiddenPlace(p, 38f - 6f);
                 if (CreekDistance(p) < 4f) c += 25f;
                 if (dt >= 2.2f && dt < 3.6f) c *= 0.7f; // walk beside the run
                 foreach (var s in _sites) if (TerrainUtil.FlatDistance(p, s.centre) < s.radius * 0.8f) c += 40f;
-                baseCost[id] = c;
+                g.baseCost[id] = c;
                 // Goals: the loop, any footpath, a pull-off (not the road itself: the trail hierarchy).
-                float g = _trail.DistanceToTrail(p);
-                foreach (var t in _tracks) if (t.kind == TrackKind.Footpath) g = Mathf.Min(g, t.DistanceTo(p) - (t.Width * 0.5f - half));
-                g = Mathf.Min(g, PadDistance(p));
-                goal[id] = g < 1.2f;
+                bool goal = PadDistance(p) < 1.2f;
+                if (!goal && InBox(trailBox, p)) goal = _trail.DistanceToTrail(p) < 1.2f;
+                foreach (var (t, box) in feet)
+                {
+                    if (goal) break;
+                    if (InBox(box, p)) goal = t.DistanceTo(p) - (t.Width * 0.5f - half) < 1.2f;
+                }
+                g.goal[id] = goal;
             }
+            return g;
+        }
+
+        private List<Vector3> RouteRavinePath(PathGrid grid, Vector3 end, out float cost)
+        {
+            cost = float.MaxValue;
+            const float cell = PathCell;
+            Vector2 min = grid.min;
+            int nx = grid.nx, nz = grid.nz, count = nx * nz;
+            var height = grid.height;
+            var baseCost = grid.baseCost;
+            var bad = grid.bad;
+            var goal = grid.goal;
+            Vector3 At(int id) => grid.At(id);
             int sx = Mathf.Clamp(Mathf.RoundToInt((end.x - min.x) / cell), 0, nx - 1), sz = Mathf.Clamp(Mathf.RoundToInt((end.z - min.y) / cell), 0, nz - 1);
             int start = sz * nx + sx;
             var dist = new float[count];
@@ -866,7 +960,10 @@ namespace WildLens.EditorTools
                 if (best > reach) continue;
                 var p3 = new Vector3(q.x, 0f, q.y);
                 float wgt = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(half, reach, best));
-                if (RunDistance(p3) < 2.3f || CreekDistance(p3) < 5f) wgt = 0f;
+                float dr = RunDistance(p3, out int rs, out float rt, out _);
+                if (dr < 2.3f || CreekDistance(p3) < 5f) wgt = 0f;
+                // Beside the run the tread stays a bench above its water (never lowered so far that the run's bank dips under it).
+                if (dr < 4.5f) ph = Mathf.Max(ph, Mathf.Lerp(_runWater[rs], _runWater[Mathf.Min(rs + 1, _run.Count - 1)], rt) + 0.3f);
                 // Never touch the path it leaves: the old tread stays exactly as it was.
                 wgt *= Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(3.5f, 5.5f, PathDistance(p3)));
                 if (wgt <= 0f) continue;
@@ -913,6 +1010,34 @@ namespace WildLens.EditorTools
                 t.GetComponent<HabitatHotspot>() != null || t.GetComponent<ScheduleAnchor>() != null || t.GetComponent<WildlifeResidence>() != null ||
                 t.GetComponent<AmbientSound>() != null || t.GetComponent<MistPatch>() != null || t.GetComponent<ScenicViewpoint>() != null ||
                 t.GetComponent<ReserveDiscovery>() != null;
+            // Hotspots, residences, schedule anchors and viewpoints that now lie in the run's water, the Hidden Pond's water or
+            // inside the crag move to the nearest dry point outside (same radius, same height above the ground): searched on
+            // rings 0.5 m apart from the east, counter-clockwise, so a rebuild moves them the same way. Willow Creek's own water
+            // markers (within 4.6 m of it, where the run's mouth is) are left alone.
+            bool WildlifeMarker(Transform t) =>
+                t.GetComponent<HabitatHotspot>() != null || t.GetComponent<ScheduleAnchor>() != null || t.GetComponent<WildlifeResidence>() != null ||
+                t.GetComponent<ScenicViewpoint>() != null;
+            bool Drowned(Vector3 p)
+            {
+                if (_run.Count > 1 && RunDistance(p) < 2.4f && CreekDistance(p) >= 4.6f) return true;
+                if (pond != null && TerrainUtil.FlatDistance(p, pond.centre) < HiddenPondRadius(pond, p) + 0.5f) return true;
+                return shelter != null && shelter.InCrag(p);
+            }
+            void NudgeAshore(Transform t)
+            {
+                Vector3 p = t.position;
+                float above = p.y - TerrainUtil.SampleHeight(p);
+                for (float r = 0.5f; r <= 16f; r += 0.5f)
+                    for (int k = 0; k < 16; k++)
+                    {
+                        float a = k / 16f * Mathf.PI * 2f;
+                        Vector3 q = new Vector3(p.x + Mathf.Cos(a) * r, 0f, p.z + Mathf.Sin(a) * r);
+                        if (Drowned(q) || TerrainUtil.SlopeDegrees(q) > 35f) continue;
+                        t.position = new Vector3(q.x, TerrainUtil.SampleHeight(q) + above, q.z);
+                        _settledNudged++;
+                        return;
+                    }
+            }
 
             var objects = new List<Transform>();
             var env = reserve.parent;
@@ -944,9 +1069,12 @@ namespace WildLens.EditorTools
                 if (!marker && t.GetComponent<MeshRenderer>() == null && t.GetComponentInChildren<Renderer>() == null) continue;
                 if (!marker && Scenery(t) && Doomed(p)) { doomed.Add(t.gameObject); continue; }
                 float d = Delta(p);
-                if (Mathf.Abs(d) < 0.02f) continue;
-                t.position = p + Vector3.up * d;
-                _settledMoved++;
+                if (Mathf.Abs(d) >= 0.02f)
+                {
+                    t.position = p + Vector3.up * d;
+                    _settledMoved++;
+                }
+                if (marker && WildlifeMarker(t) && Drowned(t.position)) NudgeAshore(t);
             }
             foreach (var g in doomed) { Object.DestroyImmediate(g); _settledRemoved++; }
             RemoveWhere(_treeObjects, _ => false); // drop the destroyed entries
@@ -1032,37 +1160,60 @@ namespace WildLens.EditorTools
             AddHotspot(group, "Run Water", HotspotType.Water, TerrainUtil.Ground(_run[Mathf.Clamp(mid, 0, n - 1)]), 7f);
         }
 
-        /// <summary>The run's water: a narrow ribbon just above the bed, skipping the cascade's drops and the pool (a disc there).</summary>
+        /// <summary>
+        /// The run's water: a ribbon just above the bed, its edges under the banks (2.3 m half-width; the wetted channel is about
+        /// 1.8 m). Below each upper drop the ledge pool's level runs back under the curtain to the lip (a flat stretch hidden in the
+        /// bed upstream, so the water meets the falling curtain); the plunge pool is a disc of its own, and the ribbon starts under
+        /// it, 3 cm below its surface, so the two overlap without a gap or a step.
+        /// </summary>
         private void BuildRunWater(Transform parent)
         {
             int n = _run.Count;
-            var skip = new HashSet<int>();
+            var y = new float[n];
+            for (int i = 0; i < n; i++)
+                y[i] = i >= n - 4 ? Mathf.Min(_runWater[i], _creekWater[_runMouth] - 0.04f) : _runWater[i]; // under Willow Creek's surface at the join
+            var skip = new HashSet<int>();   // segments (ending at i) not drawn
+            var drops = new HashSet<int>();  // segments that are an upper drop: drawn flat at the ledge pool's level
             if (_cascade != null)
             {
-                foreach (int lip in _cascade.lips) skip.Add(lip + 1);
-                foreach (int p in _cascade.pool) { skip.Add(p); skip.Add(p + 1); }
+                var cs = _cascade;
+                int last = cs.lips[cs.lips.Length - 1];
+                for (int k = 0; k + 1 < cs.lips.Length; k++) drops.Add(cs.lips[k] + 1);
+                skip.Add(last + 1);
+                foreach (int p in cs.pool) skip.Add(p); // the pool's own disc covers these
+                // ...and the ribbon begins under it, from the pool's last sample, just below its surface.
+                int after = Mathf.Min(n - 1, cs.pool[cs.pool.Length - 1] + 1);
+                y[cs.pool[cs.pool.Length - 1]] = cs.poolWater - 0.03f;
+                y[after] = Mathf.Min(y[after], cs.poolWater - 0.03f);
             }
-            var verts = new List<Vector3>(n * 3);
-            var uvs = new List<Vector2>(n * 3);
+            var verts = new List<Vector3>(n * 3 + 9);
+            var uvs = new List<Vector2>(n * 3 + 9);
             var tris = new List<int>();
             float dist = 0f;
-            const float half = 1.4f;
-            for (int i = 0; i < n; i++)
+            const float half = RunRibbonHalf;
+            int Row(int i, float h, float along)
             {
                 Vector3 side = Side(_run, i, out _);
-                if (i > 0) dist += TerrainUtil.FlatDistance(_run[i - 1], _run[i]);
-                // The last samples run into Willow Creek's channel just below its water, so the creek's surface covers the join.
-                float y = i >= n - 4 ? Mathf.Min(_runWater[i], _creekWater[_runMouth] - 0.04f) : _runWater[i];
-                Vector3 c = new Vector3(_run[i].x, y, _run[i].z);
+                Vector3 c = new Vector3(_run[i].x, h, _run[i].z);
                 verts.Add(c - side * half); verts.Add(c); verts.Add(c + side * half);
-                uvs.Add(new Vector2(0f, dist / 3f)); uvs.Add(new Vector2(0.5f, dist / 3f)); uvs.Add(new Vector2(1f, dist / 3f));
-                if (i == 0 || skip.Contains(i)) continue;
-                int b = (i - 1) * 3, c0 = i * 3;
-                for (int k = 0; k < 2; k++)
-                {
-                    tris.Add(b + k); tris.Add(c0 + k); tris.Add(b + k + 1);
-                    tris.Add(b + k + 1); tris.Add(c0 + k); tris.Add(c0 + k + 1);
-                }
+                uvs.Add(new Vector2(0f, along / 3f)); uvs.Add(new Vector2(0.5f, along / 3f)); uvs.Add(new Vector2(1f, along / 3f));
+                return verts.Count - 3;
+            }
+            int prevRow = -1;
+            float prevDist = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                if (i > 0) dist += TerrainUtil.FlatDistance(_run[i - 1], _run[i]);
+                if (i > 0 && drops.Contains(i)) prevRow = Row(i - 1, y[i], prevDist); // the ledge pool's level, back under the curtain
+                int row = Row(i, y[i], dist);
+                if (prevRow >= 0 && !skip.Contains(i))
+                    for (int k = 0; k < 2; k++)
+                    {
+                        tris.Add(prevRow + k); tris.Add(row + k); tris.Add(prevRow + k + 1);
+                        tris.Add(prevRow + k + 1); tris.Add(row + k); tris.Add(row + k + 1);
+                    }
+                prevRow = row;
+                prevDist = dist;
             }
             var mesh = new Mesh { name = "RunWater" };
             mesh.SetVertices(verts);
@@ -1125,6 +1276,9 @@ namespace WildLens.EditorTools
 
                 var curtain = new GameObject("Cascade Curtain " + (k + 1));
                 curtain.transform.SetParent(casc, false);
+                // The curtain's mesh is built in world coordinates: its object sits at the world origin (the cascade group does not).
+                curtain.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                curtain.transform.localScale = Vector3.one;
                 curtain.AddComponent<MeshFilter>().sharedMesh = GeneratedAssets.Save(CurtainMesh(lip, down, side, below, 0.75f, 1.0f), "Mesh_CascadeCurtain" + (k + 1));
                 var cr = curtain.AddComponent<MeshRenderer>();
                 cr.sharedMaterial = mat;
@@ -1154,14 +1308,30 @@ namespace WildLens.EditorTools
                 }
             }
 
-            // The plunge pool: a small disc of still water over the bowl (its banks are carved 0.3 m above it).
+            // The plunge pool: still water over the whole bowl, from under the last curtain to where the run flows on (the ribbon
+            // starts beneath it). An ellipse along the flow through the bowl's samples, sized to the bowl's wetted width (about
+            // 1.9 m each side) plus 0.5 m and any bend in it; beyond the water's edge it lies under the carved banks.
             Vector3 pc = Vector3.zero;
             foreach (int j in cs.pool) pc += _run[j];
             pc /= cs.pool.Length;
+            int lastLip = cs.lips[cs.lips.Length - 1], tail = Mathf.Min(n - 1, cs.pool[cs.pool.Length - 1] + 1);
+            Vector3 axis = TerrainUtil.Flat(_run[tail] - _run[lastLip]);
+            if (axis.sqrMagnitude < 0.01f) axis = Side(_run, cs.pool[0], out _);
+            axis.Normalize();
+            Vector3 across = Vector3.Cross(Vector3.up, axis);
+            Vector3 mid = (_run[lastLip] + _run[tail]) * 0.5f;
+            float offMean = 0f, offDev = 0f;
+            for (int j = lastLip; j <= tail; j++) offMean += Vector3.Dot(TerrainUtil.Flat(_run[j] - mid), across);
+            offMean /= tail - lastLip + 1;
+            for (int j = lastLip; j <= tail; j++) offDev = Mathf.Max(offDev, Mathf.Abs(Vector3.Dot(TerrainUtil.Flat(_run[j] - mid), across) - offMean));
+            // From 1 m above the last lip (under the ledge) to 0.5 m past the bowl's tail (over the ribbon's first stretch).
+            Vector3 poolCentre = mid + across * offMean - axis * 0.25f;
+            float semiAlong = (TerrainUtil.FlatDistance(_run[lastLip], _run[tail]) + 1.5f) * 0.5f;
+            float semiAcross = 1.9f + 0.5f + offDev;
             var pool = new GameObject("Plunge Pool");
             pool.transform.SetParent(casc, false);
-            pool.transform.position = new Vector3(pc.x, cs.poolWater, pc.z);
-            pool.transform.localScale = new Vector3(1.6f, 1f, 1.6f);
+            pool.transform.SetPositionAndRotation(new Vector3(poolCentre.x, cs.poolWater, poolCentre.z), Quaternion.LookRotation(axis));
+            pool.transform.localScale = new Vector3(semiAcross, 1f, semiAlong); // the cascade group is unscaled and unrotated
             pool.AddComponent<MeshFilter>().sharedMesh = GeneratedAssets.LoadOrCreate("Mesh_PondDisc", () => ProceduralMeshes.Disc(48));
             var pmr = pool.AddComponent<MeshRenderer>();
             pmr.sharedMaterial = WaterMaterial("CreekWater", new Color(0.075f, 0.095f, 0.07f), 0.8f, new Vector2(3f, 3f), 0.55f);
@@ -1196,6 +1366,7 @@ namespace WildLens.EditorTools
                 var mesh = GeneratedAssets.Save(ProceduralMeshes.TrailRibbon(pts, 1.3f, 0.6f, closed: false), "Mesh_Track_HemlockRavine");
                 var surface = new GameObject("Track Surface");
                 surface.transform.SetParent(go.transform, false);
+                surface.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity); // a world-space ribbon
                 surface.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var mr = surface.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = GeneratedAssets.Material("TrackDirt", Color.white, 0.05f);

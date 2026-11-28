@@ -105,7 +105,12 @@ you can learn it. Each species' field notes hint at its habit, in a sentence, ne
   own random stream, so for a given seed the existing trees, rocks, paths and destinations stay exactly where they were
   (measured on eight seeds in a prototype before it was written: 0.00 m of height change under every existing path and
   destination). What stood where the ground moved is settled onto the new surface or lifted out.
+- Measured on the default seed 7: the ravine is about 186 m long and up to 8.2 m deep, the cascade about 8.5 m in three drops, and the footpath about 294 m with a gentlest-to-steepest grade under 8°. A ravine appears on 4 of 8 test seeds, cascades range from 3.5 to 10.4 m across seeds, and no wall is steeper than 50° (the player's limit).
+- The Hidden Pond has two shore water spots and a bank residence, the Old Cabin clearing a small meadow spot (so the bluebird stays by the fence) and the Rock Shelter's woods a woodland anchor (the titmouse). Small life at the Hidden Pond now sits at its shoreline.
 - Builder settings **Hemlock Ravine** and **More Hidden Places** (both on).
+### Fixes found before release
+- **Willow Falls' falling water was drawn in the wrong place since 1.5** (the curtain was offset by the site's position; what you saw was the rock, pool, spray and sound). It now falls from the lip. Its shape has never been seen in the right place: screenshot it first.
+- **Cattail Pond's lily pads were drawn far from the pond for the same reason**; they are now on the water.
 - One Console line, `[WildLens] Reserve: …`, says what was built (and why anything was skipped).
 ### Under the hood
 - Environment version 21 (**rebuild the slice**). Species data version 4, subject data version 2, factory version 3, small
@@ -135,7 +140,8 @@ you can learn it. Each species' field notes hint at its habit, in a sentence, ne
 7. **Frogs at the pond** after the afternoon shower, and the gray treefrogs on trunks that evening.
 8. **Songbirds bathing** at the water's edge in the hours after the shower, and a robin on the open grass in the first hour.
 9. **The owl on a snag** at a dry dusk, and the crows at the trailhead at dusk.
-10. **Hemlock Ravine** from the log seat at the end of its footpath, and from the rim.
+10. **Willow Falls' falling water** from the front and from the ford, and **Cattail Pond's lily pads** on the water.
+10b. **Hemlock Ravine** from the log seat at the end of its footpath, and from the rim.
 11. **Each new hidden place**: Cascade Overlook, Hidden Pond, Rock Shelter, Old Cabin Ruins. The Rock Shelter's crag and
     the cascade's ledges are the least proven shapes: look for gaps, floating rock or flat-looking faces.
 12. **The fox and the turkey** after re-tinting, at 4×.
@@ -146,6 +152,7 @@ you can learn it. Each species' field notes hint at its habit, in a sentence, ne
   groundhog, opossum, sandpiper). A search for free models failed from the build machine: every CC0 model site it tried
   (quaternius.com, poly.pizza, opengameart.org, itch.io, kenney.nl) is blocked there, so nothing could be checked or shipped.
   This is a job for you, and the rules are below.
+- **Animals may stand in different places than in 1.8 for the same seed** (new hotspots change how homes are chosen).
 - **Rain still falls through the Rock Shelter's roof** (and every roof).
 - **The journal's Wildlife page still lists unseen species as "???" rows with "Species X of N".** That is old behaviour, and it
   sits uneasily with "no checklists". It is a decision for you (see the roadmap).

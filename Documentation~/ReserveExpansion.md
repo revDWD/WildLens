@@ -77,7 +77,7 @@ ground does**, not on size.
 
 * **Hemlock Ravine.** A steep, shaded side valley cut by **Hemlock Run**, a small tributary of Willow Creek, with a stepped
   cascade (two or three drops over ledges into a pool) at its head. It exists where the land falls far enough toward the creek
-  and away from paths (the default seed 7 does); elsewhere it is skipped and one Console line says why. One footpath leads in
+  and away from paths (the default seed 7 does: about 186 m long, up to 8.2 m deep, the cascade about 8.5 m in three drops, the footpath about 294 m and under 8° from gentlest to steepest; across eight test seeds a ravine appears on 4, cascades run 3.5 to 10.4 m and no wall is steeper than 50°); elsewhere it is skipped and one Console line says why. The run's water ribbon is 2.3 m each side of its line, with the bed below both edges, and the plunge pool is an ellipse along the flow. One footpath leads in
   from the existing tracks, with one sign (HEMLOCK RAVINE, "to the cascade") and a log seat that looks up at the cascade.
   *Why a photographer comes:* the cascade in shade, the hemlocks, a waterthrush bobbing on the wet stones, a phoebe on the ledge.
 * **Four more hidden places** (seven in all; unmarked, found and named once, never counted, on no sign or map):
@@ -85,9 +85,9 @@ ground does**, not on size.
   | Place | Chosen where | Why a photographer comes | Residents |
   |---|---|---|---|
   | **Cascade Overlook** | a ledge on the ravine's rim, 8 to 24 m from the cascade, with a line of sight to it | the cascade from above, the run stepping down through the hemlocks | (the ravine's) |
-  | **Hidden Pond** | a wooded hollow on gentle ground, at least 45 m from every path | still water far from anyone: herons, blackbirds, a raccoon at dusk, frogs after rain | great blue heron, red-winged blackbird, raccoon |
-  | **Rock Shelter** | an upland hillside under the ridge, an overhanging crag with a dry floor | shelter, a cold fire ring and a long view; titmice in the woods in front | tufted titmouse, gray squirrel |
-  | **Old Cabin Ruins** | level ground at a woods' edge, 45 to 100 m off a path | fieldstone and a chimney taken back by ferns; a bluebird on the fence | eastern bluebird, cottontail, groundhog |
+  | **Hidden Pond** | a wooded hollow on gentle ground, at least 45 m from every path | still water far from anyone: herons, blackbirds, a raccoon at dusk, frogs after rain (two shore Water hotspots and a bank residence) | great blue heron, red-winged blackbird, raccoon |
+  | **Rock Shelter** | an upland hillside under the ridge, an overhanging crag with a dry floor | shelter, a cold fire ring and a long view; titmice in the woods in front (a Woodland anchor) | tufted titmouse, gray squirrel |
+  | **Old Cabin Ruins** | level ground at a woods' edge, 45 to 100 m off a path | fieldstone and a chimney taken back by ferns; a bluebird on the fence (a small Meadow hotspot in the clearing keeps it there) | eastern bluebird, cottontail, groundhog |
 
   The earlier three (Hidden Overlook, Fern Glade, Creek Alcove, 1.5) are unchanged.
 * **Carved late.** The ravine and the places are made after every other scenery pass, with their own random stream, so for a

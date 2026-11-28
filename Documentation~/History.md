@@ -197,7 +197,7 @@ rule** lets a truer model replace an automatically chosen stand-in when it is im
 26 generated stylised models and 29 subjects that come out for sun, sun after rain, warm hours, fair evenings, wet nights.
 The **screen** was emptied (a faint dot; prompts that retire; a controls card on H; one notice style; a journal notebook
 page). The **reserve** gained geography instead of size: Hemlock Ravine with its tributary and cascade, and four more hidden
-places (seven in all), carved late so nothing built earlier moved. *Lessons:* **an independent review before release paid
+places (seven in all), carved late so nothing built earlier moved. *Lessons:* **a mesh built in world coordinates under a moved parent is drawn far away, and nobody notices what they cannot see**: Willow Falls' falling water (since 1.5) and the Cattail Pond's lily pads were misplaced for four releases, so ask for a screenshot of each new thing, not just of the place. **An independent review before release paid
 off again** (it found a viewfinder row under the brackets, wings that were one-sided, two memories of the rain, and
 subjects that could not be graded from where the camera can stand), as it did in 1.8. **Carve late and settle**: terrain shaped before the scenery changes
 every earlier decision and, through the shared random sequence, every tree after it; measured in a prototype on eight seeds, the

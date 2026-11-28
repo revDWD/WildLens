@@ -417,7 +417,19 @@ namespace WildLens.EditorTools
                         {
                             float rr = spots[o].radius * (0.6f + (float)rng.NextDouble() * 0.4f);
                             p = TerrainUtil.Ground(spots[o].centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * rr);
-                            if (p.y < TerrainUtil.SampleHeight(spots[o].centre) + 0.02f) continue; // on the bank, not in the bed
+                            var hp = _hiddenPond;
+                            bool onHiddenPond = hp != null && spots[o].radius > 0.01f && TerrainUtil.FlatDistance(spots[o].centre, hp.centre) < hp.radius * 2.5f;
+                            if (onHiddenPond)
+                            {
+                                // Snap to the hidden pond's own shoreline (no new random draws: the ring fraction already drawn sets the distance).
+                                Vector3 away = TerrainUtil.Flat(p - hp.centre);
+                                if (away.sqrMagnitude < 0.0001f) continue;
+                                away.Normalize();
+                                float frac = Mathf.Clamp01((rr / spots[o].radius - 0.6f) / 0.4f);
+                                p = TerrainUtil.Ground(hp.centre + away * (HiddenPondRadius(hp, p) + 0.3f + frac * 2.2f));
+                                if (p.y < hp.level + 0.02f) continue; // still in the water
+                            }
+                            else if (p.y < TerrainUtil.SampleHeight(spots[o].centre) + 0.02f) continue; // on the bank, not in the bed
                         }
                         else
                         {

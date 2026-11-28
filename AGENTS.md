@@ -154,7 +154,7 @@ playtest: the fox reads a bit like a dog (it is a tinted dog model) and the turk
    in Unity's free SpeedTree trees, **never run in Unity**. → [EnvironmentMigration.md](Documentation~/EnvironmentMigration.md).
 3. **The generated small life is unseen**: stylised models made in code; sizes, colours, wing motion and the grading
    arithmetic are all unproven in the engine.
-4. **The new geography is unseen.** The Rock Shelter's crag and the cascade's ledges are the least proven shapes. The
+4. **The new geography is unseen.** Willow Falls' curtain has never been seen in its real place. The Rock Shelter's crag and the cascade's ledges are the least proven shapes. The
    ravine exists only where the land falls far enough toward the creek (it does on the default seed 7).
 5. **Grass** is flat billboards unless the kit supplies mesh grass.
 6. **Props are boxes** (with scanned wood). Sign text is unlit TextMesh in the built-in font.
@@ -340,6 +340,7 @@ Each of these has cost at least one milestone. Details and stories in [History.m
   tall plant on one part.
 - **Events that react to the player.** A natural event answers the hour, the weather and the forecast; if it needs the
   player to be present, near or watching, it is a script (§3).
+- **World-coordinate meshes under a moved parent (1.9):** a mesh built in world coordinates must sit on an identity transform, and `MeshPart` takes a LOCAL position. Willow Falls' water and the pond's lily pads were drawn far away for four releases because nobody could see they were missing: ask for a screenshot of each new thing, not just of the place.
 - **Committing store assets** (free ones included), secrets or generated `Assets/` content.
 
 ## 15. Recommended Reading Order For New Agents

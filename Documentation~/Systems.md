@@ -374,7 +374,7 @@ run in Unity.** It supersedes the 1.8.0 and earlier notes where they differ (cor
 * **Habitats** (`SubjectHabitat`, appended: `Trunk`, `Rock`). Trunk: the lower trunk of a tree with a collider within 30 m of a
   path (0.4 to 1.6 m up, the side facing the nearest path, found by a ray; at most two of a species per tree); falls back to dead
   wood. Rock: boulders and rocks 0.4 to 4 m across (moss); falls back to the woodland floor. Water edge also covers any water
-  hotspot not on the creek (a ring on the bank, never in the bed); jewelwings use the creek only, cattails ponds only. **One
+  hotspot not on the creek (a ring on the bank, never in the bed; at the Hidden Pond the point is snapped radially to the pond's own shoreline, 0.3 to 2.5 m beyond it and above its water level, with no extra random draws); jewelwings use the creek only, cattails ponds only. **One
   insect per flower** (flowers are tracked with their kind and an offset to the head: a milkweed's umbel 3.2 cm up, a daisy's
   disc 0.5 cm): monarchs choose milkweed first, swallowtails milkweed then black-eyed Susan, bumble bees black-eyed Susan,
   daisy then milkweed, honey bees daisy then black-eyed Susan, cabbage whites daisy then dandelion, lady beetles black-eyed
@@ -458,7 +458,7 @@ run in Unity.** It supersedes the 1.8.0 and earlier notes where they differ (cor
   from the upper channel to that, in two or three steps over ledges into a pool. The best of up to ten routes is kept if it is
   dramatic enough (cascade plus depth); otherwise there is **no ravine and one Console line says why**. The carve
   only cuts (so a rebuild gives the same ravine) and never touches a path, road, destination, keep-out or hidden place. It
-  exists on seeds where the land falls enough toward the creek, **including the default seed 7**. Scenery: hemlocks on the
+  exists on seeds where the land falls enough toward the creek, **including the default seed 7**. Measured: on seed 7 the ravine is about 186 m long and up to 8.2 m deep, the cascade about 8.5 m in three drops, and the footpath about 294 m with a gentlest-to-steepest grade under 8°; a ravine appears on 4 of 8 test seeds, cascades range from 3.5 to 10.4 m across seeds, and no wall is steeper than 50° (the player's limit). The run's water ribbon has a half-width of 2.3 m, with the bed kept below both ribbon edges; the plunge pool is an ellipse along the flow; wildlife markers that land in new water are nudged to dry ground. **World-built meshes (the falling water, the lily pads) must sit on identity transforms, and `MeshPart` takes a local position.** Scenery: hemlocks on the
   walls and rim (through kit roles), ferns, mossy stones in the run, one fallen trunk across it. One **footpath** (`Track:
   Hemlock Ravine`, a footpath like the others) with one sign (HEMLOCK RAVINE, "to the cascade") and a **log seat** at its
   end that looks up at the cascade. Residents: a Louisiana waterthrush by the run, an eastern phoebe on the cascade's ledge.
@@ -469,14 +469,14 @@ run in Unity.** It supersedes the 1.8.0 and earlier notes where they differ (cor
     clear line of sight to it; a log seat and a boulder. Needs the ravine.
   * **Hidden Pond**: a small still pond (radius about 8.5 m) in a wooded hollow, gentle ground, at least 45 m from every path and
     from the run, away from the Cattail Pond and other places; the basin is shaped and the water sits below the land all round.
-    Reeds, a half-sunk log; a water hotspot and anchor; residents: great blue heron, red-winged blackbird, raccoon.
+    Reeds, a half-sunk log; two shore Water hotspots ("Hidden Pond Shallows"), an anchor and a bank residence; residents: great blue heron, red-winged blackbird, raccoon. Its note reads "Still water in a hollow of the woods, far from any path. A heron fishes it; blackbirds call from the reeds."
   * **Rock Shelter**: an overhanging crag (`ProceduralMeshes.Crag`: a block of rock with an undercut alcove) set into an upland
     hillside (slopes of about 7° to 24°, preferring higher ground, a view and the ground under the ridge), its alcove dry
     underfoot (at least 2.2 m of clearance), a long-cold fire ring and a view out; the floor is bare (no terrain grass, a
     dry tread). Residents: tufted titmouse and gray squirrel in the woods in front. **Rain still falls through its roof.**
   * **Old Cabin Ruins**: a stone foundation and chimney stub in a small clearing at a woods' edge on level ground, taken back by
     ferns and young trees, rotted sills, and the last posts of a split-rail fence. Residents: eastern bluebird (the fence),
-    eastern cottontail and groundhog (the clearing).
+    eastern cottontail and groundhog (the clearing). The clearing has a small Meadow hotspot, so the bluebird stays by the fence; the Rock Shelter's woods hold a Woodland anchor for the titmouse.
 * **Measured first.** All of it was prototyped and measured in Python on eight seeds before it was written: the existing
   paths and destinations changed by 0.00 m of height; all four places were found on every seed, 42 to 130 m from the nearest
   path, reachable on foot by a slope no steeper than 15° on the gentlest approach.

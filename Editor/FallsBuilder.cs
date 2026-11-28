@@ -148,6 +148,10 @@ namespace WildLens.EditorTools
             // The falling water: a curtain arcing out from the lip to the pool, streaks scrolling down.
             var curtain = new GameObject("Falls Curtain");
             curtain.transform.SetParent(group, false);
+            // 1.9: the mesh is built in world coordinates, but the destination group sits at the site's centre, so the curtain was
+            // drawn offset by that centre (twice its world position). Its object now sits at the world origin, as the creek water does.
+            curtain.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            curtain.transform.localScale = Vector3.one;
             curtain.AddComponent<MeshFilter>().sharedMesh = GeneratedAssets.Save(CurtainMesh(lip, down, side, poolWater), "Mesh_FallsCurtain");
             var cr = curtain.AddComponent<MeshRenderer>();
             cr.sharedMaterial = FallsMaterial();
