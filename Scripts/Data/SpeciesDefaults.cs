@@ -18,6 +18,8 @@ namespace WildLens.Data
                 Heron(), Raccoon(), Turkey(), BarredOwl(), Groundhog(), Cardinal(), BlueJay(), Blackbird(), Opossum(), Coyote(),
                 // 1.4: the creek itself had no specialists. Both live only at the Creek Ford (groupCount 0: residents only).
                 Kingfisher(), Sandpiper(),
+                // 1.5: the waterfall's resident.
+                Phoebe(),
             };
         }
 
@@ -331,6 +333,20 @@ namespace WildLens.Data
             s.wanderRadius = 30f;
             Awareness(s, aware: 28f, alert: 18f, flee: 9f, gain: 1.1f, decay: 0.22f, patience: 2.5f, startle: 1.3f);
             s.clearPhotoDistance = 22f;
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition Phoebe()
+        {
+            var s = Songbird("eastern_phoebe", "Eastern Phoebe", "Sayornis phoebe",
+                "A soft grey-brown flycatcher that wags its tail and calls its own name, 'fee-bee'. Nests on rock ledges by " +
+                "running water: at Willow Falls it sallies out from the ledge after insects over the pool.",
+                0.17f, 0.036f, new Color(0.42f, 0.4f, 0.37f), new Color(0.9f, 0.88f, 0.8f), new Color(0.12f, 0.12f, 0.12f),
+                HotspotType.Perch, 0, new Vector2Int(1, 1));
+            s.flightAltitude = new Vector2(1.5f, 4f);
+            s.circleRadius = new Vector2(3f, 7f);
+            s.wanderRadius = 12f;
             s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
             return s;
         }

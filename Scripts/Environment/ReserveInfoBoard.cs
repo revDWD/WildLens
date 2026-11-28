@@ -21,7 +21,7 @@ namespace WildLens.Environment
     {
         [Tooltip("Board face size in metres.")]
         public Vector2 size = new Vector2(2.6f, 1.6f);
-        [Tooltip("Best-time pictograms (dawn, day, golden hour, dusk), set by the builder; the same as on the signs.")]
+        [Tooltip("Best-time pictograms (dawn, day, golden hour, dusk, rain), set by the builder; the same as on the signs.")]
         public Texture2D[] timeIcons = new Texture2D[0];
 
         private const float UnitsPerMetre = 500f;
@@ -167,6 +167,7 @@ namespace WildLens.Environment
             if (t.Contains("midday") || (t.Contains("morning") && !t.Contains("early morning"))) yield return 1;
             if (t.Contains("golden") || t.Contains("late afternoon") || t.Contains("evening")) yield return 2;
             if (t.Contains("dusk")) yield return 3;
+            if (t.Contains("rain")) yield return 4; // 1.5: "after rain
         }
 
         /// <summary>

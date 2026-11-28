@@ -11,6 +11,8 @@ namespace WildLens.UI
         public float blend;
         public int zoomLevel;
         public float focalLength;
+        /// <summary>Macro lens on (1.5).</summary>
+        public bool macro;
         public bool hasSubject;
         public TrackedSubject subject;
         public bool subjectCentred;
@@ -193,7 +195,7 @@ namespace WildLens.UI
                 _levelLabels[i].fontStyle = current ? FontStyle.Bold : FontStyle.Normal;
                 _levelLabels[i].fontSize = current ? 28 : 22;
             }
-            _focalText.text = Mathf.RoundToInt(s.focalLength) + " mm   f/4";
+            _focalText.text = s.macro ? "MACRO   " + Mathf.RoundToInt(s.focalLength) + " mm   f/8" : Mathf.RoundToInt(s.focalLength) + " mm   f/4";
             _lockBlend = Mathf.MoveTowards(_lockBlend, s.focusLocked ? 1f : 0f, dt * 10f);
             _focusDot.color = new Color(GoodColor.r, GoodColor.g, GoodColor.b, Mathf.Lerp(0.12f, 1f, Mathf.Max(_lockBlend, _focusPulse)));
             _focusDot.rectTransform.localScale = Vector3.one * (1f + 0.9f * _focusPulse);

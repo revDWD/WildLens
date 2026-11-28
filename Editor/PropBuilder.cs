@@ -118,7 +118,7 @@ namespace WildLens.EditorTools
             board.size = new Vector2(W - 0.16f, boardH - 0.12f);
             // 1.2: the board shows best times as the same pictograms as the destination signs.
             board.timeIcons = new[] { SignKit.IconTexture(SignIcon.Dawn), SignKit.IconTexture(SignIcon.Day),
-                SignKit.IconTexture(SignIcon.GoldenHour), SignKit.IconTexture(SignIcon.Dusk) };
+                SignKit.IconTexture(SignIcon.GoldenHour), SignKit.IconTexture(SignIcon.Dusk), SignKit.IconTexture(SignIcon.Rain) };
 
             AddCollider(kiosk, new Vector3(0f, 1.5f, 0f), new Vector3(W + 0.3f, 3f, 0.3f));
 

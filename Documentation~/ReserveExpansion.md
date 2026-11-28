@@ -67,10 +67,11 @@ destinations; footpaths stay for walking.
 ## Next steps (proposed, in order)
 
 1. ~~**Time of day.**~~ Done in 0.9. ~~**Weather**~~ done in 1.4 (a four-day forecast). Seasons later.
-2. **Creek, part two.** ~~Stepping stones at a ford~~ (the Creek Ford, 1.4). Remaining: a small cascade where it leaves
-   the ridge (now likely, with 1.4's landforms giving it a real drop), a tributary.
+2. **Creek, part two.** ~~Stepping stones at a ford~~ (the Creek Ford, 1.4). ~~A waterfall~~ (Willow Falls, 1.5).
+   Remaining: a tributary; a second, smaller cascade if the creek offers one.
 3. **Wetland edge.** Widen the pond into a marsh: a boardwalk loop, sedges, a second blind. Natural home for a
    future heron or wood duck (new species are data plus a model).
+   ~~Hidden places~~ (1.5): a hidden overlook, a fern glade, a creek alcove, unmarked.
 4. **Forest interior footpath.** A narrow path (no bikes, marked by a gate) through the grove to a hidden glade:
    intimacy and shade as a contrast to the open ridge.
 5. **Ranger cabin.** Near the loop: the journal on a desk, maps on the wall, a porch for golden hour. No NPCs.

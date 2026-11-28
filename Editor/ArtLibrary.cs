@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 
 namespace WildLens.EditorTools
 {
-    public enum ArtKind { Fern, Shrub, RockPiece, Boulder, Stump, Log, Outcrop }
+    public enum ArtKind { Fern, Shrub, RockPiece, Boulder, Stump, Log, Outcrop, MacroPlant }
 
     /// <summary>Sun and colour data measured from an HDRI (written by the asset pipeline into Art~/Sky/*.json).</summary>
     [Serializable]
@@ -43,7 +43,7 @@ namespace WildLens.EditorTools
     {
         public const string Destination = GeneratedAssets.Root + "/Art";
         private const string PrefabFolder = Destination + "/Prefabs";
-        private const string ImportVersion = "5"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture. 5: overcast sky
+        private const string ImportVersion = "6"; // 2: Foliage card textures. 3: rock faces (outcrops). 4: plank texture. 5: overcast sky. 6: macro plants
 
         private struct ModelSpec
         {
@@ -52,6 +52,7 @@ namespace WildLens.EditorTools
             public bool alpha;
             public float maxDimension; // metres, from Poly Haven metadata
             public bool split;
+            public float minPiece;     // split pieces smaller than this are dropped (0 = 0.25 m: pebbles)
         }
 
         private static readonly ModelSpec[] Models =
@@ -67,6 +68,9 @@ namespace WildLens.EditorTools
             // 1.2: scanned hillside rock faces (open shells that face up and out, ~45° lean): outcrops on slopes.
             new ModelSpec { name = "rock_face_01", kind = ArtKind.Outcrop, maxDimension = 7.11f },
             new ModelSpec { name = "rock_face_02", kind = ArtKind.Outcrop, maxDimension = 4.87f },
+            // 1.5: the first macro subjects, real plant scans split into single plants (LOD0 only).
+            new ModelSpec { name = "dandelion_01", kind = ArtKind.MacroPlant, alpha = true, maxDimension = 4.21f, split = true, minPiece = 0.04f },
+            new ModelSpec { name = "periwinkle_plant", kind = ArtKind.MacroPlant, alpha = true, maxDimension = 1.25f, split = true, minPiece = 0.04f },
         };
 
         /// <summary>Models whose mesh data is read when their prefab is made (outcrops are turned to face +Z).</summary>
@@ -321,6 +325,8 @@ namespace WildLens.EditorTools
                     foreach (var mf in filters)
                     {
                         if (mf.sharedMesh == null) continue;
+                        // Scans that ship LODs as separate meshes: keep LOD0 only (the others are copies in the same place).
+                        if (mf.name.Contains("_LOD") && !mf.name.Contains("_LOD0")) continue;
                         var root = new GameObject($"PH_{spec.name}_{index:00}");
                         var piece = new GameObject("Mesh");
                         piece.transform.SetParent(root.transform, false);
@@ -329,7 +335,7 @@ namespace WildLens.EditorTools
                         piece.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
                         piece.AddComponent<MeshRenderer>().sharedMaterial = mat;
                         Bounds b = Recenter(root, piece.transform);
-                        if (Mathf.Max(b.size.x, b.size.y, b.size.z) < 0.25f) { Object.DestroyImmediate(root); continue; } // pebbles
+                        if (Mathf.Max(b.size.x, b.size.y, b.size.z) < (spec.minPiece > 0f ? spec.minPiece : 0.25f)) { Object.DestroyImmediate(root); continue; } // pebbles
                         Finish(root, spec.kind, b, piece);
                         existing.Add(Save(root, $"{PrefabFolder}/PH_{spec.name}_{index:00}.prefab"));
                         index++;
@@ -430,6 +436,7 @@ namespace WildLens.EditorTools
                     AddFeature(root, FeatureKind.Bush, radius, b.size.y);
                     break;
                 case ArtKind.Fern:
+                case ArtKind.MacroPlant:
                     break; // low ground cover: no collider
             }
             foreach (var r in root.GetComponentsInChildren<MeshRenderer>())

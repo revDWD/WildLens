@@ -10,9 +10,10 @@ reserve is in `Documentation~/ReserveExpansion.md`; the environment audit, free-
 
 ## 0. Start here (a fresh session's first ten minutes)
 
-1. **What this is:** Willow Creek Nature Reserve, a quiet wildlife photography game (v1.4). The *place* is the
+1. **What this is:** Willow Creek Nature Reserve, a quiet wildlife photography game (v1.5). The *place* is the
    product: a generated reserve (meadow loop, ridge, pond, grove, meadow blind, Willow Creek, Reserve Road, footpaths)
-   with a day cycle, a weather forecast and wildlife that keeps hours. Photography (zoom, grading, journal) is the reason to be there.
+   with a day cycle, a weather forecast, a waterfall, hidden places and wildlife that keeps hours. Photography
+   (telephoto and, since 1.5, macro; grading; journal) is the reason to be there.
 2. **How it's built:** a Unity UPM package. An editor builder (`WildLens ▸ Vertical Slice Builder`) generates the
    whole reserve into a scene; runtime scripts run the game. The user installs from the git URL, updates, rebuilds.
 3. **You probably can't run Unity.** Run `Tools~/CompileCheck/compile-check.sh` after every change (five
@@ -41,6 +42,12 @@ feature. The question to ask is never "what system is missing?" but **"what woul
 Ecological structure (dense, open, sparse), water that connects places, habitats with distinct identities, quiet
 evidence of stewardship, and wildlife found where it would really be. Someone should want to spend an afternoon here:
 walking trails, riding the trail bike, stopping at overlooks, watching wildlife, taking photographs.
+
+**Direction (from 1.5): a naturalist's reserve, telephoto and macro.** The player should feel like a field
+naturalist: the telephoto for wildlife at a distance, a macro lens for the small life at their feet (wildflowers
+now; butterflies, dragonflies, bees, beetles, fireflies, mantises, frogs, salamanders and fungi as models arrive).
+Small subjects are data (`NaturalistSubject`) with their own habitats, hours and weather, and go in the journal's field
+notebook, so they add attention, not accumulation.
 
 **Direction (from 0.9): a place with rhythms.** The reserve changes through the day (dawn mist, golden hour, dusk),
 and so does its wildlife. Players should come to think *"I want the pond at dawn"*, *"I'll ride to the ridge before
@@ -75,8 +82,9 @@ the bike (R). It must feel seamless; anything that adds friction to it is a bug.
 
 **The trail bike: design rules.** Inspired by small-displacement trail bikes and reserve service vehicles.
 It is quiet-ish, friendly and practical, never racing, aggressive or arcade. It exists only to make a larger
-reserve explorable. So: modest top speed (≈40 km/h on tracks, slower across country); gentle acceleration; no
-stunts, damage, fuel, upgrades or progression. Its engine is loud to wildlife on purpose, so the last stretch to
+reserve explorable. So: modest top speed (≈45 km/h on the graded Reserve Road since 1.5, ≈22 km/h on footpaths,
+≈20 km/h across country); gentle acceleration; no stunts, damage, fuel, upgrades or progression. 45 km/h is a cap,
+not a step: a bigger reserve gets better routes, not a faster bike. Its engine is loud to wildlife on purpose, so the last stretch to
 an animal is always on foot. You can raise the camera stopped in the saddle, but not while moving.
 
 **Priorities, in order:** feel of the encounter → camera feel → visual credibility → content breadth.
@@ -124,6 +132,9 @@ an animal is always on foot. You can raise the camera stopped in the saddle, but
 - **A sign is read in two seconds from the trail.** Big title, one short line, a number and a pictogram; paragraphs
   go. And a sign that "exists" isn't done until its lettering is checked on the board (`WildLens ▸ Check Sign
   Lettering`): 1.3 shipped mirrored lettering that the code couldn't see and the first screenshot showed.
+- **Ground everything** (1.5). A prop placed from one point floats on a slope. The grounding pass sets every post and
+  leg into the terrain after each build; new props must name their supports Post/Leg so it can find them.
+- **Hidden, not collected** (1.5). Optional places are found, named once, and never counted, marked or rewarded.
 - **The trailhead board is the dashboard.** Players (and testers) see the version, build, features and recent
   changes in-world. Keep `WildLensVersion` current every release; it must never feel like a debug screen.
 
@@ -160,7 +171,8 @@ Scripts/
   CameraSystem/  CameraModeController (RMB raise, latch), ZoomLens (1/2/4/8/16× steps, FOV), FocusController
                  (AF hunt/lock), LensEffects (URP depth of field), CameraAudio (procedural shutter/AF sounds)
   Photography/   PhotoCamera (capture), PhotoAnalyzer (visibility, frame fill), PhotoQualityEvaluator
-                 (Poor/Good/Excellent), FramingAssistant (live brackets), Photographable, PhotoStorage
+                 (Poor/Good/Excellent), FramingAssistant (live brackets), Photographable, PhotoStorage,
+                 MacroSubject + MacroAnalyzer (macro: small subjects, close-range grading)
   Observation/   ObservationTracker (hold in view → identified → journal)
   Wildlife/      AnimalAgent → GroundAnimal / FlyingAnimal (behaviour states), Awareness/WildlifeAwareness
                  (Calm/Aware/Alert/Fleeing), WildlifeSpawner, WildlifeWorld (trees, perches, hotspots),
@@ -172,11 +184,13 @@ Scripts/
                  ReserveCreek (creek line), ReserveParking (bike pull-offs), WildlifeResidence (species at a place),
                  RideableSurface (bridge decks the bike rides), AmbientSound (procedural wind/brook),
                  DayCycle (clock, sun, sky, fog, grading), MistPatch (dawn mist), ScheduleAnchor (water/woodland/ridge),
-                 WeatherCycle (four-day forecast, cloud cover, rain, overcast sky), WaterFlow (moving ripples)
+                 WeatherCycle (four-day forecast, cloud cover, rain, overcast sky), WaterFlow (moving ripples),
+                 Waterfall (spray, roar, spate after rain), ReserveDiscovery (hidden place), ReflectionRefresh
   Journal/       JournalService, JournalData (save + migration)
   UI/            HudController (owns views), ViewfinderView, PhotoPreviewView (prints, keeper), ShutterEffectView,
                  NoticeView, JournalUI, UIFactory
-  Data/          SpeciesDefinition (all per-species tuning), SpeciesDefaults, SpeciesDatabase, AnimalActivity
+  Data/          SpeciesDefinition (all per-species tuning), SpeciesDefaults, SpeciesDatabase, AnimalActivity,
+                 NaturalistSubject + SubjectDefaults (macro subjects)
   Debugging/     CameraDiagnostics (F3 overlay, F4 zoom self-test)
 Editor/
   WildLensSliceBuilder (pipeline), WildLensBuilderWindow, SliceBuildSettings, TrailBuilder, PropBuilder,
@@ -188,11 +202,13 @@ Editor/
   EnvironmentKit (free packs by ecological role), EnvironmentKitScanner (fills the kit from the project),
   KitPlacement (VegetationBuilder partial: places kit assets, adds colliders/features),
   FordBuilder (VegetationBuilder partial: the Creek Ford), SignKit (sign standard, pictograms, text measuring),
-  SignCheck (probe: lettering measured against boards)
+  SignCheck (probe: lettering measured against boards), FallsBuilder (Willow Falls), DiscoveryBuilder (hidden
+  places), MacroBuilder (macro subjects), GroundingPass (posts and legs to the ground)
 Art~/            CC0 Poly Haven skies, terrain, surfaces, models, foliage cards (CREDITS.md)
 Documentation~/  Systems.md (systems and tuning), VisualRoadmap.md (assets, licensing, weaknesses),
                  ReserveExpansion.md (reserve design and next steps), WildlifeExpansion.md (species framework & roadmap),
-                 EnvironmentMigration.md (environment audit, free assets, migration plan, before/after)
+                 EnvironmentMigration.md (environment audit, free assets, migration plan, before/after),
+                 WildlifeAssetStrategy.md (animal model options and the style decision)
 Tools~/          CompileCheck (compile the package without Unity)
 CONTRIBUTING.md  setup, build → playtest loop, release checklist
 ```
@@ -226,6 +242,8 @@ Key flows:
 - **Weather (1.4):** `WeatherCycle` (forecast day = `DayCycle.Day`) → `Cover`/`Rain` → `DayCycle.Apply` dims and greys the
   light, swaps to the overcast sky; rain particles and sound; `WildLensWind.WeatherMultiplier`; `WildlifeSchedule`
   re-places animals when rain starts or stops; HUD field notes and board conditions on `Changed`.
+- **Macro (1.5):** M → `ZoomLens.MacroMode` (24° FOV) → `FocusController` focuses on `MacroAnalyzer.Centred` (≥ 8 cm) →
+  shutter → `MacroAnalyzer.Analyze` grades frame fill, focus, centring → `JournalService.RecordNotebook` → HUD note.
 - **Riding:** `TrailBike` disables the walking controller and parents the player to the seat; it reports presence
   (with `EngineNoise`) and blocks camera raise while moving; parking puts the player back on foot beside it.
 
@@ -327,7 +345,7 @@ most saturated colour at exactly the angle players look at a creek. Add visual d
 or every tree after it moves. Players asked for wildlife already added in 1.1: say what's already there before
 building more.
 
-**1.4.0 Changing Skies** (current). The 1.3 playtest liked the reserve a lot (biodiversity, the road, the
+**1.4.0 Changing Skies**. The 1.3 playtest liked the reserve a lot (biodiversity, the road, the
 trailhead, the ridge) and reported two things: sign lettering missing or unreadable, and that **elevation made the
 place**. The lettering was there but mirrored: `SignKit` placed left-aligned text on the reader's right, off the board
 (a sign's front faces +Z, so its reader's right is its -X; centred labels before 1.3 hid the convention). Fixed with a
@@ -341,6 +359,18 @@ The noise "forest field" is not the forest: paint and plant from where trees act
 rhythm, not dice, or players can't plan around it. *What worked from the biodiversity expansion:* species justified
 by places (pond, grove, riffle), data-only bodies, residents that stay home to make a place reliable.
 
+**1.5.0 Falls & Field Notes** (current). The 1.4 playtest loved the skies, the elevation and the weather, and
+reported floating signs. So: a grounding pass for every post and leg; Willow Falls, made by concentrating the creek's
+own fall (from the new landforms) into one lip with a ravine below, and tied to the weather (spate after rain); hidden
+places (overlook, fern glade, creek alcove) found and named once, never counted; groundwork for macro photography
+(a lens mode, a data type for small subjects, close-range grading, a field notebook, two real plant scans); a Trail
+125-style bike with visible suspension and better parking; the pond's reflections following the sky; and a wildlife
+asset strategy. *Lessons:* a destination built from what the world already does (the creek's fall, the weather) beats
+one dropped in. Placing from a single point is a slope bug waiting to happen: ground supports per footprint. A
+realtime probe rendered once is a photograph of the wrong sky. Keep new photography modes beside the old ones
+(macro sits next to the telephoto pipeline, not inside it). Animal style is a direction decision, not an asset drop:
+present the routes, don't impose one.
+
 **Cross-cutting lessons**
 - When the player says something doesn't work, believe them and **build a probe** before theorising.
 - Make invisible state visible: stale scenes, ignored inputs and FOV overrides each cost a milestone before they
@@ -349,7 +379,7 @@ by places (pond, grove, riffle), data-only bodies, residents that stay home to m
   either alone.
 - Keep package size in mind: `Art~` ships to every user. Use 2k skies and ground, and drop unused files.
 
-## 6. Current state (1.4.0)
+## 6. Current state (1.5.0)
 
 **Strengths:** the approach-and-photograph loop; camera feel; legible grading; a reserve of distinct, connected,
 named places with signature details; a day of changing light and learnable wildlife rhythms; a road for riding and
@@ -357,11 +387,13 @@ footpaths for walking; one coherent reserve identity; the trailhead board; a dat
 (F3/F4, comparison capture, stale-scene detection, model setup, compile check); a supported path to free
 high-quality scenery (Environment Kit) and scanned bedrock outcrops; readable park-style signs and a trailhead board
 that reads in seconds, with a probe that checks lettering; scanned wood on the woodwork; flowing creek water; real
-elevation (lowland to upland ridges); a learnable weather forecast; the Creek Ford and seventeen species.
+elevation (lowland to upland ridges); a learnable weather forecast; the Creek Ford; Willow Falls; hidden places;
+macro photography groundwork with a field notebook; eighteen species; a Trail 125-style bike with suspension.
 
 **Remaining weaknesses (honest):**
-1. **Animals are primitive placeholders.** The biggest gap by far. No free licence-safe realistic models exist; buy
-   them and use Animal Model Setup (deer first).
+1. **Animals are primitive placeholders.** The biggest gap by far. `WildlifeAssetStrategy.md` sets out the routes
+   (semi-realistic packs recommended; stylised only with an environment restyle; a CC0 opt-in); **the director chooses**.
+   Then a pack setup tool, and Animal Model Setup per species (deer first).
 2. **Trees**: the generated trees are structured, but leaf cards are lit like paper, with no real LODs or billboards
    and few silhouettes. The Environment Kit can replace them with Unity's free SpeedTree trees, **but it has never been
    run in Unity**: expect fixes on first use (scale, crown colliders, scanner guesses).
@@ -372,17 +404,20 @@ elevation (lowland to upland ridges); a learnable weather forecast; the Creek Fo
    third-party font is committed because free sign fonts are OFL, not CC0).
 5. **Sky**: three HDRIs (morning, golden hour, overcast) re-tinted through the day; no night sky, no moving clouds.
    Rain has no wet surfaces, puddles or splashes, and falls through roofs.
-6. **Water** has ripples and flow since 1.3 and a ford since 1.4, but no refraction, foam or shoreline blending; no cascade.
+6. **Water** has ripples and flow, a ford and a waterfall, but no refraction, foam or shoreline blending; the falls
+   curtain is a single sheet (no splash geometry).
 7. **The reserve depends on the terrain it's built on.** WildLens's own terrain now has real landforms (1.4), but
    a user's own terrain is used as is. Building on a demo scene's terrain isn't supported (multi-tile terrains).
 8. **Schedules move whole groups at period changes**: commuting can look synchronised.
 9. **Performance at reserve scale is untested on low-end hardware** (see the GPU Resident Drawer note).
-10. **The authors of 0.7–1.4 never ran Unity**: everything compiles in five configurations, but every feature
+10. **The authors of 0.7–1.5 never ran Unity**: everything compiles in five configurations, but every feature
    since 0.7 was verified only through the user's screenshots. Expect tuning.
+11. **Macro has two subjects** (still plants). Insects, amphibians and fungi need models and the reserved behaviours
+   (Perches, Flits, Hops, Glows).
 
-**Visual priorities (in order):** believable animals → kit trees and grass proven in Unity → landmarks that use the
-new elevation (a cascade, a hidden overlook on an upland shelf) → real prop models (kiosk, blind, benches) → night sky
-and wet-weather surfaces → water detail (foam, refraction).
+**Visual priorities (in order):** believable animals (after the style decision) → kit trees and grass proven in Unity →
+macro subjects with life (butterflies, dragonflies, frogs) → real prop models (kiosk, blind, benches) → night sky and
+wet-weather surfaces → water detail (foam, splash).
 
 ## 7. Checklist for changes
 
@@ -400,6 +435,9 @@ and wet-weather surfaces → water detail (foam, refraction).
   Console line from `SignCheck` (or run **WildLens ▸ Check Sign Lettering**). Paragraphs belong in the journal or nowhere.
 - New landmark? Answer "why would a photographer come here?" and "what does the ground do here?" first.
 - Terrain generation changed? Prototype it outside Unity and measure relief and slopes (see the 1.4 notes in Systems.md).
+- New prop on legs or posts? Name the supports Post/Leg so `GroundingPass` sets them into the ground.
+- New small subject? A `NaturalistSubject` (in `SubjectDefaults`) plus a model with a `MacroSubject`; give it a place,
+  hours and weather. New behaviours (Flits, Hops…) go in the reserved `SubjectBehaviour` values.
 - Anything the player walks into or onto (doors, decks, steps): doorways ≥ 1.0 m wide and ≥ 1.95 m tall, steps
   ≤ 0.4 m (CharacterController radius 0.35, skin 0.05, height 1.8, step offset 0.4).
 - New scenery placement? Route it through the kit roles (`KitPlacement`) so free packs can replace it, give placed
@@ -409,8 +447,9 @@ and wet-weather surfaces → water detail (foam, refraction).
 
 ## 8. What SHOULD be built next (in order)
 
-1. **Playtest 1.4**: signs at each destination (run Check Sign Lettering), the new landforms (where did the ridge,
-   pond, creek and road end up? are any slopes too steep to walk or ride?), each weather day, the Creek Ford at dawn.
+1. **Playtest 1.5**: Willow Falls (morning light; after the day-3 shower), the hidden places, macro on a dandelion
+   and the periwinkle, the bike's suspension and parking, signs and posts on slopes. Then **the animal style decision**
+   (`WildlifeAssetStrategy.md`) and a pack setup tool for the chosen pack.
 2. **Prove the Environment Kit in Unity** (`EnvironmentMigration.md` §5): the user imports Unity's free *Terrain URP
    Demo Scene* and *Terrain Sample Asset Pack* (Unity 6000.0.37+), scans, rebuilds and sends comparison captures.
    Fix what the first run exposes; tune `treeScale`, grass densities and role assignments. Check the outcrops.
@@ -422,13 +461,14 @@ and wet-weather surfaces → water detail (foam, refraction).
    generated trees. Kit trees (SpeedTree) bring all of this.
 6. **Props worth looking at**: the woodwork has scanned wood (1.3); next are proper shapes (bevelled posts, a shingled
    kiosk roof, a timber blind) and lit sign lettering (TextMeshPro with a CC0 font, if one fits).
-7. **Landmarks that use the elevation**: a small cascade where the creek leaves the upland, a hidden overlook on an
-   upland shelf, then the wetland boardwalk (`ReserveExpansion.md`). Each with its subject and its light.
+7. **Macro, round two**: animated small subjects (a butterfly on the meadow flowers, a dragonfly perching by the ford,
+   a frog at the pond edge after rain, fireflies at dusk), implementing the reserved behaviours; mushrooms after rain.
+   CC0 scans (Smithsonian 3D, Poly Haven) first.
 8. **Night and wet weather**: a CC0 night sky (Poly Haven), wet surfaces and puddles in rain, a frog chorus at dusk.
 9. **Expansion species, one at a time** (`Documentation~/WildlifeExpansion.md`). Seventeen are in (1.4); the next
    candidates (wood duck, painted turtle, pileated woodpecker) each wait for the place they would really live.
-10. **New places with a reason**: a cascade, wetland boardwalk with a second blind, a forest footpath,
-   a ranger cabin (`Documentation~/ReserveExpansion.md`).
+10. **New places with a reason**: wetland boardwalk with a second blind (and its dragonflies and frogs), a forest
+   footpath, a ranger cabin (`Documentation~/ReserveExpansion.md`).
 11. **A hand-authored reserve terrain** shipped as CC0 data, so the reserve no longer depends on the user's terrain.
 
 ## 9. What should NOT be built

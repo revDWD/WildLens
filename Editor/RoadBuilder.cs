@@ -219,6 +219,7 @@ namespace WildLens.EditorTools
                     if (s.kind == DestinationKind.ObservationBlind && d < s.radius) v += 40f;
                     if (s.kind == DestinationKind.Wetland && d < s.water * 1.35f + 6f) v += 200f;
                     if (s.kind == DestinationKind.OldGrowth && d < 14f) v += 30f;
+                    if (s.kind == DestinationKind.Waterfall && d < 28f) v += 60f; // keep the road out of the ravine
                 }
                 cache[n] = v;
                 return v;

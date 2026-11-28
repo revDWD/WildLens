@@ -149,6 +149,37 @@ namespace WildLens.Journal
             return results;
         }
 
+        public IReadOnlyList<NotebookRecord> Notebook => _data.notebook ?? (_data.notebook = new List<NotebookRecord>());
+        public int NotebookCount => Notebook.Count;
+
+        /// <summary>
+        /// Records a macro photograph of a small subject in the field notebook (1.5). Returns true the first time the
+        /// subject is found; keeps the best-quality photo ("Poor" &lt; "Good" &lt; "Excellent").
+        /// </summary>
+        public bool RecordNotebook(string subjectId, string displayName, string group, string quality, string photoId)
+        {
+            if (string.IsNullOrEmpty(subjectId)) return false;
+            if (_data.notebook == null) _data.notebook = new List<NotebookRecord>();
+            var entry = _data.notebook.Find(n => n.subjectId == subjectId);
+            bool isNew = entry == null;
+            if (isNew)
+            {
+                entry = new NotebookRecord
+                {
+                    subjectId = subjectId, displayName = displayName, group = group,
+                    firstFoundUtc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture), bestQuality = quality, bestPhotoId = photoId,
+                };
+                _data.notebook.Add(entry);
+            }
+            entry.photoCount++;
+            if (Rank(quality) > Rank(entry.bestQuality)) { entry.bestQuality = quality; entry.bestPhotoId = photoId; }
+            Save();
+            Changed?.Invoke();
+            return isNew;
+        }
+
+        private static int Rank(string q) => q == "Excellent" ? 2 : q == "Good" ? 1 : 0;
+
         public void Load()
         {
             _data = new JournalSaveData();
@@ -174,6 +205,7 @@ namespace WildLens.Journal
                 if (string.IsNullOrEmpty(s.identifiedBy)) s.identifiedBy = IdentificationMethod.Photograph;
                 _byId[s.speciesId] = s;
             }
+            if (_data.notebook == null) _data.notebook = new List<NotebookRecord>();
             Changed?.Invoke();
         }
 

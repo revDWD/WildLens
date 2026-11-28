@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.5.0] Falls & Field Notes
+### Willow Falls (new destination, number on the board and map)
+- Where Willow Creek naturally loses the most height, its fall is concentrated into a **2–7 m waterfall** over a scanned
+  rock face, with a plunge pool and a small **ravine** below (rock walls, ferns, boulders). A falling-water curtain,
+  **spray** and a **roar** you hear from 90 m.
+- **After rain the falls run faster, throw more spray and roar louder**, settling back over a few hours: a learnable
+  reason to come after the afternoon shower.
+- A **viewing deck** on the ravine rim and a **lookout at the top** of the falls, with a sign and a panel; footpath,
+  fingerpost and bike pull-off come with it. Resident: the **Eastern Phoebe** (new species, 18 in all).
+### Hidden places (no markers, no counters)
+- A **Hidden Overlook** on the upland, a **Fern Glade** in deep woods and a **Creek Alcove** out of sight of the trails,
+  each with a seat or rocks and a view; the first time you walk into one, a quiet field note names it.
+### Macro photography (groundwork)
+- **M** switches to a macro lens with the camera raised: close focus (to 8 cm) on the small subject nearest the centre,
+  graded on frame fill, focus and centring; "MACRO" in the viewfinder.
+- **Field notebook**: small subjects you photograph are recorded in the journal (count in the journal header).
+- First subjects: real scanned **Common Dandelion** (sunny loop verges; closes in rain and at dusk) and **Lesser
+  Periwinkle** (fern glade and grove floor). Data for butterflies, dragonflies, bees, beetles, fireflies, mantises, frogs,
+  salamanders and fungi is ready to be written as `NaturalistSubject` assets once models exist.
+### Trail bike
+- Reshaped after small trail bikes of the Trail 125 kind: exposed frame, horizontal single and skid plate, raised air
+  intake, upswept exhaust with heat shield, long seat, big rear carrier, twin shocks, high fender, round headlight,
+  mirrors, chunkier tyres.
+- **Visible suspension**: wheels follow the real ground under a body smoothed for the rider; the fork dives under
+  braking and the rear squats under throttle; faint idle shake.
+- Parked: front wheel turned to the lock; parked **on the Reserve Road** it is wheeled onto the shoulder, lined up.
+- Road cruise **45 km/h** (from 40) on the graded Reserve Road only; footpaths and open ground unchanged; gentler
+  approach to top speed.
+### Fixes
+- **Signs and props no longer float on slopes**: every post and leg is lengthened to reach the ground under its own
+  footprint (grounding pass after each build).
+- **The pond reflects the sky it's under**: its reflection probe re-renders with the light and weather (it mirrored a
+  blue morning under an overcast sky).
+### Wildlife assets
+- `Documentation~/WildlifeAssetStrategy.md`: options from CC0 to paid packs, the style decision, a recommended route.
+- Environment version 16; art import version 6 (**rebuild the slice**).
+
 ## [1.4.0] Changing Skies
 ### Signs fixed
 - **Sign lettering was mirrored** in 1.3: every left-aligned title, line and pictogram was placed on the reader's

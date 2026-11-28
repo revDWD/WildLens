@@ -35,6 +35,10 @@ namespace WildLens.CameraSystem
         [SerializeField] private float raiseSmoothTime = 0.2f;
         [Tooltip("Minimum seconds between zoom steps, so one flick of a free-spinning wheel or a trackpad swipe doesn't skip every level.")]
         [SerializeField] private float stepCooldown = 0.09f;
+        [Header("Macro (1.5)")]
+        [Tooltip("Field of view of the macro lens at its first step (a short macro, for subjects a hand's length away).")]
+        [SerializeField] private float macroFov = 24f;
+        [SerializeField] private float[] macroSteps = { 1f, 1.7f };
 
         private Camera _camera;
         private CameraModeController _mode;
@@ -79,6 +83,20 @@ namespace WildLens.CameraSystem
 
         /// <summary>Raised with the new level index.</summary>
         public event Action<int> LevelChanged;
+
+        /// <summary>Macro mode (1.5): a close-focus lens for small subjects; M toggles it with the camera raised.</summary>
+        public bool MacroMode { get; private set; }
+        public int MacroLevel => _macroLevel;
+        public event Action<bool> MacroChanged;
+        private int _macroLevel;
+
+        public void SetMacro(bool on)
+        {
+            if (MacroMode == on) return;
+            MacroMode = on;
+            _macroLevel = 0;
+            MacroChanged?.Invoke(on);
+        }
 
         private static float Tan(float fovDegrees) => Mathf.Tan(fovDegrees * 0.5f * Mathf.Deg2Rad);
 
@@ -135,7 +153,19 @@ namespace WildLens.CameraSystem
             LevelChanged?.Invoke(index);
         }
 
-        private void Update() => HandleZoomInput();
+        private void Update()
+        {
+            // M: macro on/off. Like zooming, it raises the camera; lowering the camera leaves macro.
+            var mode = Mode;
+            var game = WildLensGame.Instance;
+            if (GameInput.MacroPressed && Cursor.lockState == CursorLockMode.Locked && (game == null || !game.IsUiOpen))
+            {
+                if (mode != null && !mode.IsActive) mode.Latch();
+                SetMacro(!MacroMode);
+            }
+            if (MacroMode && mode != null && !mode.IsActive && !mode.IsLatched) SetMacro(false);
+            HandleZoomInput();
+        }
 
         // Late in the frame (execution order 10000): anything that ran earlier this frame is overwritten.
         private void LateUpdate()
@@ -145,6 +175,7 @@ namespace WildLens.CameraSystem
 
             bool active = Mode != null && Mode.IsActive;
             float targetTan = active ? Tan(cameraModeFov) / zoomSteps[_level] : Tan(walkingFov);
+            if (active && MacroMode) targetTan = Tan(macroFov) / macroSteps[Mathf.Clamp(_macroLevel, 0, macroSteps.Length - 1)];
             TargetFov = 2f * Mathf.Atan(targetTan) * Mathf.Rad2Deg;
             float smooth = active ? zoomSmoothTime : raiseSmoothTime;
             _logTan = Mathf.SmoothDamp(_logTan, Mathf.Log(targetTan), ref _logVelocity, smooth, Mathf.Infinity, dt);
@@ -236,6 +267,18 @@ namespace WildLens.CameraSystem
             {
                 // Zooming out past 1× lowers a camera that was raised by zooming.
                 mode.Unlatch();
+                LastIgnoreReason = "";
+                return;
+            }
+
+            if (MacroMode)
+            {
+                // The macro lens has its own short range; zooming out past its first step goes back to the telephoto.
+                if (direction < 0 && _macroLevel == 0) { SetMacro(false); LastIgnoreReason = ""; return; }
+                int was = _macroLevel;
+                _macroLevel = Mathf.Clamp(_macroLevel + direction, 0, macroSteps.Length - 1);
+                if (_macroLevel == was) { Ignore("macro lens at its closest"); return; }
+                ZoomStepsApplied++;
                 LastIgnoreReason = "";
                 return;
             }

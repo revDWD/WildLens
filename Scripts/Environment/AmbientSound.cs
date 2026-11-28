@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace WildLens.Environment
 {
-    public enum AmbientKind { Wind, Brook }
+    public enum AmbientKind { Wind, Brook, Falls } // append only
 
     /// <summary>
     /// Procedural ambience that gives places a voice: wind gusting over the ridge, a brook babbling along the creek.
@@ -16,12 +16,12 @@ namespace WildLens.Environment
         public float audibleRadius = 35f;
 
         private const int Rate = 22050;
-        private static AudioClip _wind, _brook;
+        private static AudioClip _wind, _brook, _falls;
 
         private void Start()
         {
             var src = GetComponent<AudioSource>();
-            src.clip = kind == AmbientKind.Wind ? Wind() : Brook();
+            src.clip = kind == AmbientKind.Wind ? Wind() : kind == AmbientKind.Falls ? Falls() : Brook();
             src.loop = true;
             src.spatialBlend = 1f;
             src.rolloffMode = AudioRolloffMode.Linear;
@@ -53,6 +53,29 @@ namespace WildLens.Environment
             _wind = AudioClip.Create("AmbientWind", n, 1, Rate, false);
             _wind.SetData(d, 0);
             return _wind;
+        }
+
+        /// <summary>A waterfall: a deep, steady roar under a bright hiss, with slow swells (1.5). Loops over 10 s.</summary>
+        private static AudioClip Falls()
+        {
+            if (_falls != null) return _falls;
+            int n = Rate * 10;
+            var d = new float[n];
+            var rng = new System.Random(41);
+            float deep = 0f, mid = 0f, prev = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)Rate;
+                float white = (float)rng.NextDouble() * 2f - 1f;
+                deep += (white - deep) * 0.03f;  // the roar
+                mid += (white - mid) * 0.3f;
+                float hiss = mid - prev; prev = mid; // spray hiss
+                float swell = 0.85f + 0.15f * Mathf.Sin(t / 10f * Mathf.PI * 2f) + 0.05f * Mathf.Sin(t / 10f * Mathf.PI * 8f + 0.7f);
+                d[i] = (deep * 3.4f + mid * 0.35f + hiss * 0.5f) * swell * 0.55f;
+            }
+            _falls = AudioClip.Create("AmbientFalls", n, 1, Rate, false);
+            _falls.SetData(d, 0);
+            return _falls;
         }
 
         private static AudioClip Brook()

@@ -83,7 +83,8 @@ namespace WildLens.UI
             _dirty = false;
             var journal = Game.Journal;
             var db = Game.Species;
-            _headerStats.text = $"Species {journal.DiscoveredCount} of {journal.TotalSpecies}     Photographs {journal.TotalPhotos}";
+            _headerStats.text = $"Species {journal.DiscoveredCount} of {journal.TotalSpecies}     Photographs {journal.TotalPhotos}" +
+                                (journal.NotebookCount > 0 ? $"     Field notebook {journal.NotebookCount}" : "");
 
             for (int i = 0; i < _rowTexts.Count && i < db.Count; i++)
             {

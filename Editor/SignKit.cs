@@ -8,7 +8,7 @@ using WildLens.UI;
 namespace WildLens.EditorTools
 {
     /// <summary>Pictograms painted on the reserve's signs (append only: icon files are named by value).</summary>
-    public enum SignIcon { Dawn, Day, GoldenHour, Dusk, Binoculars, Paw, Bird, Water, Tree, Bike, Walk, Disc }
+    public enum SignIcon { Dawn, Day, GoldenHour, Dusk, Binoculars, Paw, Bird, Water, Tree, Bike, Walk, Disc, Rain }
 
     /// <summary>
     /// The reserve's sign standard, round two (1.2): readable at a glance, like a national-park trailhead.
@@ -110,6 +110,7 @@ namespace WildLens.EditorTools
             if (t.Contains("midday") || (t.Contains("morning") && !t.Contains("early morning"))) list.Add(SignIcon.Day);
             if (t.Contains("golden") || t.Contains("late afternoon") || t.Contains("evening")) list.Add(SignIcon.GoldenHour);
             if (t.Contains("dusk")) list.Add(SignIcon.Dusk);
+            if (t.Contains("rain")) list.Add(SignIcon.Rain); // 1.5: "after rain" (Willow Falls)
             return list.ToArray();
         }
 
@@ -273,6 +274,13 @@ namespace WildLens.EditorTools
                     break;
                 case SignIcon.Disc:
                     p.Disc(0.5f, 0.5f, 0.47f);
+                    break;
+                case SignIcon.Rain:
+                    p.Disc(0.34f, 0.64f, 0.15f);
+                    p.Disc(0.54f, 0.71f, 0.19f);
+                    p.Disc(0.72f, 0.62f, 0.14f);
+                    p.Stroke(0.3f, 0.56f, 0.76f, 0.56f, 0.16f);
+                    foreach (float x in new[] { 0.34f, 0.52f, 0.7f }) p.Stroke(x, 0.4f, x - 0.06f, 0.18f, w);
                     break;
             }
         }

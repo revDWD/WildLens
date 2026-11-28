@@ -23,7 +23,7 @@ namespace UnityEngine.InputSystem
 {
     using UnityEngine.InputSystem.Controls;
     public class Keyboard { public static Keyboard current => null;
-        public KeyControl wKey, sKey, aKey, dKey, upArrowKey, downArrowKey, leftShiftKey, fKey, jKey, tabKey, escapeKey, hKey, cKey, leftCtrlKey, eKey, qKey, f3Key, f4Key, rKey, tKey; }
+        public KeyControl wKey, sKey, aKey, dKey, upArrowKey, downArrowKey, leftShiftKey, fKey, jKey, tabKey, escapeKey, hKey, cKey, leftCtrlKey, eKey, qKey, f3Key, f4Key, rKey, tKey, mKey; }
     public class Mouse { public static Mouse current => null; public Vector2Control delta, scroll; public ButtonControl leftButton, rightButton; }
 }
 #endif

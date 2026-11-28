@@ -121,8 +121,10 @@ namespace WildLens.Core
         public static bool InteractPressed => Pressed(Key.Interact);
         /// <summary>Hold T: let time pass (wait for the light) while standing still.</summary>
         public static bool WaitHeld => Held(Key.Wait);
+        /// <summary>M: macro lens on/off with the camera raised (1.5).</summary>
+        public static bool MacroPressed => Pressed(Key.Macro);
 
-        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics, ZoomSelfTest, Interact, Wait }
+        private enum Key { Forward, Back, Left, Right, Up, Down, Sprint, Shutter, Journal, JournalAlt, Cancel, Hints, CrouchToggle, CrouchHold, ZoomIn, ZoomOut, Diagnostics, ZoomSelfTest, Interact, Wait, Macro }
 
 #if ENABLE_INPUT_SYSTEM && WILDLENS_INPUT_SYSTEM
         private static UnityEngine.InputSystem.Controls.KeyControl Control(Keyboard k, Key key)
@@ -149,6 +151,7 @@ namespace WildLens.Core
                 case Key.ZoomSelfTest: return k.f4Key;
                 case Key.Interact: return k.rKey;
                 case Key.Wait: return k.tKey;
+                case Key.Macro: return k.mKey;
                 default: return null;
             }
         }
@@ -205,6 +208,7 @@ namespace WildLens.Core
                 case Key.ZoomSelfTest: return KeyCode.F4;
                 case Key.Interact: return KeyCode.R;
                 case Key.Wait: return KeyCode.T;
+                case Key.Macro: return KeyCode.M;
                 default: return KeyCode.None;
             }
         }

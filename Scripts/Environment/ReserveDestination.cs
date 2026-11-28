@@ -5,7 +5,7 @@ using WildLens.Core;
 
 namespace WildLens.Environment
 {
-    public enum DestinationKind { RidgeOverlook, Wetland, OldGrowth, ObservationBlind }
+    public enum DestinationKind { RidgeOverlook, Wetland, OldGrowth, ObservationBlind, Waterfall } // append only
 
     /// <summary>
     /// A named place in the reserve worth travelling to: a ridge overlook, a pond, an old-growth grove, a blind

@@ -26,6 +26,7 @@ The folder name ends in `~`, so Unity ignores it; **WildLens ▸ Build Vertical 
 | Models/boulder_01 | Boulder 01 | Landmark boulders |
 | Models/tree_stump_01 | Tree Stump 01 | Stumps |
 | Models/dead_tree_trunk_02 | Dead Tree Trunk 02 | Fallen logs |
+| Models/dandelion_01, periwinkle_plant | Dandelion 01, Periwinkle Plant | Macro photography subjects, split into single plants (1.5) |
 | Models/rock_face_01, rock_face_02 | Rock Face 01 / Rock Face 02 (Verdant Trail collection) | Outcrops: bedrock on steep slopes and the ridge's flanks (1.2) |
 | Foliage/leaf_cluster_rgba.png | Island Tree 01 (leaf atlas) | Broadleaf canopy cards: 420 leaves recomposed into one cluster |
 | Foliage/conifer_branch_rgba.png | Fir Tree 01 (twig atlas) | Conifer branch cards: 70 needle twigs recomposed into one branch spray |

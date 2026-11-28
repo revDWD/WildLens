@@ -192,6 +192,41 @@ All built by **WildLens ▸ Build Vertical Slice In Open Scene** (rebuild to app
   highlights, gentle bloom, faint vignette. Camera: HDR, post-processing, SMAA.
 * **Comparison captures**: **WildLens ▸ Capture Comparison Shots** renders fixed views to `<project>/WildLensCaptures/`.
 
+## Willow Falls, hidden places, macro, bike, grounding (1.5.0)
+* **Falls plan** (`Editor/FallsBuilder.cs`, `PlanFalls` inside `PlanCreek` after `ComputeBed`): over creek samples
+  n/6 … n−26 (not within pond radius ×1.4 + 40 m, not inside the loop), the largest `bed[i+1] − bed[i+20]`; needs ≥ 2.2 m.
+  Drop D = clamp(drop − 0.4, 2, 7). Below the lip: bed = min(original, lerp(bed[L] − D, bed[L+20], t)); pool at
+  L+1…L+3 (bed −0.8, water level); `_carveExtra` widens the carve by 6·(1−t)^1.5 m and raises the wall profile by
+  0.95 per metre of extra width (`CarveCreek`). The water strip skips the lip quad. `PlanFallsSite` (after `PlanCreek`)
+  adds a `DestinationKind.Waterfall` site: deck on the gentler rim 6 samples below the lip, 4.6 + extra + 3.5 m out.
+* **Falls build**: rock face (scaled to D + 1.6 m) set into the lip facing downstream, two ravine walls, curtain mesh
+  (11 rows, arcing out up to 1.1 m, 3.2→4 m wide) with streak material (pipeline particle shader) scrolled by
+  `WaterFlow.scrollBase`; `Waterfall` (runtime): spray particles (mist material), `Spate` rises at 0.25/s while it
+  rains and falls over ~3 game hours; flow = 1 + 0.9·spate scales curtain speed, spray rate (16·flow) and roar volume
+  (`AmbientKind.Falls`, radius 90 m). Deck, top lookout, sign (best times "morning light · after rain" → sun + rain
+  icons), panel, Perch and Water hotspots, Water anchor, residents (phoebe, squirrel). Roads avoid 28 m around it.
+* **Hidden places** (`Editor/DiscoveryBuilder.cs`, runtime `ReserveDiscovery`): overlook = highest (prominence×2 +
+  height×0.1) point with prominence ≥ 2.5 m over a 40 m ring, ≥ 160 m from the ridge, ≥ 35 m from paths, slope ≤ 12°;
+  glade = most trees within 14 m (≥ 7), ≥ 30 m from paths, cleared to 6 m, 34 ferns, log, stump; alcove = creek sample
+  maximising forest×30 + bend×0.4, ≥ 40 m from paths, ≥ 70 m from the ford, ≥ 30 samples from the falls. HUD shows a
+  note on first entry per session (`ReserveDiscovery.Found`). Not on the board or map.
+* **Macro**: `NaturalistSubject` (data: group, size, behaviour, periods, rain), `MacroSubject` (world, optional focus
+  point), `MacroAnalyzer` (≤ 2.5 m, fill = largest projected side, sharp if |focus − distance|/distance < 0.12, centred
+  within 0.22; Excellent at fill ≥ 0.35 + sharp + centred, Good at ≥ 0.18 + sharp). `ZoomLens.MacroMode` (M): FOV 24°
+  / 1.7×; zoom out at the first step leaves macro; lowering the camera leaves macro. `FocusController` focuses on
+  `MacroAnalyzer.Centred` down to 8 cm. `PhotoCamera` records the best macro hit in `JournalSaveData.notebook`
+  (`JournalService.RecordNotebook`). Plants: `ArtKind.MacroPlant` (split, LOD0 only, `minPiece` 0.04 m);
+  `MacroBuilder` places 12 dandelions on loop verges (grass kept off) and periwinkle in the glade and grove.
+* **Bike** (`TrailBikeModel`, `TrailBike`): parts add `frontAxle` (slides along the fork) and `swingarm` (pivots);
+  `Suspension()` sets travel = bike-local height of the ground under each axle + sag (0.025 ridden) + dive (0.035
+  braking) / squat (≤ 0.02 throttle), clamped −0.07…+0.08, SmoothDamp 0.035/0.045 s. Parked steer −24°. `PullOver()`
+  on dismount when within 0.3 m of a road's edge distance and not at a pull-off. Road top speed 12.5 m/s; acceleration
+  × (1 − 0.55·(v/top)²).
+* **Grounding** (`Editor/GroundingPass.cs`): upright renderers named Post/Leg/… whose bottom is above the lowest terrain
+  under their footprint − 0.18 m are scaled down to it (≤ 3.5 m), unless a built collider is just below (decks,
+  bridges). **Reflections** (`ReflectionRefresh`): pond probe re-renders on period/weather change and every 20 s,
+  time-sliced.
+
 ## Weather, landforms, Creek Ford (1.4.0)
 * **Weather** (`Scripts/Environment/WeatherCycle.cs`, execution order -60): four forecast days of (hour, cover, rain)
   keys, chosen by `(firstDay + DayCycle.Day) % 4`; values eased (rate 0.8/s). `Condition` (Fair / Cloudy > 0.4 /

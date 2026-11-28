@@ -110,6 +110,7 @@ namespace WildLens.EditorTools
             _creek.AddRange(path);
 
             ComputeBed(pond);
+            PlanFalls(); // 1.5: concentrate the steepest reach into Willow Falls (before carving)
             CarveCreek();
             BuildCreekField();
 
@@ -300,8 +301,11 @@ namespace WildLens.EditorTools
             Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
             foreach (var p in _creek) { min = Vector2.Min(min, new Vector2(p.x, p.z)); max = Vector2.Max(max, new Vector2(p.x, p.z)); }
             const float flat = 1.2f, reach = 4.6f;
-            int x0 = Mathf.Clamp(Mathf.FloorToInt((min.x - reach - tPos.x) / cx), 0, res - 1), x1 = Mathf.Clamp(Mathf.CeilToInt((max.x + reach - tPos.x) / cx), 0, res - 1);
-            int z0 = Mathf.Clamp(Mathf.FloorToInt((min.y - reach - tPos.z) / cz), 0, res - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((max.y + reach - tPos.z) / cz), 0, res - 1);
+            float maxExtra = 0f;
+            if (_carveExtra != null) foreach (var e in _carveExtra) maxExtra = Mathf.Max(maxExtra, e);
+            float outer = reach + maxExtra; // 1.5: the ravine below the falls is carved wider
+            int x0 = Mathf.Clamp(Mathf.FloorToInt((min.x - outer - tPos.x) / cx), 0, res - 1), x1 = Mathf.Clamp(Mathf.CeilToInt((max.x + outer - tPos.x) / cx), 0, res - 1);
+            int z0 = Mathf.Clamp(Mathf.FloorToInt((min.y - outer - tPos.z) / cz), 0, res - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((max.y + outer - tPos.z) / cz), 0, res - 1);
             int w = x1 - x0 + 1, h = z1 - z0 + 1;
             var heights = data.GetHeights(x0, z0, w, h);
             for (int z = 0; z < h; z++)
@@ -309,9 +313,13 @@ namespace WildLens.EditorTools
             {
                 var p = new Vector3(tPos.x + (x0 + x) * cx, 0f, tPos.z + (z0 + z) * cz);
                 float d = CreekDistanceExact(p, out int seg, out float t);
-                if (d > reach) continue;
-                float bed = Mathf.Lerp(_creekBed[seg], _creekBed[Mathf.Min(seg + 1, _creekBed.Length - 1)], t);
-                float target = d < flat ? bed : bed + 2.3f * Mathf.Pow((d - flat) / (reach - flat), 1.6f);
+                if (d > outer) continue;
+                int next = Mathf.Min(seg + 1, _creekBed.Length - 1);
+                float extra = _carveExtra != null ? Mathf.Lerp(_carveExtra[seg], _carveExtra[next], t) : 0f;
+                float localReach = reach + extra;
+                if (d > localReach) continue;
+                float bed = Mathf.Lerp(_creekBed[seg], _creekBed[next], t);
+                float target = d < flat ? bed : bed + (2.3f + extra * 0.95f) * Mathf.Pow((d - flat) / (localReach - flat), 1.6f);
                 float cur = tPos.y + heights[z, x] * size.y;
                 heights[z, x] = Mathf.Clamp01((Mathf.Min(cur, target) - tPos.y) / size.y);
             }
@@ -358,6 +366,7 @@ namespace WildLens.EditorTools
                 verts.Add(c - side * 2.3f); verts.Add(c); verts.Add(c + side * 2.3f);
                 uvs.Add(new Vector2(0f, dist / 4f)); uvs.Add(new Vector2(0.5f, dist / 4f)); uvs.Add(new Vector2(1f, dist / 4f));
                 if (i == 0) continue;
+                if (i == _fallsIndex + 1) continue; // 1.5: the falls curtain takes over at the lip
                 int b = (i - 1) * 3, c0 = i * 3;
                 for (int k = 0; k < 2; k++)
                 {

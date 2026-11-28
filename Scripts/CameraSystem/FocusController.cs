@@ -23,6 +23,7 @@ namespace WildLens.CameraSystem
         private Camera _camera;
         private CameraModeController _mode;
         private FramingAssistant _framing;
+        private ZoomLens _lens;
         private float _logDistance, _logVelocity;
         private float _lockTimer, _unlockTimer;
 
@@ -36,6 +37,7 @@ namespace WildLens.CameraSystem
             _camera = GetComponent<Camera>();
             _mode = GetComponent<CameraModeController>();
             _framing = GetComponent<FramingAssistant>();
+            _lens = GetComponent<ZoomLens>();
             _logDistance = Mathf.Log(TargetDistance);
         }
 
@@ -44,12 +46,20 @@ namespace WildLens.CameraSystem
             float dt = Time.deltaTime;
             bool active = _mode != null && _mode.IsActive;
             bool subject = active && _framing != null && _framing.HasSubject && _framing.Subject.identifiable;
+            bool macro = active && _lens != null && _lens.MacroMode;
 
-            TargetDistance = subject ? Mathf.Max(0.5f, _framing.Subject.measurements.distance) : CentreDistance();
+            if (macro)
+            {
+                // 1.5: the macro lens focuses down to 8 cm, on the small subject nearest the centre (else what's there).
+                var small = MacroAnalyzer.Centred(_camera, out float d);
+                TargetDistance = small != null ? Mathf.Max(0.08f, d) : CentreDistance(0.08f);
+                subject = small != null;
+            }
+            else TargetDistance = subject ? Mathf.Max(0.5f, _framing.Subject.measurements.distance) : CentreDistance();
             _logDistance = Mathf.SmoothDamp(_logDistance, Mathf.Log(TargetDistance), ref _logVelocity, focusPullTime, Mathf.Infinity, dt);
 
             bool sharp = Mathf.Abs(FocusDistance - TargetDistance) / TargetDistance < 0.06f;
-            bool candidate = subject && _framing.SubjectCentred && sharp;
+            bool candidate = subject && (macro || _framing.SubjectCentred) && sharp;
             if (candidate)
             {
                 _unlockTimer = 0f;
@@ -68,12 +78,12 @@ namespace WildLens.CameraSystem
             }
         }
 
-        private float CentreDistance()
+        private float CentreDistance(float minimum = 0.5f)
         {
             if (_camera == null) return 10f;
             var ray = _camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             return Physics.Raycast(ray, out var hit, maxFocusDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
-                ? Mathf.Max(0.5f, hit.distance)
+                ? Mathf.Max(minimum, hit.distance)
                 : maxFocusDistance * 0.5f;
         }
     }

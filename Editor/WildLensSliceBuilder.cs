@@ -121,9 +121,11 @@ namespace WildLens.EditorTools
                     veg.BuildDestinations(reserve);
                     Progress("Reserve: creek, pull-offs, signs", 0.695f);
                     veg.BuildEcosystem(reserve);
+                    veg.BuildDiscoveries(reserve); // 1.5: hidden places, unmarked
                 }
                 Progress("Undergrowth", 0.7f);
                 veg.BuildUndergrowth(Child(env, "Undergrowth"));
+                veg.BuildMacroSubjects(env); // 1.5: small subjects for the macro lens (real plant scans)
 
                 bool details = s.paintTerrain && s.terrainDetailGrass && !hdrp;
                 if (s.paintTerrain) veg.PaintTerrain(details, s.backupTerrainData, ownsTerrain);
@@ -149,6 +151,7 @@ namespace WildLens.EditorTools
                 AssetDatabase.SaveAssets();
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 Selection.activeGameObject = root;
+                GroundingPass.Run(root.transform); // 1.5: posts and legs reach the ground on slopes
                 SignCheck.RunAfterBuild(); // 1.4: measure every sign's lettering against its board once glyphs exist
 
                 Debug.Log($"[WildLens] Vertical slice built on '{terrain.name}': trail {trail.Length:0} m, " +

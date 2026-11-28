@@ -18,6 +18,7 @@ worth keeping. The reserve changes from dawn mist to golden hour to dusk, and it
 | [`Documentation~/WildlifeExpansion.md`](Documentation~/WildlifeExpansion.md) | Adding species: the framework, ten planned species, assets |
 | [`Documentation~/VisualRoadmap.md`](Documentation~/VisualRoadmap.md) | Art sources, licences, visual weaknesses, Unity 6 notes |
 | [`Documentation~/EnvironmentMigration.md`](Documentation~/EnvironmentMigration.md) | Environment audit, free asset list, migration plan, before/after |
+| [`Documentation~/WildlifeAssetStrategy.md`](Documentation~/WildlifeAssetStrategy.md) | Animal model options (CC0 to paid), the style decision, recommended route |
 
 ## Install & run
 

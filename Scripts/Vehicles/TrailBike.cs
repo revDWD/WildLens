@@ -27,7 +27,9 @@ namespace WildLens.Vehicles
     public class TrailBike : MonoBehaviour
     {
         [Header("Handling")]
-        [SerializeField] private float maxSpeed = 11f;          // ≈40 km/h on tracks
+        [Tooltip("Top speed on the graded Reserve Road (1.5: 12.5 m/s ≈ 45 km/h, up from 40; a relaxed cruise between " +
+                 "destinations on a bigger, hillier reserve, never more). Footpaths and open ground are unchanged.")]
+        [SerializeField] private float maxSpeed = 12.5f;
         [SerializeField] private float footpathMaxSpeed = 6f;    // ≈22 km/h on the loop and footpaths: ride gently
         [SerializeField] private float offTrackMaxSpeed = 5.5f;  // ≈20 km/h across country
         [SerializeField] private float acceleration = 2.6f;
@@ -70,6 +72,11 @@ namespace WildLens.Vehicles
         private bool _parkRequested;
         private float _kick = 1f; // 1 = stand down
         private float _bump;
+        // 1.5 suspension and stance
+        private Vector3 _frontAxleBase;
+        private Quaternion _swingBase;
+        private float _travelF, _travelR, _travelFV, _travelRV, _dive, _squat, _parkSteer;
+        private const float MaxCompression = 0.08f, MaxExtension = 0.07f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics() { Ridden = null; InReach = null; }
@@ -86,11 +93,15 @@ namespace WildLens.Vehicles
                 _parts.steer = FindDeep(model, "Steer");
                 _parts.frontWheel = FindDeep(model, "Front Wheel");
                 _parts.rearWheel = FindDeep(model, "Rear Wheel");
+                _parts.frontAxle = FindDeep(model, "Front Axle"); // 1.5 suspension pivots (optional on a purchased model)
+                _parts.swingarm = FindDeep(model, "Swingarm");
                 _parts.kickstand = FindDeep(model, "Kickstand");
                 _parts.seat = FindDeep(model, "Seat Anchor");
                 if (_parts.seat == null) _parts.seat = PrimitiveMeshes.CreatePivot("Seat Anchor", transform, new Vector3(0f, 0f, -0.3f));
             }
             if (_parts.steer != null) _steerBase = _parts.steer.localRotation;
+            if (_parts.frontAxle != null) _frontAxleBase = _parts.frontAxle.localPosition;
+            if (_parts.swingarm != null) _swingBase = _parts.swingarm.localRotation;
 
             _collider = GetComponent<Collider>();
             if (_collider == null)
@@ -189,11 +200,17 @@ namespace WildLens.Vehicles
             float grade = Grade(); // degrees, + uphill
             float climb = Mathf.Sin(grade * Mathf.Deg2Rad) * 9.81f * 0.55f;
 
+            bool brakingNow = _parkRequested || (throttle < -0.05f && _speed > 0.2f);
             if (_parkRequested) _speed = Mathf.MoveTowards(_speed, 0f, braking * dt);
             else if (throttle > 0.05f)
             {
                 if (_speed < -0.05f) _speed = Mathf.MoveTowards(_speed, 0f, braking * dt);
-                else _speed = Mathf.Min(top, _speed + (acceleration * throttle - climb) * dt);
+                else
+                {
+                    // 1.5: pulls strongly away from a stop, eases off as it nears cruising speed (a small single, not a racer).
+                    float ease = 1f - 0.55f * Mathf.Pow(Mathf.Clamp01(_speed / Mathf.Max(0.1f, top)), 2f);
+                    _speed = Mathf.Min(top, _speed + (acceleration * throttle * ease - climb) * dt);
+                }
             }
             else if (throttle < -0.05f)
             {
@@ -232,6 +249,9 @@ namespace WildLens.Vehicles
             CameraModeController.RaiseBlocked = IsRidden && Mathf.Abs(_speed) > 0.4f;
             _engine.SetLoad(load, Mathf.Clamp01(throttle));
             _kick = Mathf.MoveTowards(_kick, 0f, dt * 3f);
+            // Weight transfer for the suspension: the fork dives under braking, the rear squats under throttle.
+            _dive = brakingNow && Mathf.Abs(_speed) > 0.3f ? 0.035f : 0f;
+            _squat = throttle > 0.05f ? 0.02f * throttle * (1f - Mathf.Clamp01(_speed / Mathf.Max(0.1f, top))) : 0f;
         }
 
         private RideSurface SurfaceAt(Vector3 p)
@@ -289,6 +309,7 @@ namespace WildLens.Vehicles
         {
             _speed = 0f;
             _parkRequested = false;
+            PullOver();
             Vector3 right = transform.right;
             Vector3 spot = transform.position;
             foreach (var offset in new[] { -right * 0.95f, right * 0.95f, -transform.forward * 1.6f, transform.forward * 1.6f })
@@ -314,6 +335,48 @@ namespace WildLens.Vehicles
             CameraModeController.RaiseBlocked = false;
             _engine.StopEngine();
         }
+
+        /// <summary>
+        /// Parked on the Reserve Road itself (not at a pull-off), the bike is wheeled onto the shoulder and lined up with
+        /// the road, the way a ranger would leave it (1.5). Elsewhere it stays where it stopped.
+        /// </summary>
+        private void PullOver()
+        {
+            Vector3 p = transform.position;
+            if (ReserveParking.At(p, 0.5f) != null) return;
+            ReserveTrack road = null;
+            float best = float.MaxValue;
+            foreach (var t in ReserveTrack.All)
+            {
+                if (t.kind != TrackKind.Road) continue;
+                float d = t.EdgeDistance(p);
+                if (d < best) { best = d; road = t; }
+            }
+            if (road == null || best > 0.3f || road.Points.Count < 2) return;
+            var pts = road.Points;
+            Vector3 onLine = pts[0], dir = Vector3.forward;
+            float bd = float.MaxValue;
+            for (int i = 1; i < pts.Count; i++)
+            {
+                Vector3 a = pts[i - 1], b = pts[i], ab = Flat(b - a) * TerrainUtil.FlatDistance(a, b);
+                float t = ab.sqrMagnitude > 0f ? Mathf.Clamp01(Vector3.Dot(Flat3(p - a), ab) / ab.sqrMagnitude) : 0f;
+                Vector3 q = a + ab * t;
+                float d = TerrainUtil.FlatDistance(p, q);
+                if (d < bd) { bd = d; onLine = q; dir = Flat(b - a); }
+            }
+            Vector3 side = Vector3.Cross(Vector3.up, dir);
+            float sgn = Vector3.Dot(Flat3(p - onLine), side) >= 0f ? 1f : -1f;
+            Vector3 target = TerrainUtil.Ground(onLine + side * sgn * (road.Width * 0.5f + 0.75f));
+            if (Physics.CheckCapsule(target + Vector3.up * 0.5f, target + Vector3.up * 1.2f, 0.35f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return;
+            float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+            if (Vector3.Dot(Flat(transform.forward), dir) < 0f) yaw += 180f; // keep facing the way it was going
+            transform.position = target;
+            _heading = yaw;
+            _poseInit = false;
+            SnapToGround();
+        }
+
+        private static Vector3 Flat3(Vector3 v) { v.y = 0f; return v; }
 
         // ------------------------------------------------------------------ pose
 
@@ -381,13 +444,48 @@ namespace WildLens.Vehicles
             if (_parts.lean != null)
                 _parts.lean.localRotation = Quaternion.Euler(-_bump * 4f, 0f, _lean);
 
+            // Parked, the bars are turned to the left lock (1.5), as a parked bike's are.
+            _parkSteer = dt > 0f ? Mathf.MoveTowards(_parkSteer, IsRidden ? 0f : -24f, dt * 60f) : (IsRidden ? 0f : -24f);
             if (_parts.steer != null)
-                _parts.steer.localRotation = _steerBase * Quaternion.Euler(0f, _steerInput * Mathf.Lerp(28f, 8f, Mathf.Abs(_speed) / maxSpeed), 0f);
+                _parts.steer.localRotation = _steerBase * Quaternion.Euler(0f, _steerInput * Mathf.Lerp(28f, 8f, Mathf.Abs(_speed) / maxSpeed) + _parkSteer, 0f);
+            Suspension(dt);
+            // A running single shakes faintly at idle.
+            if (_parts.lean != null)
+                _parts.lean.localPosition = IsRidden ? new Vector3(0f, Mathf.Sin(Time.time * 52f) * 0.0012f * (1f - Mathf.Clamp01(Mathf.Abs(_speed) / 3f)), 0f) : Vector3.zero;
             _wheelAngle += _speed / TrailBikeModel.WheelRadius * Mathf.Rad2Deg * dt;
             var spin = Quaternion.Euler(_wheelAngle, 0f, 0f);
             if (_parts.frontWheel != null) _parts.frontWheel.localRotation = spin;
             if (_parts.rearWheel != null) _parts.rearWheel.localRotation = spin;
             if (_parts.kickstand != null) _parts.kickstand.localRotation = Quaternion.Euler(Mathf.Lerp(-80f, 18f, _kick), 0f, Mathf.Lerp(0f, -28f, _kick));
+        }
+
+        /// <summary>
+        /// Visible suspension (1.5): the body is smoothed for the rider's comfort (<see cref="SnapToGround"/>), so the real
+        /// ground under each axle sits a little above or below where the body expects it. That difference is the
+        /// suspension's travel: the front axle slides along the fork and the swingarm pivots, so the wheels stay on the
+        /// ground while the body floats over bumps. Plus dive under braking, squat under throttle, and a little sag parked.
+        /// </summary>
+        private void Suspension(float dt)
+        {
+            if (_parts.frontAxle == null && _parts.swingarm == null) return;
+            Vector3 fwd = Flat(transform.forward);
+            Vector3 f = transform.position + fwd * TrailBikeModel.FrontAxleZ, r = transform.position + fwd * TrailBikeModel.RearAxleZ;
+            float tf = transform.InverseTransformPoint(new Vector3(f.x, GroundHeight(f), f.z)).y;
+            float tr = transform.InverseTransformPoint(new Vector3(r.x, GroundHeight(r), r.z)).y;
+            float sag = IsRidden ? 0.025f : 0.012f;
+            tf = Mathf.Clamp(tf + sag + _dive, -MaxExtension, MaxCompression);
+            tr = Mathf.Clamp(tr + sag + _squat, -MaxExtension, MaxCompression);
+            float k = Mathf.Max(dt, 0.0001f);
+            _travelF = Mathf.SmoothDamp(_travelF, tf, ref _travelFV, 0.035f, Mathf.Infinity, k);
+            _travelR = Mathf.SmoothDamp(_travelR, tr, ref _travelRV, 0.045f, Mathf.Infinity, k);
+            if (_parts.frontAxle != null) _parts.frontAxle.localPosition = _frontAxleBase + Vector3.up * _travelF;
+            if (_parts.swingarm != null)
+            {
+                float arm = Mathf.Sqrt(Mathf.Pow(TrailBikeModel.WheelRadius - TrailBikeModel.SwingarmPivotY, 2f) +
+                                       Mathf.Pow(TrailBikeModel.RearAxleZ - TrailBikeModel.SwingarmPivotZ, 2f));
+                float angle = Mathf.Asin(Mathf.Clamp(_travelR / arm, -0.5f, 0.5f)) * Mathf.Rad2Deg;
+                _parts.swingarm.localRotation = _swingBase * Quaternion.Euler(angle, 0f, 0f);
+            }
         }
 
         private static Transform FindDeep(Transform t, string name)

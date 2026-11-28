@@ -17,6 +17,10 @@ namespace WildLens.Photography
         public Texture2D thumbnail;
         /// <summary>When nothing was identified: why the nearest candidate didn't count.</summary>
         public MissReason nearMiss;
+        /// <summary>Macro mode (1.5): the small subjects in frame, best first (empty otherwise).</summary>
+        public List<MacroHit> macro = new List<MacroHit>();
+        /// <summary>The best macro subject was new to the field notebook.</summary>
+        public bool macroIsNew;
     }
 
     /// <summary>
@@ -90,6 +94,9 @@ namespace WildLens.Photography
             var analysis = PhotoAnalyzer.Analyze(viewCamera, maxDistance, ignoreRoot);
             Vector3 cameraPosition = viewCamera.transform.position;
             var lens = GetComponent<ZoomLens>();
+            var focus = GetComponent<FocusController>();
+            var macro = lens != null && lens.MacroMode
+                ? MacroAnalyzer.Analyze(viewCamera, focus != null ? focus.FocusDistance : 0.3f) : new List<MacroHit>();
             float focal = lens != null ? lens.EquivalentFocalLength : 0f;
 
             CaptureStarting?.Invoke();
@@ -119,7 +126,12 @@ namespace WildLens.Photography
 
             var game = WildLensGame.Instance;
             var ids = game != null ? game.Journal.RegisterPhoto(record) : new List<SpeciesIdentification>();
-            PhotoTaken?.Invoke(new PhotoResult { record = record, identifications = ids, thumbnail = thumbnail, nearMiss = analysis.nearMiss });
+            bool macroNew = false;
+            if (macro.Count > 0 && game != null && macro[0].subject != null)
+                macroNew = game.Journal.RecordNotebook(macro[0].subject.subjectId, macro[0].subject.displayName, macro[0].subject.group.ToString(),
+                    macro[0].quality.ToString(), id);
+            PhotoTaken?.Invoke(new PhotoResult { record = record, identifications = ids, thumbnail = thumbnail, nearMiss = analysis.nearMiss,
+                macro = macro, macroIsNew = macroNew });
 
             _nextAllowedTime = Time.unscaledTime + cooldown;
             IsCapturing = false;

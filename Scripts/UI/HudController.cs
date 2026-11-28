@@ -66,6 +66,7 @@ namespace WildLens.UI
             if (game != null) game.Journal.Changed += RefreshStatus;
             RefreshStatus();
             WildLens.Environment.ReserveDestination.Arrived += OnArrived;
+            WildLens.Environment.ReserveDiscovery.Found += OnDiscovered;
             if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged += OnPeriodChanged;
             if (WildLens.Environment.WeatherCycle.Instance != null) WildLens.Environment.WeatherCycle.Instance.Changed += OnWeatherChanged;
 
@@ -91,8 +92,16 @@ namespace WildLens.UI
             var game = WildLensGame.Instance;
             if (game != null && game.Journal != null) game.Journal.Changed -= RefreshStatus;
             WildLens.Environment.ReserveDestination.Arrived -= OnArrived;
+            WildLens.Environment.ReserveDiscovery.Found -= OnDiscovered;
             if (WildLens.Environment.DayCycle.Instance != null) WildLens.Environment.DayCycle.Instance.PeriodChanged -= OnPeriodChanged;
             if (WildLens.Environment.WeatherCycle.Instance != null) WildLens.Environment.WeatherCycle.Instance.Changed -= OnWeatherChanged;
+        }
+
+        /// <summary>A hidden place (1.5): its name, quietly, the first time you walk in. Nothing is counted.</summary>
+        private void OnDiscovered(WildLens.Environment.ReserveDiscovery d)
+        {
+            if (_notice == null) return;
+            _notice.Show($"<i>{d.title}</i>\n<size=20>{d.note}</size>", 7f);
         }
 
         private bool _hadRain;
@@ -160,7 +169,7 @@ namespace WildLens.UI
             _walkHints =
                 "<b>WASD</b> walk   <b>Shift</b> sprint   <b>C</b> crouch   <b>J</b> journal   <b>R</b> ride (at the bike)\n" +
                 "<b>Hold RMB</b> or <b>Scroll</b> camera + zoom   <b>LMB</b> shutter\n" +
-                "Hold an animal in view to identify it   <b>Hold T</b> let time pass   <b>H</b> hide hints";
+                "Hold an animal in view to identify it   <b>M</b> macro lens   <b>Hold T</b> let time pass   <b>H</b> hide hints";
             _hintsText = UIFactory.CreateText("Hints", root, _walkHints, 19, new Color(1f, 1f, 1f, 0.75f), TextAnchor.LowerLeft);
             UIFactory.Place(_hintsText.rectTransform, new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(900f, 90f));
             UIFactory.AddShadow(_hintsText);
@@ -258,6 +267,7 @@ namespace WildLens.UI
                 blend = blend,
                 zoomLevel = _lens != null ? _lens.LevelIndex : 0,
                 focalLength = _lens != null ? _lens.EquivalentFocalLength : 26f,
+                macro = _lens != null && _lens.MacroMode,
                 hasSubject = _framing != null && _framing.HasSubject,
                 subjectCentred = _framing != null && _framing.SubjectCentred,
                 focusLocked = _focus != null && _focus.IsLocked,
@@ -295,7 +305,18 @@ namespace WildLens.UI
             _shutter.Trigger();
         }
 
-        private void OnPhotoTaken(PhotoResult result) => _preview.Show(result);
+        private void OnPhotoTaken(PhotoResult result)
+        {
+            _preview.Show(result);
+            // Macro (1.5): name the small subject and how the photo did; the print shows as usual.
+            if (result.macro != null && result.macro.Count > 0 && _notice != null)
+            {
+                var m = result.macro[0];
+                string extra = string.IsNullOrEmpty(m.hint) ? "" : $" · {m.hint}";
+                _notice.Show($"<b>{m.subject.displayName}</b>{(result.macroIsNew ? "  <i>new in your field notebook</i>" : "")}\n" +
+                             $"<size=20>Macro · {m.quality}{extra}</size>", 5f);
+            }
+        }
 
         private void RefreshStatus()
         {

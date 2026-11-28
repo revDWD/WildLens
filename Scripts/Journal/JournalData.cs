@@ -76,6 +76,22 @@ namespace WildLens.Journal
         public int bestScore;
     }
 
+    /// <summary>
+    /// A small subject in the field notebook (1.5 macro groundwork): first found by a macro photograph, with its best
+    /// photo. Older saves load with an empty notebook (JsonUtility keeps the field's default), so no migration is needed.
+    /// </summary>
+    [Serializable]
+    public class NotebookRecord
+    {
+        public string subjectId;
+        public string displayName;
+        public string group;
+        public int photoCount;
+        public string firstFoundUtc;
+        public string bestQuality;
+        public string bestPhotoId;
+    }
+
     /// <summary>Root save object. Bump <see cref="CurrentVersion"/> and migrate in JournalService when the shape changes.</summary>
     [Serializable]
     public class JournalSaveData
@@ -84,5 +100,7 @@ namespace WildLens.Journal
         public int version = CurrentVersion;
         public List<SpeciesRecord> species = new List<SpeciesRecord>();
         public List<PhotoRecord> photos = new List<PhotoRecord>();
+        /// <summary>Small subjects photographed in macro (1.5).</summary>
+        public List<NotebookRecord> notebook = new List<NotebookRecord>();
     }
 }

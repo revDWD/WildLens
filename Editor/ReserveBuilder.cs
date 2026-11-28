@@ -80,6 +80,7 @@ namespace WildLens.EditorTools
                     case DestinationKind.ObservationBlind: bias -= near * 0.8f; break;
                     case DestinationKind.Wetland: bias -= near * 0.8f; break;
                     case DestinationKind.RidgeOverlook: bias -= near * 0.6f; break;
+                    case DestinationKind.Waterfall: bias += near * 0.35f; break; // a wooded ravine
                 }
             }
             // Riparian woodland: denser trees along the creek (the channel itself is kept clear by IsFree).
@@ -102,6 +103,7 @@ namespace WildLens.EditorTools
             if (shapeTerrain) ShapeTerrain();
             foreach (var s in _sites) PlaceArrival(s);
             PlanCreek(parent, shapeTerrain);   // 0.8: the reserve's backbone, before tracks so they cross it cleanly
+            PlanFallsSite();                   // 1.5: Willow Falls joins the destinations (track, pull-off, number)
             if (shapeTerrain) FlattenBlindPad();
             RouteTracks(parent, trackMeshes);
 
@@ -592,6 +594,7 @@ namespace WildLens.EditorTools
                     case DestinationKind.Wetland: BuildPond(group, s, wood, woodDark, dest); break;
                     case DestinationKind.OldGrowth: BuildGrove(group, s, wood, woodDark); break;
                     case DestinationKind.ObservationBlind: BuildBlind(group, s, wood, woodDark, dest); break;
+                    case DestinationKind.Waterfall: BuildWaterfall(group, s, wood, woodDark); break;
                 }
                 Fingerpost(group, s, wood, woodDark);
             }
@@ -606,6 +609,7 @@ namespace WildLens.EditorTools
                 case DestinationKind.Wetland: return "dawn mist · deer at dusk";
                 case DestinationKind.OldGrowth: return "midday shade · squirrels morning & evening";
                 case DestinationKind.ObservationBlind: return "early morning & late afternoon";
+                case DestinationKind.Waterfall: return "morning light · after rain";
                 default: return "";
             }
         }
@@ -782,6 +786,7 @@ namespace WildLens.EditorTools
             probe.boxProjection = true;
             probe.resolution = 256;
             probe.importance = 2;
+            probeGo.AddComponent<ReflectionRefresh>(); // 1.5: re-render with the light and weather (it mirrored a blue sky under cloud)
 
             Vector3 f = s.facing;
             Vector3 side = Vector3.Cross(Vector3.up, f);
