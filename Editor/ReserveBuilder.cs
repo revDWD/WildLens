@@ -748,7 +748,7 @@ namespace WildLens.EditorTools
             amb.volume = 0.5f;
             amb.audibleRadius = 70f;
             InterpretivePanel(group, TerrainUtil.Ground(pos - f * 4.4f - Vector3.Cross(Vector3.up, f) * 2.6f), -f, SignIcon.Bird, "RIDING THE WIND",
-                "Hawks soar on the rising air.\nWatch the dead snag.", wood, post);
+                "Hawks soar on the\nrising air. Watch\nthe dead snag.", wood, post);
         }
 
         // ------------------------------------------------------------------ Cattail Pond
@@ -840,7 +840,7 @@ namespace WildLens.EditorTools
             Plank(group, "CATTAIL POND", "deer drink at dusk", SignKit.TimeIcons(BestTimes(s.kind)), s.number,
                 TerrainUtil.Ground(shore - f * 3.5f + side * 2.2f), Quaternion.LookRotation(-f), post);
             InterpretivePanel(group, TerrainUtil.Ground(shore - f * 3.2f - side * 2.4f), -f, SignIcon.Water, "LIFE AT THE WATER'S EDGE",
-                "Herons fish the shallows.\nDeer come down at dusk.", wood, post);
+                "Herons fish the\nshallows. Deer come\ndown at dusk.", wood, post);
             AddViewpoint(group, "Cattail Pond", new Vector3(shore.x, level + deckY + 1.65f, shore.z) + f * (len - 2f), s.centre + f * s.water + Vector3.up);
             Vector3 farShore = TerrainUtil.Ground(s.centre + f * (PondRadius(s, s.centre + f * s.water) + 6f));
             AddHotspot(group, "Pond Edge Hotspot", HotspotType.Meadow, farShore, 10f);
@@ -1002,7 +1002,7 @@ namespace WildLens.EditorTools
             Plank(group, "OLD-GROWTH GROVE", "cool shade at midday", SignKit.TimeIcons(BestTimes(s.kind)), s.number, TerrainUtil.Ground(s.centre - f * 5f + Vector3.Cross(Vector3.up, f) * 3f),
                 Quaternion.LookRotation(-f), post);
             InterpretivePanel(group, TerrainUtil.Ground(s.centre - f * 5f - Vector3.Cross(Vector3.up, f) * 3f), -f, SignIcon.Tree, "OLD GROWTH",
-                "Trees older than the reserve.\nOwls roost here by day.", wood, post);
+                "Trees older than\nthe reserve. Owls\nroost here by day.", wood, post);
             AddViewpoint(group, "Old-Growth Grove", TerrainUtil.Ground(s.centre - f * 2f) + Vector3.up * 1.2f, TerrainUtil.Ground(s.centre + f * 12f) + Vector3.up * 6f);
             AddKeepOut(s.centre, 6f);
         }
@@ -1074,7 +1074,7 @@ namespace WildLens.EditorTools
 
             Plank(group, "MEADOW BLIND", "enter quietly", SignKit.TimeIcons(BestTimes(s.kind)), s.number, TerrainUtil.Ground(s.arrival + side * 2.2f), Quaternion.LookRotation(-along), post);
             InterpretivePanel(group, TerrainUtil.Ground(s.arrival - side * 2.4f), -along, SignIcon.Binoculars, "A MEADOW FOR EVERYONE",
-                "Sit still inside the blind.\nThe meadow comes to you.", wood, post);
+                "Sit still in the\nblind. The meadow\ncomes to you.", wood, post);
             AddViewpoint(group, "Meadow Blind", pos + Vector3.up * 1.65f + f * (D * 0.5f - 0.15f), s.centre + Vector3.up * 0.8f);
             ClearCone(pos, f, 45f, s.radius * 1.8f);
             // Signature (1.0): a bird feeder on a pole in front of the window: life close to the glass.

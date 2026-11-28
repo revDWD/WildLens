@@ -74,18 +74,7 @@ namespace WildLens.EditorTools
 
             if (grade) GradeRoads();
 
-            // Where the road leaves the trailhead: what it is and how to use it.
-            var first = _tracks.Find(t => t.kind == TrackKind.Road);
-            if (first != null && first.Points.Count > 6)
-            {
-                var wood = GeneratedAssets.Material("Wood", new Color(0.52f, 0.39f, 0.26f));
-                var post = GeneratedAssets.Material("WoodDark", new Color(0.33f, 0.24f, 0.16f));
-                Vector3 a = first.Points[3], dir = TerrainUtil.Flat(first.Points[5] - first.Points[1]).normalized;
-                Vector3 side = Vector3.Cross(Vector3.up, dir);
-                Vector3 pos = TerrainUtil.Ground(a + side * 3f);
-                Plank(parent, "RESERVE ROAD", "ride slowly · all destinations", new[] { SignIcon.Bike }, 0, pos, Quaternion.LookRotation(-dir), post);
-                AddKeepOut(pos, 1.2f);
-            }
+            // 1.6: the road's trailhead sign is now face C of the Reserve Board (PropBuilder), not a separate plank.
         }
 
         /// <summary>Laplacian smoothing that keeps both ends fixed: removes kinks while following the same route.</summary>

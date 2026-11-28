@@ -44,8 +44,41 @@ namespace WildLens.EditorTools
                 t.position += Vector3.down * (extend * 0.5f);
                 fixedCount++;
             }
-            if (fixedCount > 0) Debug.Log($"[WildLens] Grounding: {fixedCount} posts and legs lengthened to reach the ground on slopes.");
-            return fixedCount;
+            int logs = SeatLogs(root);
+            if (fixedCount > 0 || logs > 0)
+                Debug.Log($"[WildLens] Grounding: {fixedCount} posts and legs lengthened, {logs} seat logs bedded on slopes.");
+            return fixedCount + logs;
+        }
+
+        /// <summary>
+        /// 1.6: log seats (a box with no legs) were placed level from their centre, so on a slope one end floated (the
+        /// Creek Ford's seat in the 1.5 screenshots). Each is tilted along its length to follow the ground (at most 12°,
+        /// a log lies on a slope, it doesn't climb one) and bedded 6 cm in.
+        /// </summary>
+        private static int SeatLogs(Transform root)
+        {
+            int count = 0;
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var t = r.transform;
+                if (t.name != "Seat Log") continue;
+                var mf = r.GetComponent<MeshFilter>();
+                if (mf == null || mf.sharedMesh == null) continue;
+                if (StandsOnSomething(r.bounds, root)) continue;
+                Vector3 ext = Vector3.Scale(mf.sharedMesh.bounds.extents, t.lossyScale);
+                Vector3 along = t.right;
+                Vector3 c = t.TransformPoint(mf.sharedMesh.bounds.center);
+                float g1 = TerrainUtil.SampleHeight(c - along * ext.x), g2 = TerrainUtil.SampleHeight(c + along * ext.x);
+                float g0 = TerrainUtil.SampleHeight(c);
+                float angle = Mathf.Clamp(Mathf.Atan2(g2 - g1, ext.x * 2f) * Mathf.Rad2Deg, -12f, 12f);
+                float targetCentre = Mathf.Min(g0, (g1 + g2) * 0.5f) + ext.y - 0.06f;
+                if (Mathf.Abs(angle) < 0.5f && Mathf.Abs(c.y - targetCentre) < 0.03f) continue;
+                if (Mathf.Abs(c.y - targetCentre) > 1.2f) continue; // something else is going on: leave it
+                t.RotateAround(c, t.forward, angle);
+                t.position += Vector3.up * (targetCentre - c.y);
+                count++;
+            }
+            return count;
         }
 
         /// <summary>A deck, bridge or other built surface directly under the support (it is meant to stand there).</summary>

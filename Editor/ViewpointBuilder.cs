@@ -76,7 +76,7 @@ namespace WildLens.EditorTools
                 PropBuilder.Box("Back", bench, new Vector3(0f, 0.8f, -0.22f), new Vector3(1.8f, 0.34f, 0.06f), wood);
                 PropBuilder.Box("LegL", bench, new Vector3(-0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), woodDark);
                 PropBuilder.Box("LegR", bench, new Vector3(0.75f, 0.22f, 0f), new Vector3(0.09f, 0.45f, 0.42f), woodDark);
-                SignKit.Sign(bench, bench.TransformPoint(new Vector3(1.7f, 0f, 0f)), bench.rotation, "LOOKOUT", null, new[] { SignIcon.Binoculars }, 0, woodDark);
+                SignKit.Sign(bench, bench.TransformPoint(new Vector3(1.7f, 0f, 0f)), bench.rotation, "LOOKOUT", null, new[] { SignIcon.Binoculars }, 0, woodDark, 0.55f); // 1.6: a small marker, not a destination board
                 PropBuilder.AddCollider(bench, new Vector3(0f, 0.45f, -0.02f), new Vector3(1.8f, 0.9f, 0.5f));
 
                 ClearCone(pos, inward, 25f, 70f);

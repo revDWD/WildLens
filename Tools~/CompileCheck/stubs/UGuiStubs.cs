@@ -5,7 +5,7 @@ namespace UnityEngine.UI
     public class MaskableGraphic : Graphic { }
     public class Image : MaskableGraphic { }
     public class RawImage : MaskableGraphic { public UnityEngine.Texture texture { get; set; } }
-    public class Text : MaskableGraphic { public UnityEngine.Font font { get; set; } public string text { get; set; } public int fontSize { get; set; } public UnityEngine.TextAnchor alignment { get; set; } public UnityEngine.FontStyle fontStyle { get; set; } public UnityEngine.HorizontalWrapMode horizontalOverflow { get; set; } public UnityEngine.VerticalWrapMode verticalOverflow { get; set; } public bool supportRichText { get; set; } public float lineSpacing { get; set; } }
+    public class Text : MaskableGraphic { public UnityEngine.Font font { get; set; } public string text { get; set; } public int fontSize { get; set; } public UnityEngine.TextAnchor alignment { get; set; } public UnityEngine.FontStyle fontStyle { get; set; } public UnityEngine.HorizontalWrapMode horizontalOverflow { get; set; } public UnityEngine.VerticalWrapMode verticalOverflow { get; set; } public bool supportRichText { get; set; } public float lineSpacing { get; set; } public bool resizeTextForBestFit { get; set; } public int resizeTextMinSize { get; set; } public int resizeTextMaxSize { get; set; } }
     public class BaseMeshEffect : UnityEngine.MonoBehaviour { }
     public class Shadow : BaseMeshEffect { public UnityEngine.Color effectColor { get; set; } public UnityEngine.Vector2 effectDistance { get; set; } }
     public class Outline : Shadow { }

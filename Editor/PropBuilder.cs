@@ -35,23 +35,28 @@ namespace WildLens.EditorTools
                 Vector3 outward = Outward(p, loop);
                 Vector3 pos = TerrainUtil.Ground(p + outward * (half + 2.9f));
                 Vector3 face = TerrainUtil.Flat(spawn - pos).normalized;
-                BuildKiosk(parent, pos, Quaternion.LookRotation(face));
-                Footprints.Add(new Footprint { position = pos, radius = 3.5f });
+                Vector3 bayP = trail.GetPoint(12f);
+                bayP += Outward(bayP, loop) * (half + 3.2f);
+                BuildKiosk(parent, pos, Quaternion.LookRotation(face), TerrainUtil.Flat(bayP - pos));
+                Footprints.Add(new Footprint { position = pos, radius = 4.2f });
             }
 
-            // Trail bike parked just past the kiosk, pointing along the trail, ready to go.
+            // 1.6: the trail bike stands in a bay beside the Reserve Board, angled out towards the trail, ready to ride.
             if (trailBike)
             {
                 Vector3 p = trail.GetPoint(12f), dir = trail.GetDirection(12f);
-                Vector3 pos = TerrainUtil.Ground(p + Outward(p, loop) * (half + 1.7f));
+                Vector3 outward = Outward(p, loop);
+                Vector3 pos = TerrainUtil.Ground(p + outward * (half + 3.2f));
+                Vector3 facing = TerrainUtil.Flat(dir - outward * 0.6f).normalized;
+                BuildBikeBay(parent, pos, facing);
                 var bike = new GameObject("Trail Bike");
                 bike.transform.SetParent(parent, false);
-                bike.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(dir));
+                bike.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(facing));
                 var model = new GameObject("Model").transform;
                 model.SetParent(bike.transform, false);
                 WildLens.Vehicles.TrailBikeModel.Build(model, (name, c, sm) => GeneratedAssets.Material(name, c, sm));
                 bike.AddComponent<WildLens.Vehicles.TrailBike>();
-                Footprints.Add(new Footprint { position = pos, radius = 2.5f });
+                Footprints.Add(new Footprint { position = pos, radius = 3.2f });
                 BikeParking = pos;
             }
 
@@ -85,70 +90,112 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>
-        /// Two log posts, a shingled gable roof, a framed backboard and a carved header plank. The board face is a
-        /// <see cref="ReserveInfoBoard"/> that fills itself in at runtime.
+        /// The Reserve Board (1.6): one three-sided kiosk under a single roof instead of a kiosk ringed by separate signs.
+        ///   Face A (towards the visitor's start): the live reserve board (<see cref="ReserveInfoBoard"/>) and the header.
+        ///   Face B: "PLEASE", the reserve's etiquette in three pictogram lines.
+        ///   Face C: the Reserve Road and the bike, with the trail register mounted below.
+        /// The faces stand on an equilateral triangle (side <c>W</c>); posts at the corners; a three-sided pitched roof.
         /// </summary>
-        private static void BuildKiosk(Transform parent, Vector3 pos, Quaternion rot)
+        private static void BuildKiosk(Transform parent, Vector3 pos, Quaternion rot, Vector3 towardBay)
         {
-            var roofMat = GeneratedAssets.Material("KioskRoof", new Color(0.24f, 0.27f, 0.22f), 0.15f);
-            var kiosk = Group("Trailhead Kiosk", parent, pos, rot);
-            const float W = 2.8f, boardY = 1.66f, boardH = 1.86f; // 0.9: taller, for the "now" line and best times
-            foreach (float x in new[] { -W * 0.5f - 0.05f, W * 0.5f + 0.05f })
-                PrimitiveMeshes.CreatePart("Post", PrimitiveType.Cylinder, kiosk, new Vector3(x, 1.45f, 0f), new Vector3(0.2f, 1.45f, 0.2f), _woodDark);
-            Box("Backboard", kiosk, new Vector3(0f, boardY, -0.02f), new Vector3(W, boardH, 0.08f), _wood);
-            Box("Frame Top", kiosk, new Vector3(0f, boardY + boardH * 0.5f, 0.03f), new Vector3(W + 0.06f, 0.07f, 0.07f), _woodDark);
-            Box("Frame Bottom", kiosk, new Vector3(0f, boardY - boardH * 0.5f, 0.03f), new Vector3(W + 0.06f, 0.07f, 0.07f), _woodDark);
-            Box("Ledge", kiosk, new Vector3(0f, boardY - boardH * 0.5f - 0.02f, 0.12f), new Vector3(W, 0.04f, 0.22f), _woodDark);
-            // Gable roof: two pitched slabs meeting at a ridge over the board.
-            foreach (float side in new[] { -1f, 1f })
-            {
-                var slab = PrimitiveMeshes.CreatePart("Roof", PrimitiveType.Cube, kiosk, new Vector3(0f, 2.86f, side * 0.33f),
-                    new Vector3(W + 0.7f, 0.06f, 0.8f), roofMat, new Vector3(side * 26f, 0f, 0f));
-                slab.name = side < 0f ? "Roof Back" : "Roof Front";
-            }
-            Box("Ridge", kiosk, new Vector3(0f, 3.04f, 0f), new Vector3(W + 0.72f, 0.08f, 0.1f), _woodDark);
-            Box("Header Plank", kiosk, new Vector3(0f, 2.72f, 0.06f), new Vector3(2.3f, 0.3f, 0.05f), SignBoard);
-            SignKit.Label(kiosk, new Vector3(0f, 2.72f, 0.09f), "MEADOW LOOP TRAILHEAD", SignKit.Fit("MEADOW LOOP TRAILHEAD", 0.02f, 2.1f, true),
-                SignKit.Cream, TextAnchor.MiddleCenter, true);
+            var roofMat = GeneratedAssets.Material("KioskRoof", new Color(0.24f, 0.27f, 0.22f), 0.15f, null, doubleSided: true);
+            var kiosk = Group("Reserve Board", parent, pos, rot);
+            const float W = 2.8f, boardY = 1.66f, boardH = 1.86f;
+            float inR = W / (2f * Mathf.Sqrt(3f)), outR = W / Mathf.Sqrt(3f);
 
-            var face = new GameObject("Board Face");
-            face.transform.SetParent(kiosk, false);
-            face.transform.localPosition = new Vector3(0f, boardY, 0.025f);
-            var board = face.AddComponent<ReserveInfoBoard>();
+            // Corner posts (between the faces).
+            for (int k = 0; k < 3; k++)
+            {
+                Vector3 c = Quaternion.Euler(0f, k * 120f + 60f, 0f) * Vector3.forward * (outR + 0.05f);
+                PrimitiveMeshes.CreatePart("Post", PrimitiveType.Cylinder, kiosk, c + Vector3.up * 1.45f, new Vector3(0.2f, 1.45f, 0.2f), _woodDark);
+            }
+            // Three-sided pitched roof, its corners over the posts.
+            var roofMesh = GeneratedAssets.LoadOrCreate("Mesh_ConeTri", () => ProceduralMeshes.Cone(3, cap: false));
+            var roof = new GameObject("Roof");
+            roof.transform.SetParent(kiosk, false);
+            roof.transform.localPosition = new Vector3(0f, 2.92f, 0f);
+            roof.transform.localRotation = Quaternion.Euler(0f, -30f, 0f);
+            roof.transform.localScale = new Vector3(outR + 0.9f, 0.8f, outR + 0.9f); // unit cone: radius 1 (eaves ~0.45 m past each face)
+            roof.AddComponent<MeshFilter>().sharedMesh = roofMesh;
+            roof.AddComponent<MeshRenderer>().sharedMaterial = roofMat;
+            PrimitiveMeshes.CreatePart("Finial", PrimitiveType.Cylinder, kiosk, new Vector3(0f, 3.78f, 0f), new Vector3(0.12f, 0.08f, 0.12f), _woodDark);
+
+            Transform Face(int k, string name)
+            {
+                var face = Group(name, kiosk, kiosk.TransformPoint(Quaternion.Euler(0f, k * 120f, 0f) * Vector3.forward * inR),
+                    kiosk.rotation * Quaternion.Euler(0f, k * 120f, 0f));
+                Box("Backboard", face, new Vector3(0f, boardY, -0.02f), new Vector3(W, boardH, 0.08f), _wood);
+                Box("Frame Top", face, new Vector3(0f, boardY + boardH * 0.5f, 0.03f), new Vector3(W + 0.06f, 0.07f, 0.07f), _woodDark);
+                Box("Frame Bottom", face, new Vector3(0f, boardY - boardH * 0.5f, 0.03f), new Vector3(W + 0.06f, 0.07f, 0.07f), _woodDark);
+                AddCollider(face, new Vector3(0f, 1.5f, -0.02f), new Vector3(W, 3f, 0.12f));
+                return face;
+            }
+
+            // ---- Face A: the live board.
+            var a = Face(0, "Face A: Reserve Board");
+            Box("Ledge", a, new Vector3(0f, boardY - boardH * 0.5f - 0.02f, 0.12f), new Vector3(W, 0.04f, 0.22f), _woodDark);
+            Box("Header Plank", a, new Vector3(0f, 2.72f, 0.06f), new Vector3(2.3f, 0.3f, 0.05f), SignBoard);
+            SignKit.Label(a, new Vector3(0f, 2.72f, 0.09f), "MEADOW LOOP TRAILHEAD", SignKit.Fit("MEADOW LOOP TRAILHEAD", 0.02f, 2.1f, true),
+                SignKit.Cream, TextAnchor.MiddleCenter, true);
+            var faceGo = new GameObject("Board Face");
+            faceGo.transform.SetParent(a, false);
+            faceGo.transform.localPosition = new Vector3(0f, boardY, 0.025f);
+            var board = faceGo.AddComponent<ReserveInfoBoard>();
             board.size = new Vector2(W - 0.16f, boardH - 0.12f);
-            // 1.2: the board shows best times as the same pictograms as the destination signs.
+            // The board shows best times as the same pictograms as the destination signs.
             board.timeIcons = new[] { SignKit.IconTexture(SignIcon.Dawn), SignKit.IconTexture(SignIcon.Day),
                 SignKit.IconTexture(SignIcon.GoldenHour), SignKit.IconTexture(SignIcon.Dusk), SignKit.IconTexture(SignIcon.Rain) };
 
-            AddCollider(kiosk, new Vector3(0f, 1.5f, 0f), new Vector3(W + 0.3f, 3f, 0.3f));
-
-            // Reserve guidelines: a small post beside the kiosk. Quiet evidence that this place is looked after.
-            var rules = Group("Reserve Guidelines", parent, kiosk.TransformPoint(new Vector3(W * 0.5f + 1.3f, 0f, 0.3f)), kiosk.rotation * Quaternion.Euler(0f, -15f, 0f));
-            rules.position = TerrainUtil.Ground(rules.position);
-            // 1.2: three pictogram lines instead of four sentences.
-            Box("Post", rules, new Vector3(0f, 0.7f, 0f), new Vector3(0.1f, 1.4f, 0.1f), _woodDark);
-            Box("Board", rules, new Vector3(0f, 1.32f, 0.06f), new Vector3(1.15f, 0.92f, 0.05f), SignBoard);
-            Box("Rule", rules, new Vector3(0f, 1.74f, 0.087f), new Vector3(1.07f, 0.014f, 0.005f), SignTrim);
-            SignKit.Label(rules, new Vector3(0f, 1.63f, 0.09f), "PLEASE", 0.02f, SignKit.Cream, TextAnchor.MiddleCenter, true);
-            var lines = new[] { (SignIcon.Walk, "Stay on the trails"), (SignIcon.Bike, "Ride slowly"), (SignIcon.Paw, "Give wildlife space") };
-            for (int i = 0; i < lines.Length; i++)
+            // ---- Face B: etiquette, large.
+            // The road face is whichever back face looks towards the bike bay, so it is read on the way to the bike.
+            int roadK = Vector3.Dot(rot * Quaternion.Euler(0f, 120f, 0f) * Vector3.forward, towardBay) >
+                        Vector3.Dot(rot * Quaternion.Euler(0f, 240f, 0f) * Vector3.forward, towardBay) ? 1 : 2;
+            var b = Face(3 - roadK, "Face B: Please");
+            Box("Panel", b, new Vector3(0f, boardY, 0.03f), new Vector3(W - 0.2f, boardH - 0.16f, 0.03f), SignBoard);
+            Box("Rule", b, new Vector3(0f, boardY + 0.52f, 0.047f), new Vector3(W - 0.5f, 0.016f, 0.005f), SignTrim);
+            SignKit.Label(b, new Vector3(0f, boardY + 0.7f, 0.05f), "PLEASE", 0.034f, SignKit.Cream, TextAnchor.MiddleCenter, true);
+            var etiquette = new[] { (SignIcon.Walk, "Stay on the trails"), (SignIcon.Paw, "Give wildlife space"), (SignIcon.Binoculars, "Watch quietly") };
+            for (int i = 0; i < etiquette.Length; i++)
             {
-                float y = 1.44f - i * 0.2f;
-                SignKit.Icon(rules, new Vector3(-0.42f, y, 0.088f), lines[i].Item1, 0.15f, SignKit.Cream);
-                SignKit.Label(rules, new Vector3(-0.3f, y, 0.09f), lines[i].Item2, SignKit.Fit(lines[i].Item2, 0.0135f, 0.8f, false), SignKit.Cream, TextAnchor.MiddleLeft);
+                float y = boardY + 0.28f - i * 0.36f;
+                SignKit.Icon(b, new Vector3(-1.0f, y, 0.048f), etiquette[i].Item1, 0.28f, SignKit.Cream);
+                SignKit.Label(b, new Vector3(-0.78f, y, 0.05f), etiquette[i].Item2, SignKit.Fit(etiquette[i].Item2, 0.024f, 1.85f, false), SignKit.Cream, TextAnchor.MiddleLeft);
             }
-            AddCollider(rules, new Vector3(0f, 0.65f, 0f), new Vector3(0.12f, 1.3f, 0.12f));
+            SignKit.Label(b, new Vector3(0f, boardY - 0.74f, 0.05f), "Willow Creek Conservation Trust · est. 1962", 0.011f, SignKit.Cream);
 
-            // 1.2: a trail register on a post, where visitors sign in and note what they saw. People were here; someone
-            // empties it. Inside the kiosk's clear zone, on the side away from the guidelines.
-            var reg = Group("Trail Register", parent, kiosk.TransformPoint(new Vector3(-W * 0.5f - 1.1f, 0f, 0.4f)), kiosk.rotation * Quaternion.Euler(0f, 20f, 0f));
-            reg.position = TerrainUtil.Ground(reg.position);
-            Box("Post", reg, new Vector3(0f, 0.55f, 0f), new Vector3(0.1f, 1.1f, 0.1f), _woodDark);
-            Box("Box", reg, new Vector3(0f, 1.2f, 0.03f), new Vector3(0.46f, 0.32f, 0.28f), _wood);
-            Box("Lid", reg, new Vector3(0f, 1.385f, 0.03f), new Vector3(0.52f, 0.05f, 0.34f), _woodDark);
-            Box("Plate", reg, new Vector3(0f, 1.2f, 0.172f), new Vector3(0.38f, 0.2f, 0.01f), SignBoard);
-            SignKit.Label(reg, new Vector3(0f, 1.2f, 0.179f), "TRAIL\nREGISTER", 0.0085f, SignKit.Cream, TextAnchor.MiddleCenter, true);
-            AddCollider(reg, new Vector3(0f, 0.65f, 0f), new Vector3(0.5f, 1.3f, 0.35f));
+            // ---- Face C: the Reserve Road and the bike; the trail register below.
+            var c3 = Face(roadK, "Face C: Reserve Road");
+            Box("Panel", c3, new Vector3(0f, boardY + 0.12f, 0.03f), new Vector3(W - 0.2f, boardH - 0.4f, 0.03f), SignBoard);
+            SignKit.Icon(c3, new Vector3(-0.95f, boardY + 0.62f, 0.048f), SignIcon.Bike, 0.34f, SignKit.Cream);
+            SignKit.Label(c3, new Vector3(-0.66f, boardY + 0.62f, 0.05f), "RESERVE ROAD", 0.03f, SignKit.Cream, TextAnchor.MiddleLeft, true);
+            var road = new[] { "Ride slowly: 45 km/h", "Park at the pull-offs", "Walk the last stretch" };
+            for (int i = 0; i < road.Length; i++)
+                SignKit.Label(c3, new Vector3(-1.1f, boardY + 0.22f - i * 0.3f, 0.05f), road[i], SignKit.Fit(road[i], 0.022f, 2.2f, false), SignKit.Cream, TextAnchor.MiddleLeft);
+            var reg = Group("Trail Register", c3, c3.TransformPoint(new Vector3(0.75f, 0f, 0.22f)), c3.rotation);
+            Box("Box", reg, new Vector3(0f, 0.86f, 0f), new Vector3(0.5f, 0.34f, 0.3f), _wood);
+            Box("Lid", reg, new Vector3(0f, 1.05f, 0f), new Vector3(0.56f, 0.05f, 0.36f), _woodDark);
+            Box("Plate", reg, new Vector3(0f, 0.86f, 0.155f), new Vector3(0.42f, 0.2f, 0.01f), SignBoard);
+            SignKit.Label(reg, new Vector3(0f, 0.86f, 0.162f), "TRAIL\nREGISTER", 0.0095f, SignKit.Cream, TextAnchor.MiddleCenter, true);
+            Box("Post", reg, new Vector3(0f, 0.35f, -0.05f), new Vector3(0.09f, 0.7f, 0.09f), _woodDark);
+        }
+
+        /// <summary>
+        /// The trailhead bike bay (1.6): the bike parked in a bay beside the Reserve Board, angled out ready to ride, with a
+        /// hitching rail and a gravel pad (a pull-off, so it reads as part of the Reserve Road where it begins).
+        /// </summary>
+        private static void BuildBikeBay(Transform parent, Vector3 pos, Vector3 facing)
+        {
+            var bay = Group("Trailhead Bike Bay", parent, pos, Quaternion.LookRotation(facing));
+            Vector3 right = Vector3.Cross(Vector3.up, facing);
+            var rail = Group("Hitching Rail", bay, TerrainUtil.Ground(pos + right * 1.0f), Quaternion.LookRotation(facing));
+            foreach (float z in new[] { -0.9f, 0.9f })
+                Box("Post", rail, new Vector3(0f, 0.45f, z), new Vector3(0.12f, 0.9f, 0.12f), _woodDark);
+            Box("Rail", rail, new Vector3(0f, 0.82f, 0f), new Vector3(0.1f, 0.1f, 2.1f), _wood);
+            AddCollider(rail, new Vector3(0f, 0.45f, 0f), new Vector3(0.14f, 0.9f, 2.0f));
+            var pad = bay.gameObject.AddComponent<ReserveParking>();
+            pad.title = "Trailhead";
+            pad.hint = "the Reserve Road starts here";
+            pad.radius = 2.6f;
         }
 
         private static Vector3 Outward(Vector3 p, TrailBuilder.Loop loop)

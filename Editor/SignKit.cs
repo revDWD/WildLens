@@ -22,7 +22,7 @@ namespace WildLens.EditorTools
         // TextMesh: one glyph pixel at font size 64 is 0.1 × characterSize metres.
         public const int FontSize = 64;
         public const float TitleSize = 0.024f;   // ≈ 10 cm capitals: readable from ~15 m
-        public const float LineSize = 0.015f;    // ≈ 6 cm
+        public const float LineSize = 0.019f;    // ≈ 8 cm (1.6: 6 cm sub-lines were unreadable from the trail)
         public const float SmallSize = 0.011f;
         private const string IconFolder = GeneratedAssets.Folder + "/Icons";
         private const string IconVersion = "v1";
@@ -349,16 +349,16 @@ namespace WildLens.EditorTools
             icons = icons ?? new SignIcon[0];
             var sign = PropBuilder.Group("Sign: " + title, parent, pos, rot);
             bool hasLine = !string.IsNullOrEmpty(line) || icons.Length > 0;
-            const float disc = 0.3f, gap = 0.07f, iconSize = 0.13f, iconStep = 0.155f, margin = 0.13f;
+            const float disc = 0.3f, gap = 0.07f, iconSize = 0.16f, iconStep = 0.19f, margin = 0.13f;
             float titleSize = Fit(title, TitleSize, maxTitleWidth, true);
             float titleW = TextWidth(title, titleSize, true);
             float lineSize = string.IsNullOrEmpty(line) ? LineSize : Fit(line, LineSize, maxTitleWidth, false);
             float lineW = icons.Length * iconStep + (string.IsNullOrEmpty(line) ? 0f : TextWidth(line, lineSize, false));
             float lead = number > 0 ? disc + gap : 0f;
             float boardW = lead + Mathf.Max(titleW, lineW) + margin * 2f;
-            float boardH = hasLine ? 0.62f : 0.4f;
+            float boardH = hasLine ? 0.66f : 0.4f;
             const float boardY = 1.38f;
-            float topRow = boardY + (hasLine ? 0.12f : 0f), lowRow = boardY - 0.15f;
+            float topRow = boardY + (hasLine ? 0.13f : 0f), lowRow = boardY - 0.16f;
 
             foreach (float x in boardW > 1.1f ? new[] { -boardW * 0.5f + 0.14f, boardW * 0.5f - 0.14f } : new[] { 0f })
                 PropBuilder.Box("Post", sign, new Vector3(x, (boardY + 0.15f) * 0.5f, 0f), new Vector3(0.11f, boardY + 0.15f, 0.11f), post);
@@ -387,28 +387,29 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>
-        /// An angled interpretive lectern, redrawn for reading at a glance: a large pictogram, a bold title and two short
-        /// lines (no paragraphs). The face is 1.3 × 0.78 m.
+        /// An angled interpretive lectern, redrawn for reading at a glance: a large pictogram, a bold title and at most three
+        /// short lines (no paragraphs; about 20 characters a line, so the body stays at ~5 cm capitals). The face is
+        /// 1.5 × 0.88 m (1.6: larger, because 1.5's two long lines were fitted down to 3.5 cm capitals).
         /// </summary>
         public static Transform Panel(Transform parent, Vector3 pos, Vector3 facing, SignIcon icon, string title, string body,
             Material wood, Material post)
         {
             var panelMat = GeneratedAssets.Material("PanelFace", new Color(0.88f, 0.84f, 0.7f), 0.2f);
             var g = PropBuilder.Group("Interpretive Panel: " + title, parent, pos, Quaternion.LookRotation(facing));
-            PropBuilder.Box("Leg L", g, new Vector3(-0.5f, 0.45f, 0f), new Vector3(0.09f, 0.9f, 0.09f), post);
-            PropBuilder.Box("Leg R", g, new Vector3(0.5f, 0.45f, 0f), new Vector3(0.09f, 0.9f, 0.09f), post);
+            PropBuilder.Box("Leg L", g, new Vector3(-0.58f, 0.45f, 0f), new Vector3(0.09f, 0.9f, 0.09f), post);
+            PropBuilder.Box("Leg R", g, new Vector3(0.58f, 0.45f, 0f), new Vector3(0.09f, 0.9f, 0.09f), post);
             var face = PropBuilder.Group("Face", g, pos + Vector3.up * 1.02f, Quaternion.LookRotation(facing) * Quaternion.Euler(-32f, 0f, 0f));
-            PropBuilder.Box("Frame", face, new Vector3(0f, 0f, -0.03f), new Vector3(1.4f, 0.88f, 0.05f), wood);
-            PropBuilder.Box("Panel", face, Vector3.zero, new Vector3(1.3f, 0.78f, 0.02f), panelMat);
-            PropBuilder.Box("Band", face, new Vector3(0f, 0.31f, 0.012f), new Vector3(1.3f, 0.16f, 0.005f), PropBuilder.SignTrim);
+            PropBuilder.Box("Frame", face, new Vector3(0f, 0f, -0.03f), new Vector3(1.6f, 0.98f, 0.05f), wood);
+            PropBuilder.Box("Panel", face, Vector3.zero, new Vector3(1.5f, 0.88f, 0.02f), panelMat);
+            PropBuilder.Box("Band", face, new Vector3(0f, 0.355f, 0.012f), new Vector3(1.5f, 0.17f, 0.005f), PropBuilder.SignTrim);
             const float z = 0.016f;
-            float textLeft = -0.65f + 0.42f, textW = 1.3f - 0.42f - 0.08f;
-            Icon(face, new Vector3(-0.65f + 0.22f, -0.07f, z), icon, 0.34f, Green);
-            float ts = Fit(title, 0.019f, 1.22f, true);
-            Label(face, new Vector3(-0.61f, 0.31f, z + 0.002f), title, ts, Cream, TextAnchor.MiddleLeft, true);
-            float bs = Fit(body, 0.0135f, textW, false);
+            float textLeft = -0.75f + 0.44f, textW = 1.5f - 0.44f - 0.08f;
+            Icon(face, new Vector3(-0.75f + 0.23f, -0.08f, z), icon, 0.36f, Green);
+            float ts = Fit(title, 0.021f, 1.4f, true);
+            Label(face, new Vector3(-0.7f, 0.355f, z + 0.002f), title, ts, Cream, TextAnchor.MiddleLeft, true);
+            float bs = Fit(body, 0.016f, textW, false);
             Label(face, new Vector3(textLeft, -0.08f, z), body, bs, Ink, TextAnchor.MiddleLeft);
-            PropBuilder.AddCollider(g, new Vector3(0f, 0.6f, 0f), new Vector3(1.2f, 1.2f, 0.4f));
+            PropBuilder.AddCollider(g, new Vector3(0f, 0.6f, 0f), new Vector3(1.35f, 1.2f, 0.4f));
             return g;
         }
     }

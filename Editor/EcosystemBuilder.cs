@@ -821,7 +821,7 @@ namespace WildLens.EditorTools
 
             if (panel)
                 InterpretivePanel(parent, TerrainUtil.Ground(at - dir * (len * 0.5f + 2f) + Vector3.Cross(Vector3.up, dir) * 2.4f), -dir,
-                    SignIcon.Water, "WILLOW CREEK", "From the ridge to the pond.\nDeer follow it to drink.", wood, post);
+                    SignIcon.Water, "WILLOW CREEK", "From the ridge\nto the pond. Deer\nfollow it to drink.", wood, post);
         }
 
         private void PlantReeds(Transform group, List<Vector3> clumps, string name)

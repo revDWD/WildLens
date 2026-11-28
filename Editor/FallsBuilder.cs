@@ -207,7 +207,7 @@ namespace WildLens.EditorTools
             Plank(group, "WILLOW FALLS", "roars after rain", SignKit.TimeIcons(BestTimes(s.kind)), s.number,
                 TerrainUtil.Ground(deckPos + back * 3.6f + across * 2.2f), Quaternion.LookRotation(back), post);
             InterpretivePanel(group, TerrainUtil.Ground(deckPos + back * 3.4f - across * 2.3f), back, SignIcon.Water, "THE FALLS",
-                "The creek drops off the upland here.\nAfter rain, it roars.", wood, post);
+                "The creek drops off\nthe upland here.\nAfter rain, it roars.", wood, post);
 
             // A lookout at the top of the falls: rail on the lip's edge, looking down the ravine.
             Vector3 topSide = Vector3.Dot(deckPos - lip, side) > 0f ? side : -side;

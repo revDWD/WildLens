@@ -147,7 +147,7 @@ namespace WildLens.EditorTools
             SignKit.Sign(group, TerrainUtil.Ground(_fordApproach - _fordDir * 2.4f + _fordSide * 0.8f), Quaternion.LookRotation(_fordSide),
                 "CREEK FORD", "watch the riffle", new[] { SignIcon.Dawn, SignIcon.Water }, 0, post);
             InterpretivePanel(group, TerrainUtil.Ground(_fordApproach + _fordSide * 1.2f - _fordDir * 0.6f), _fordSide, SignIcon.Bird,
-                "THE RIFFLE", "Kingfishers dive from the snag.\nSandpipers teeter on the gravel.", wood, post);
+                "THE RIFFLE", "Kingfishers dive\nfrom the snag.\nSandpipers wade.", wood, post);
 
             var voice = new GameObject("Ford Brook");
             voice.transform.SetParent(group, false);

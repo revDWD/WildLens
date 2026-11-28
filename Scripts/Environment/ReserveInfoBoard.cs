@@ -84,8 +84,12 @@ namespace WildLens.Environment
             _nowBig = UIFactory.CreateText("Now", header.rectTransform, "", 52, Cream, TextAnchor.UpperRight, FontStyle.Bold);
             _nowBig.horizontalOverflow = HorizontalWrapMode.Overflow; // right-aligned: grows leftwards
             Top(_nowBig.rectTransform, w - 640f, 16f, 606f, 64f);
-            _nowSmall = UIFactory.CreateText("Conditions", header.rectTransform, "", 30, Cream, TextAnchor.UpperRight);
-            Top(_nowSmall.rectTransform, w - 760f, 88f, 726f, 46f);
+            // 1.6: larger (34), shrinking only when a long forecast line needs it, never spilling off the header.
+            _nowSmall = UIFactory.CreateText("Conditions", header.rectTransform, "", 34, Cream, TextAnchor.UpperRight);
+            _nowSmall.resizeTextForBestFit = true;
+            _nowSmall.resizeTextMinSize = 26;
+            _nowSmall.resizeTextMaxSize = 34;
+            Top(_nowSmall.rectTransform, w - 780f, 86f, 746f, 50f);
 
             // Map: the biggest thing on the board.
             const float footerH = 68f;
@@ -131,7 +135,7 @@ namespace WildLens.Environment
                     ix += 50f;
                 }
                 float km = TerrainUtil.FlatDistance(d.transform.position, transform.position) / 1000f;
-                var dist = UIFactory.CreateText("Distance", _root, $"{km:0.0} km", 30, Muted, TextAnchor.UpperLeft);
+                var dist = UIFactory.CreateText("Distance", _root, $"{km:0.0} km", 34, Muted, TextAnchor.UpperLeft);
                 Top(dist.rectTransform, ix + 8f, y + 56f, cw - (ix - x), 40f);
                 y += rowH;
             }
@@ -140,7 +144,7 @@ namespace WildLens.Environment
             var footer = UIFactory.CreateImage("Footer", _root, new Color(0.78f, 0.74f, 0.6f));
             Top(footer.rectTransform, 0f, h - footerH, w, footerH);
             var tip = UIFactory.CreateText("Etiquette", footer.rectTransform,
-                "Walk quietly  ·  park bikes at pull-offs  ·  wildlife keeps hours", 28, Ink, TextAnchor.MiddleLeft);
+                "Walk quietly  ·  wildlife keeps hours", 32, Ink, TextAnchor.MiddleLeft); // 1.6: riding advice is on the road face
             UIFactory.Stretch(tip.rectTransform, 34f, 0f, 380f, 0f);
             var version = UIFactory.CreateText("Version", footer.rectTransform, VersionText(), 22, Muted, TextAnchor.MiddleRight);
             UIFactory.Stretch(version.rectTransform, 0f, 0f, 30f, 0f);
