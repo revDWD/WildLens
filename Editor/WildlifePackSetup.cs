@@ -19,76 +19,111 @@ namespace WildLens.EditorTools
         /// <summary>How a model's name matches a species.</summary>
         public enum MatchKind { None, StandIn, Exact }
 
-        /// <summary>Names that are the species, then names of animals that read like it at photographing distance.</summary>
+        // <pure-begin> (name logic only: no Unity types; the throwaway test extracts everything between these markers)
+
+        /// <summary>
+        /// Names that are the species, then names of animals that read like it at photographing distance. Order matters:
+        /// among stand-ins, a name earlier in the list ranks higher ("wolf" before "dog" for the coyote, "bluebird" before
+        /// "bird" for the blue jay).
+        /// </summary>
         public static readonly Dictionary<string, (string[] exact, string[] standIn)> Names = new Dictionary<string, (string[], string[])>
         {
-            { "white_tailed_deer", (new[] { "whitetail", "deer", "doe", "stag", "buck", "fawn" }, new[] { "roe", "elk", "antelope", "reindeer" }) },
-            { "red_fox", (new[] { "fox" }, new[] { "shiba", "jackal" }) },
-            { "coyote", (new[] { "coyote" }, new[] { "wolf", "jackal", "husky", "dog" }) },
+            { "white_tailed_deer", (new[] { "whitetail", "deer", "doe", "stag", "buck", "fawn" }, new[] { "roe", "elk", "reindeer", "caribou", "moose", "antelope", "gazelle", "impala" }) },
+            { "red_fox", (new[] { "fox" }, new[] { "shiba", "fennec", "jackal" }) },
+            { "coyote", (new[] { "coyote" }, new[] { "wolf", "dingo", "dhole", "jackal", "husky", "shepherd", "dog" }) },
             { "eastern_cottontail", (new[] { "cottontail", "rabbit", "bunny", "hare" }, new string[0]) },
-            { "eastern_gray_squirrel", (new[] { "squirrel" }, new[] { "chipmunk" }) },
-            { "raccoon", (new[] { "raccoon", "racoon" }, new string[0]) },
-            { "virginia_opossum", (new[] { "opossum", "possum" }, new string[0]) },
-            { "groundhog", (new[] { "groundhog", "woodchuck", "marmot" }, new[] { "beaver", "gopher", "prairiedog" }) },
-            { "wild_turkey", (new[] { "turkey" }, new[] { "pheasant", "chicken", "hen", "peacock" }) },
-            { "red_tailed_hawk", (new[] { "hawk", "buteo" }, new[] { "eagle", "falcon", "buzzard", "kite" }) },
+            { "eastern_gray_squirrel", (new[] { "squirrel", "squirel" }, new[] { "chipmunk" }) },
+            { "raccoon", (new[] { "raccoon", "racoon" }, new[] { "badger", "redpanda", "coati" }) },
+            { "virginia_opossum", (new[] { "opossum", "possum" }, new[] { "rat", "mouse" }) },
+            { "groundhog", (new[] { "groundhog", "woodchuck", "marmot" }, new[] { "beaver", "gopher", "prairiedog", "capybara", "hamster", "guineapig" }) },
+            { "wild_turkey", (new[] { "turkey" }, new[] { "pheasant", "grouse", "partridge", "quail", "guineafowl", "chicken", "rooster", "hen", "peacock" }) },
+            { "red_tailed_hawk", (new[] { "hawk", "buteo" }, new[] { "eagle", "falcon", "buzzard", "harrier", "osprey", "kite", "vulture", "raptor" }) },
             { "barred_owl", (new[] { "owl" }, new string[0]) },
-            { "great_blue_heron", (new[] { "heron" }, new[] { "egret", "crane", "stork", "flamingo" }) },
-            { "spotted_sandpiper", (new[] { "sandpiper" }, new[] { "plover", "shorebird", "seagull", "gull" }) },
-            { "northern_cardinal", (new[] { "cardinal" }, new[] { "songbird", "finch", "sparrow", "robin", "bird" }) },
-            { "blue_jay", (new[] { "bluejay", "jay" }, new[] { "songbird", "finch", "sparrow", "robin", "bird" }) },
-            { "red_winged_blackbird", (new[] { "blackbird" }, new[] { "starling", "crow", "songbird", "sparrow", "bird" }) },
+            { "great_blue_heron", (new[] { "heron" }, new[] { "egret", "bittern", "ibis", "spoonbill", "pelican", "crane", "stork", "flamingo" }) },
+            { "spotted_sandpiper", (new[] { "sandpiper" }, new[] { "killdeer", "plover", "dunlin", "snipe", "shorebird", "wader", "tern", "seagull", "gull" }) },
+            { "northern_cardinal", (new[] { "cardinal", "redbird" }, new[] { "songbird", "finch", "sparrow", "robin", "oriole", "canary", "chickadee", "wren", "tit", "thrush", "warbler", "swallow", "bird" }) },
+            { "blue_jay", (new[] { "bluejay", "jay" }, new[] { "bluebird", "songbird", "finch", "sparrow", "robin", "chickadee", "tit", "wren", "thrush", "warbler", "swallow", "bird" }) },
+            { "red_winged_blackbird", (new[] { "blackbird" }, new[] { "grackle", "starling", "crow", "raven", "songbird", "sparrow", "thrush", "bird" }) },
             { "belted_kingfisher", (new[] { "kingfisher" }, new[] { "songbird", "sparrow", "bird" }) },
-            { "eastern_phoebe", (new[] { "phoebe", "flycatcher" }, new[] { "sparrow", "songbird", "finch", "bird" }) },
+            { "eastern_phoebe", (new[] { "phoebe", "flycatcher" }, new[] { "sparrow", "songbird", "finch", "wren", "chickadee", "bird" }) },
         };
+
+        /// <summary>
+        /// Animals that are future species of their own: never used as a stand-in, not even through a generic folder name
+        /// ("Birds/Woodpecker" must not become the cardinal).
+        /// </summary>
+        public static readonly string[] Reserved = { "woodpecker", "hummingbird", "duck", "mallard", "goose", "swan" };
 
         /// <summary>Lower-case words of a name: split on non-letters and camel case ("RedFox_Idle01" → red, fox, idle).</summary>
         public static List<string> Words(string name)
         {
-            var words = new List<string>();
-            var cur = new StringBuilder();
-            char prev = ' ';
-            foreach (char c in name)
-            {
-                bool letter = char.IsLetter(c);
-                bool boundary = !letter || (char.IsUpper(c) && char.IsLower(prev));
-                if (boundary && cur.Length > 0) { words.Add(cur.ToString().ToLowerInvariant()); cur.Clear(); }
-                if (letter) cur.Append(c);
-                prev = c;
-            }
-            if (cur.Length > 0) words.Add(cur.ToString().ToLowerInvariant());
+            var words = AnimalPrefabFactory.Tokens(name);
             // Also the whole name squashed, so "WhiteTailDeer" and "blue_jay" match "whitetail" and "bluejay".
-            string all = string.Concat(words);
-            if (words.Count > 1) words.Add(all);
+            if (words.Count > 1) words.Add(string.Concat(words));
             return words;
         }
+
+        /// <summary>
+        /// One keyword against one name word. A short key ("fox", "owl", "jay", "cat", "ant") must be a whole word (or its
+        /// plural), so "Foxglove", "Bowl", "Cattail" and "Plant" don't count; longer ones may sit inside a word
+        /// ("RedSquirrel01"). A key ending in "=" is always whole-word ("aster=" is not "Disaster").
+        /// </summary>
+        internal static bool KeyHit(string key, string word)
+        {
+            bool whole = key.EndsWith("=");
+            string k = whole ? key.Substring(0, key.Length - 1) : key;
+            return whole || k.Length <= 4 ? (word == k || word == k + "s") : word.Contains(k);
+        }
+
+        /// <summary>Index in <paramref name="names"/> of the first keyword some word hits, or -1.</summary>
+        internal static int HasIndex(List<string> words, string[] names)
+        {
+            for (int i = 0; i < names.Length; i++)
+                foreach (var w in words)
+                    if (KeyHit(names[i], w)) return i;
+            return -1;
+        }
+
+        internal static bool Has(List<string> words, string[] names) => HasIndex(words, names) >= 0;
 
         /// <summary>
         /// How well a name matches: a short name word ("fox", "owl", "jay") must be a whole word, so "Foxglove" and
         /// "Bowl" don't count; longer ones may sit inside a word ("RedSquirrel01").
         /// </summary>
-        public static MatchKind Match(string name, string speciesId)
+        public static MatchKind Match(string name, string speciesId) => Match(name, speciesId, out _);
+
+        /// <summary>As above; <paramref name="rank"/> is the position of the keyword hit (lower = closer to the species).</summary>
+        internal static MatchKind Match(string name, string speciesId, out int rank)
         {
+            rank = int.MaxValue;
             if (!Names.TryGetValue(speciesId, out var n)) return MatchKind.None;
             var words = Words(name);
-            if (Has(words, n.exact)) return MatchKind.Exact;
-            return Has(words, n.standIn) ? MatchKind.StandIn : MatchKind.None;
+            if (Has(words, Reserved)) return MatchKind.None;
+            int i = HasIndex(words, n.exact);
+            if (i >= 0) { rank = i; return MatchKind.Exact; }
+            i = HasIndex(words, n.standIn);
+            if (i >= 0) { rank = i; return MatchKind.StandIn; }
+            return MatchKind.None;
         }
 
-        private static bool Has(List<string> words, string[] names)
+        /// <summary>The model's own name first; only when that says nothing, the folder it sits in ("Deer/Model01").</summary>
+        internal static MatchKind MatchAsset(string assetName, string folderName, string speciesId, out int rank)
         {
-            foreach (var k in names)
-                foreach (var w in words)
-                    if (k.Length <= 4 ? (w == k || w == k + "s") : w.Contains(k)) return true;
-            return false;
+            var kind = Match(assetName, speciesId, out rank);
+            if (kind == MatchKind.None && !string.IsNullOrEmpty(folderName) && !Has(Words(assetName), Reserved))
+                kind = Match(folderName, speciesId, out rank);
+            return kind;
         }
+
+        // <pure-end>
 
         private class Candidate
         {
             public GameObject asset;
             public string path;
             public MatchKind kind;
-            public int clipCount;
+            public int clipCount, rank;
+            public bool ownedElsewhere; // exact match for another species: a poorer stand-in here
             public List<AnimationClip> clips;
             public string Label => $"{(kind == MatchKind.Exact ? "" : "stand-in: ")}{asset.name}  ({clipCount} clips)  {System.IO.Path.GetDirectoryName(path)}";
         }
@@ -188,10 +223,12 @@ namespace WildLens.EditorTools
             var models = FindAnimatedModels();
             if (models.Count == 0) return 0;
             var sb = new StringBuilder();
+            var unmatched = new List<string>();
             int done = 0;
             foreach (var row in BuildRows(db, models))
             {
-                if (row.species.prefab != null || row.Picked == null) continue;
+                if (row.species.prefab != null) continue;
+                if (row.Picked == null) { unmatched.Add(row.species.displayName); continue; }
                 try
                 {
                     var c = row.Picked;
@@ -204,28 +241,52 @@ namespace WildLens.EditorTools
                     sb.Append("\n  • ").Append(row.species.displayName).Append(" failed: ").Append(e.Message);
                 }
             }
-            if (done > 0 || sb.Length > 0)
+            if (done > 0 || sb.Length > 0 || unmatched.Count > 0)
                 Debug.Log($"[WildLens] Wildlife models: {done} species now use animal models from your packs." + sb +
-                          "\nPress Play to see them. To change one, open WildLens ▸ Wildlife Pack Setup.");
+                          (unmatched.Count > 0 ? "\nNo match yet (placeholder bodies): " + string.Join(", ", unmatched) + "." : "") +
+                          "\nPress Play to see them. To change one, open WildLens ▸ Wildlife Pack Setup." +
+                          "\nRun WildLens ▸ Asset Audit Report for the full list of what was found.");
             return done;
         }
 
         private static List<Row> BuildRows(SpeciesDatabase db, List<Model> models)
         {
             var rows = new List<Row>();
+            // Which species each model is the real thing for, so it is not also the first choice as someone's stand-in.
+            var exactFor = new Dictionary<string, List<string>>();
+            foreach (var m in models)
+            {
+                string folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(m.path));
+                foreach (var species in db.species)
+                    if (species != null && MatchAsset(m.asset.name, folder, species.speciesId, out _) == MatchKind.Exact)
+                    {
+                        if (!exactFor.TryGetValue(m.path, out var list)) exactFor[m.path] = list = new List<string>();
+                        list.Add(species.speciesId);
+                    }
+            }
             foreach (var species in db.species)
             {
                 if (species == null) continue;
                 var row = new Row { species = species, size = AnimalPrefabFactory.DefaultSize(species) };
                 foreach (var m in models)
                 {
-                    var kind = Match(m.asset.name, species.speciesId);
-                    if (kind == MatchKind.None) kind = Match(System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(m.path)), species.speciesId);
+                    string folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(m.path));
+                    var kind = MatchAsset(m.asset.name, folder, species.speciesId, out int rank);
                     if (kind == MatchKind.None) continue;
-                    row.candidates.Add(new Candidate { asset = m.asset, path = m.path, kind = kind, clips = m.clips, clipCount = m.clipCount });
+                    bool owned = kind == MatchKind.StandIn && exactFor.TryGetValue(m.path, out var owners) && owners.Count > 0;
+                    row.candidates.Add(new Candidate { asset = m.asset, path = m.path, kind = kind, rank = rank, ownedElsewhere = owned, clips = m.clips, clipCount = m.clipCount });
                 }
-                // Best first: the species itself over a stand-in, then the model with the most recognised clips.
-                row.candidates.Sort((a, b) => a.kind != b.kind ? b.kind.CompareTo(a.kind) : b.clipCount.CompareTo(a.clipCount));
+                // Best first: the species itself over a stand-in; a model that is another species' own over none; the
+                // keyword closest to the species ("wolf" before "dog"); the most recognised clips; then by path, so the
+                // pick is the same on every machine.
+                row.candidates.Sort((a, b) =>
+                {
+                    if (a.kind != b.kind) return b.kind.CompareTo(a.kind);
+                    if (a.ownedElsewhere != b.ownedElsewhere) return a.ownedElsewhere ? 1 : -1;
+                    if (a.rank != b.rank) return a.rank.CompareTo(b.rank);
+                    if (a.clipCount != b.clipCount) return b.clipCount.CompareTo(a.clipCount);
+                    return string.CompareOrdinal(a.path, b.path);
+                });
                 row.on = row.candidates.Count > 0 && species.prefab == null;
                 row.tint = row.Picked != null && row.Picked.kind == MatchKind.StandIn;
                 rows.Add(row);
@@ -235,31 +296,55 @@ namespace WildLens.EditorTools
 
         private struct Model { public GameObject asset; public string path; public List<AnimationClip> clips; public int clipCount; }
 
+        /// <summary>
+        /// Every clip a model can use: its own, and the ones kept beside it ("Deer@Walk.fbx" files and loose clips named
+        /// "Deer_..."). Shared with the Asset Audit. <paramref name="dirCache"/> (optional) remembers each folder's clip
+        /// files, which makes a scan of thousands of models fast.
+        /// </summary>
+        internal static List<AnimationClip> CollectClips(string path, GameObject go, Dictionary<string, List<string>> dirCache = null)
+        {
+            var sources = new List<Object> { go };
+            string dir = System.IO.Path.GetDirectoryName(path).Replace('\\', '/');
+            string stem = System.IO.Path.GetFileNameWithoutExtension(path);
+            List<string> clipFiles = null;
+            if (dirCache == null || !dirCache.TryGetValue(dir, out clipFiles))
+            {
+                clipFiles = new List<string>();
+                foreach (string cg in AssetDatabase.FindAssets("t:AnimationClip", new[] { dir }))
+                    clipFiles.Add(AssetDatabase.GUIDToAssetPath(cg));
+                if (dirCache != null) dirCache[dir] = clipFiles;
+            }
+            foreach (string cp in clipFiles)
+            {
+                string file = System.IO.Path.GetFileNameWithoutExtension(cp);
+                if (cp != path && (file.StartsWith(stem + "@") || file.StartsWith(stem + "_"))) sources.Add(AssetDatabase.LoadAssetAtPath<Object>(cp));
+            }
+            return AnimalPrefabFactory.ClipsIn(sources);
+        }
+
         /// <summary>Models and prefabs outside WildLens's own folder with a skinned body and at least one clip.</summary>
         private static List<Model> FindAnimatedModels()
         {
             var list = new List<Model>();
             var seen = new HashSet<string>();
+            var dirCache = new Dictionary<string, List<string>>();
             foreach (string guid in AssetDatabase.FindAssets("t:GameObject", new[] { "Assets" }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 if ((path.StartsWith(GeneratedAssets.Root + "/") && !path.StartsWith(ArtLibrary.AnimalsFolder + "/")) || !seen.Add(path)) continue;
                 if (path.Contains("@")) continue; // "Deer@Walk.fbx": an animation file, used as a clip source below
-                var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                if (go == null || go.GetComponentInChildren<SkinnedMeshRenderer>(true) == null) continue;
-                var sources = new List<Object> { go };
-                // Clips kept beside the model: "Deer@Walk.fbx" files and loose clips named for it.
-                string dir = System.IO.Path.GetDirectoryName(path).Replace('\\', '/');
-                string stem = System.IO.Path.GetFileNameWithoutExtension(path);
-                foreach (string cg in AssetDatabase.FindAssets("t:AnimationClip", new[] { dir }))
+                try
                 {
-                    string cp = AssetDatabase.GUIDToAssetPath(cg);
-                    string file = System.IO.Path.GetFileNameWithoutExtension(cp);
-                    if (file.StartsWith(stem + "@") || file.StartsWith(stem + "_")) sources.Add(AssetDatabase.LoadAssetAtPath<Object>(cp));
+                    var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                    if (go == null || go.GetComponentInChildren<SkinnedMeshRenderer>(true) == null) continue;
+                    var clips = CollectClips(path, go, dirCache);
+                    if (clips.Count == 0) continue;
+                    list.Add(new Model { asset = go, path = path, clips = clips, clipCount = AnimalPrefabFactory.Classify(clips).Count });
                 }
-                var clips = AnimalPrefabFactory.ClipsIn(sources);
-                if (clips.Count == 0) continue;
-                list.Add(new Model { asset = go, path = path, clips = clips, clipCount = AnimalPrefabFactory.Classify(clips).Count });
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[WildLens] Skipped {path}: {e.Message}");
+                }
             }
             return list;
         }

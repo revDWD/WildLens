@@ -91,6 +91,8 @@ namespace WildLens.EditorTools
                     if (GUILayout.Button("Scan Project for Nature Assets")) EnvironmentKitScanner.ScanAndAssign(false);
                 if (GUILayout.Button("Select Kit", GUILayout.Width(90))) EnvironmentKitScanner.SelectKit();
             }
+            using (new EditorGUI.DisabledScope(Application.isPlaying))
+                if (GUILayout.Button("Asset Audit Report (list my imported packs)")) AssetAudit.Run();
 
             EditorGUILayout.Space();
             using (new EditorGUI.DisabledScope(Application.isPlaying))

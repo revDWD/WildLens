@@ -22,23 +22,82 @@ namespace WildLens.EditorTools
     {
         public const string Folder = GeneratedAssets.Root + "/Animals";
 
-        // First matching keyword wins; checked in this order so "walk_eat" style names classify sensibly.
+        // <pure-begin> (name logic only: no Unity types; the throwaway test extracts everything between these markers)
+
+        // First matching role wins; checked in this order so "walk_eat" style names classify sensibly. Keywords match
+        // WHOLE WORDS of the clip name (split on non-letters and camelCase), optionally with a common suffix ("Running",
+        // "Sitting", "Walks"), so "Threat" is not Eat, "Forest" is not Lie, "Trunk" is not Run, "Island" is not Land.
+        // Entries listed in Compound are matched against the squashed name instead ("Take Off", "TakeOff", "take_off").
         private static readonly (ClipRole role, string[] words)[] Keywords =
         {
-            (ClipRole.TakeOff, new[] { "takeoff", "take_off", "take off", "liftoff" }),
+            (ClipRole.TakeOff, new[] { "takeoff", "liftoff" }),
             (ClipRole.Land, new[] { "landing", "land" }),
-            (ClipRole.Glide, new[] { "glide", "soar" }),
-            (ClipRole.Fly, new[] { "fly", "flap", "flight" }),
-            (ClipRole.Eat, new[] { "eat", "graze", "grazing", "feed", "drink", "sniff", "forage", "peck" }),
-            (ClipRole.Lie, new[] { "lie", "lying", "laydown", "lay_down", "rest", "sleep" }),
+            (ClipRole.Glide, new[] { "glide", "gliding", "soar" }),
+            (ClipRole.Fly, new[] { "fly", "flies", "flap", "flight", "hover", "wing" }),
+            (ClipRole.Eat, new[] { "eat", "graze", "grazing", "feed", "drink", "sniff", "forage", "foraging", "peck", "chew", "nibble" }),
+            (ClipRole.Lie, new[] { "lie", "lying", "laying", "laydown", "rest", "sleep", "nap" }),
             (ClipRole.Sit, new[] { "sit" }),
-            (ClipRole.Groom, new[] { "groom", "lick", "scratch", "shake", "preen" }),
-            (ClipRole.Look, new[] { "look", "alert", "listen", "attention", "turnhead", "head_turn", "headturn" }),
-            (ClipRole.Run, new[] { "run", "gallop", "sprint", "flee" }),
+            (ClipRole.Groom, new[] { "groom", "lick", "scratch", "shake", "shaking", "preen" }),
+            (ClipRole.Look, new[] { "look", "alert", "listen", "attention", "turnhead", "headturn", "watch", "search" }),
+            (ClipRole.Run, new[] { "run", "gallop", "sprint", "flee", "dash", "chase" }),
             (ClipRole.Trot, new[] { "trot", "canter", "jog" }),
-            (ClipRole.Walk, new[] { "walk", "hop", "jump" }),
-            (ClipRole.Idle, new[] { "idle", "stand", "breath", "perch" }),
+            (ClipRole.Walk, new[] { "walk", "hop", "jump", "move", "crawl", "amble" }),
+            (ClipRole.Idle, new[] { "idle", "stand", "breath", "perch", "stay", "wait" }),
         };
+
+        private static readonly HashSet<string> Compound = new HashSet<string> { "takeoff", "liftoff", "laydown", "turnhead", "headturn" };
+
+        // A clip with one of these words is never mapped (it would be a death or attack pose in an idle slot).
+        private static readonly string[] Excluded =
+            { "death", "dead", "die", "dying", "attack", "attacking", "hit", "hurt", "damage", "roar", "bite", "biting", "kill" };
+
+        private static readonly HashSet<string> Suffixes = new HashSet<string>
+            { "s", "es", "d", "ed", "er", "ers", "ing", "ning", "ting", "ping", "ming", "ging", "ned", "ted", "ped", "loop", "cycle", "anim" };
+
+        /// <summary>Lower-case words of a name: split on non-letters (digits too) and camel case ("Armature|Walk_01" → armature, walk).</summary>
+        internal static List<string> Tokens(string name)
+        {
+            var words = new List<string>();
+            if (string.IsNullOrEmpty(name)) return words;
+            var cur = new StringBuilder();
+            char prev = ' ';
+            foreach (char c in name)
+            {
+                bool letter = char.IsLetter(c);
+                bool boundary = !letter || (char.IsUpper(c) && char.IsLower(prev));
+                if (boundary && cur.Length > 0) { words.Add(cur.ToString().ToLowerInvariant()); cur.Clear(); }
+                if (letter) cur.Append(c);
+                prev = c;
+            }
+            if (cur.Length > 0) words.Add(cur.ToString().ToLowerInvariant());
+            return words;
+        }
+
+        private static bool TokenIs(string token, string key) =>
+            token == key || (token.Length > key.Length && token.StartsWith(key, System.StringComparison.Ordinal) && Suffixes.Contains(token.Substring(key.Length)));
+
+        /// <summary>The role a clip name stands for, or false (unrecognised, or a death/attack/hit clip).</summary>
+        internal static bool TryClassifyName(string clipName, out ClipRole role)
+        {
+            role = ClipRole.Idle;
+            var tokens = Tokens(clipName);
+            if (tokens.Count == 0) return false;
+            string squashed = string.Concat(tokens);
+            foreach (var t in tokens)
+                foreach (var x in Excluded)
+                    if (TokenIs(t, x)) return false;
+            foreach (var (r, words) in Keywords)
+                foreach (var w in words)
+                {
+                    bool hit = false;
+                    if (Compound.Contains(w)) hit = squashed.Contains(w);
+                    else foreach (var t in tokens) if (TokenIs(t, w)) { hit = true; break; }
+                    if (hit) { role = r; return true; }
+                }
+            return false;
+        }
+
+        // <pure-end>
 
         /// <summary>Every clip in the given assets (models, animation FBXs, clips, controllers).</summary>
         public static List<AnimationClip> ClipsIn(IEnumerable<Object> sources)
@@ -80,16 +139,9 @@ namespace WildLens.EditorTools
             {
                 if (clip == null) continue;
                 if (first == null) first = clip;
-                string n = clip.name.ToLowerInvariant();
-                foreach (var (role, words) in Keywords)
-                {
-                    bool hit = false;
-                    foreach (var w in words) if (n.Contains(w)) { hit = true; break; }
-                    if (!hit) continue;
-                    if (!result.ContainsKey(role)) result[role] = clip;
-                    log?.Append(clip.name).Append(" → ").Append(role).Append('\n');
-                    break;
-                }
+                if (!TryClassifyName(clip.name, out var role)) continue;
+                if (!result.ContainsKey(role)) result[role] = clip;
+                log?.Append(clip.name).Append(" → ").Append(role).Append('\n');
             }
             if (!result.ContainsKey(ClipRole.Idle) && first != null) result[ClipRole.Idle] = first; // something rather than T-pose
             return result;
