@@ -235,12 +235,14 @@ namespace WildLens.EditorTools
                 int bestRank = -1;
                 var top = new List<Candidate>();
                 var kinds = new Dictionary<Candidate, Kind>();
+                var ranks = new Dictionary<Candidate, int>();
                 foreach (var c in candidates)
                 {
                     var kind = MatchName(c.stem, c.dirs, subject.subjectId);
                     if (kind == Kind.None) continue;
                     int rank = (int)kind * 4 + (c.animated ? 2 : 0) + (c.isPrefab ? 1 : 0);
                     kinds[c] = kind;
+                    ranks[c] = rank;
                     if (rank > bestRank) { bestRank = rank; top.Clear(); }
                     if (rank == bestRank) top.Add(c);
                 }
@@ -253,12 +255,48 @@ namespace WildLens.EditorTools
                 EditorUtility.SetDirty(subject);
                 sb.Append("\n  • ").Append(subject.displayName).Append(": ").Append(best.asset.name)
                   .Append(bestKind == Kind.Exact ? "" : bestKind == Kind.ByFolder ? " (stand-in, from its folder name)" : " (stand-in)").Append("  ").Append(best.path);
+                // Variants (never over a user's choice: the prefab was empty, and so must the list be): up to 5 more models of the SAME
+                // kind (exact / stand-in / by-folder), the equally good ones first, then the rest of that kind, each in path order.
+                // A folder-only match stays inside the chosen model's own pack (its top-level folder under Assets).
+                var used = new List<Candidate>();
+                if (subject.variants == null || subject.variants.Length == 0)
+                {
+                    string bestPack = PackFolder(best.path);
+                    var pool = new List<Candidate>();
+                    foreach (var c in candidates)
+                    {
+                        if (c == best || !kinds.TryGetValue(c, out var ck) || ck != bestKind) continue;
+                        if (bestKind == Kind.ByFolder && PackFolder(c.path) != bestPack) continue;
+                        if (c.asset == best.asset) continue;
+                        pool.Add(c);
+                    }
+                    pool.Sort((a, b) =>
+                    {
+                        int ta = ranks[a] == bestRank ? 0 : 1, tb = ranks[b] == bestRank ? 0 : 1;
+                        return ta != tb ? ta.CompareTo(tb) : string.CompareOrdinal(a.path, b.path);
+                    });
+                    for (int k = 0; k < pool.Count && used.Count < 5; k++) used.Add(pool[k]);
+                    if (used.Count > 0)
+                    {
+                        var arr = new GameObject[used.Count];
+                        for (int k = 0; k < arr.Length; k++) arr[k] = used[k].asset;
+                        subject.variants = arr;
+                    }
+                }
+                if (used.Count > 0) sb.Append(" +").Append(used.Count).Append(used.Count == 1 ? " variant" : " variants");
                 if (top.Count > 1)
                 {
-                    // A subject holds one model; the others that were as good are listed so a different one can be dragged in by hand.
+                    // Models that were as good and are not in use (the subject takes the first few): listed so one can be dragged in by hand.
                     var others = new List<string>();
-                    foreach (var c in top) if (c != best && others.Count < 6) others.Add(c.asset.name);
-                    sb.Append("\n      equally good, not used (a subject holds one model): ").Append(string.Join(", ", others)).Append(top.Count - 1 > others.Count ? ", …" : "");
+                    int notUsed = 0;
+                    foreach (var c in top)
+                    {
+                        if (c == best || used.Contains(c)) continue;
+                        notUsed++;
+                        if (others.Count < 6) others.Add(c.asset.name);
+                    }
+                    if (notUsed > 0)
+                        sb.Append("\n      equally good, not used: ").Append(string.Join(", ", others)).Append(notUsed > others.Count ? ", …" : "");
                 }
                 done++;
             }
@@ -300,6 +338,14 @@ namespace WildLens.EditorTools
                     if (MatchWords(words, ancestors, id) != Kind.None) { result.Add(path); break; }
             }
             return result;
+        }
+
+        /// <summary>The top-level folder under Assets that a path sits in ("Assets/SinuousShrooms/Models/A.fbx" → "SinuousShrooms"); "" for a file directly in Assets.</summary>
+        private static string PackFolder(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath)) return "";
+            var parts = assetPath.Replace('\\', '/').Split('/');
+            return parts.Length > 2 ? parts[1] : "";
         }
 
         /// <summary>Loads only the name-matched paths and keeps those that are small and really have a mesh.</summary>

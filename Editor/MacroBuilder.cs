@@ -366,10 +366,17 @@ namespace WildLens.EditorTools
         private bool PlaceModel(Transform group, NaturalistSubject s, Vector3 surface, System.Random rng, Dictionary<string, RuntimeAnimatorController> controllers)
         {
             GameObject go = null;
+            // Which model: the subject's own, or one of its variants (the subject's seeded generator, so the same build repeats).
+            var pool = new List<GameObject> { s.prefab };
+            if (s.variants != null) foreach (var v in s.variants) if (v != null) pool.Add(v);
+            int variantIndex = pool.Count > 1 ? rng.Next(pool.Count) : 0;
+            GameObject source = pool[variantIndex];
+            // Mushrooms are often modelled as a cluster on a base: vary their size so a wood is not a row of clones.
+            float sizeFactor = s.group == SubjectGroup.Fungus ? 0.8f + (float)rng.NextDouble() * 0.8f : 1f;
             try
             {
-                go = EditorUtility.IsPersistent(s.prefab) ? PrefabUtility.InstantiatePrefab(s.prefab, group) as GameObject : null;
-                if (go == null) go = Object.Instantiate(s.prefab, group);
+                go = EditorUtility.IsPersistent(source) ? PrefabUtility.InstantiatePrefab(source, group) as GameObject : null;
+                if (go == null) go = Object.Instantiate(source, group);
                 if (go == null) return false;
                 if (PrefabUtility.IsPartOfPrefabInstance(go))
                     PrefabUtility.UnpackPrefabInstance(PrefabUtility.GetOutermostPrefabInstanceRoot(go), PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
@@ -378,10 +385,11 @@ namespace WildLens.EditorTools
                 if (!HasVisibleMesh(go))
                 {
                     if (_noMeshWarned.Add(s.subjectId))
-                        Debug.LogWarning($"[WildLens] Small life: '{s.prefab.name}' has no visible mesh once its scripts and effects are removed; '{s.displayName}' is left out.");
+                        Debug.LogWarning($"[WildLens] Small life: '{source.name}' has no visible mesh once its scripts and effects are removed; '{s.displayName}' is left out.");
                     Object.DestroyImmediate(go);
                     return false;
                 }
+                ConvertSmallLifeMaterials(go, source, s, variantIndex);
                 go.transform.rotation = Quaternion.identity;
                 go.transform.position = surface;
 
@@ -392,7 +400,7 @@ namespace WildLens.EditorTools
                     return false;
                 }
                 float largest = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
-                go.transform.localScale = go.transform.localScale * (s.size / largest);
+                go.transform.localScale = go.transform.localScale * (s.size * sizeFactor / largest);
                 go.transform.rotation = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
                 TryBounds(go, out b);
                 go.transform.position += new Vector3(surface.x - b.center.x, surface.y + s.hoverHeight - b.min.y, surface.z - b.center.z);
@@ -425,9 +433,60 @@ namespace WildLens.EditorTools
             }
             catch (System.Exception e)
             {
-                Debug.LogWarning($"[WildLens] Small life: could not place '{s.displayName}' from '{s.prefab.name}': {e.Message}");
+                Debug.LogWarning($"[WildLens] Small life: could not place '{s.displayName}' from '{source.name}': {e.Message}");
                 if (go != null) Object.DestroyImmediate(go);
                 return false;
+            }
+        }
+
+        // Converted materials per source model, so every instance of a model shares one set of URP copies (converting again would
+        // delete and recreate the same assets under the instances already placed).
+        private readonly Dictionary<GameObject, Material[][]> _smallLifeMats = new Dictionary<GameObject, Material[][]>();
+        private readonly HashSet<string> _matWarned = new HashSet<string>();
+
+        /// <summary>
+        /// Under URP, swaps the pack's built-in-shader materials on one placed instance for converted copies (the pack's own are
+        /// never touched), via <see cref="AnimalPrefabFactory.ConvertMaterialsForPipeline"/>. Never throws: a material problem is a
+        /// Console warning, not a failed build.
+        /// </summary>
+        private void ConvertSmallLifeMaterials(GameObject go, GameObject source, NaturalistSubject s, int variantIndex)
+        {
+            try
+            {
+                if (go == null || !AnimalPrefabFactory.UrpActive()) return;
+                var renderers = go.GetComponentsInChildren<Renderer>(true);
+                if (_smallLifeMats.TryGetValue(source, out var saved))
+                {
+                    if (saved.Length == renderers.Length)
+                        for (int i = 0; i < renderers.Length; i++)
+                            if (renderers[i] != null && saved[i] != null) renderers[i].sharedMaterials = saved[i];
+                    return;
+                }
+                string folder = GeneratedAssets.Folder + "/SmallLife/Materials";
+                string note;
+                AnimalPrefabFactory.ConvertMaterialsForPipeline(go, $"{s.subjectId}_{variantIndex}", folder, out note);
+                var record = new Material[renderers.Length][];
+                var leftover = new SortedSet<string>();
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    if (renderers[i] == null) continue;
+                    record[i] = renderers[i].sharedMaterials;
+                    foreach (var m in record[i])
+                    {
+                        string sn = m == null ? "(no material)" : m.shader != null ? m.shader.name : "(missing shader)";
+                        if (AnimalPrefabFactory.PipelineIssue(sn, true, false) != null) leftover.Add(sn);
+                    }
+                }
+                _smallLifeMats[source] = record;
+                if (!string.IsNullOrEmpty(note) && _matWarned.Add(s.subjectId + "/note"))
+                    Debug.LogWarning($"[WildLens] Small life: materials of '{source.name}' ({s.displayName}) were not fully converted for URP: {note}");
+                if (leftover.Count > 0 && _matWarned.Add(s.subjectId + "/" + source.name))
+                    Debug.LogWarning($"[WildLens] Small life: '{source.name}' ({s.displayName}) still uses shaders URP cannot draw (it may look pink): {string.Join(", ", leftover)}");
+            }
+            catch (System.Exception e)
+            {
+                if (_matWarned.Add(s.subjectId + "/ex"))
+                    Debug.LogWarning($"[WildLens] Small life: could not convert materials for '{s.displayName}' ('{source.name}'): {e.Message}");
             }
         }
 

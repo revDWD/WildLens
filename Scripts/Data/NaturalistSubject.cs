@@ -59,6 +59,8 @@ namespace WildLens.Data
         [Header("In the reserve (1.7)")]
         [Tooltip("A model from your own project (a butterfly, a frog, a mushroom). Empty: not placed. Filled in by WildLens ▸ Macro Subjects From Packs.")]
         public GameObject prefab;
+        [Tooltip("More models for the same subject (e.g. several mushrooms). The builder picks among prefab and variants.")]
+        public GameObject[] variants;
         [Tooltip("Where the builder places it.")]
         public SubjectHabitat where = SubjectHabitat.MeadowVerge;
         [Tooltip("How many the builder places.")]
@@ -201,7 +203,7 @@ namespace WildLens.Data
             var s = New("woodland_mushroom", "Honey Mushroom", "Armillaria mellea", SubjectGroup.Fungus,
                 "Honey-coloured caps in clusters at the foot of stumps and dead wood. The fungus itself is a vast network of black threads " +
                 "running under the forest, among the largest living things there are.",
-                0.07f, "stumps and dead wood", SubjectBehaviour.Still, SubjectHabitat.DeadWood, Always, 0f, 5);
+                0.07f, "stumps and dead wood", SubjectBehaviour.Still, SubjectHabitat.DeadWood, Always, 0f, 8);
             return s;
         }
 
