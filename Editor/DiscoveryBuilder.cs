@@ -103,6 +103,7 @@ namespace WildLens.EditorTools
                 if (_art && _artStumps.Count > 0) PlaceArt(_artStumps, group, TerrainUtil.Ground(p + new Vector3(2.4f, 0f, -1.6f)), 1f, 0.05f, 4f);
                 AddViewpoint(group, "Fern Glade", p + new Vector3(-2.5f, 1.3f, -2.5f), p + new Vector3(2f, 0.4f, 2f));
                 Discovery(group, p, "Fern Glade", "A hollow of ferns under the canopy. Sit still and listen: the woods carry on around you.", 7f);
+                Residence(group, "Fern glade", p, 8f, "black_capped_chickadee"); // a small flock of chickadees: the tamest birds here
                 AddHotspot(group, "Glade Edge", HotspotType.MatureTree, p, 10f);
                 _fernGlade = p;
             }
@@ -134,7 +135,7 @@ namespace WildLens.EditorTools
                         PlaceArt(_artFerns, group, TerrainUtil.Ground(bank + dir * Rf(-5f, 5f) + side * Rf(1f, 4f)), Rf(0.7f, 1.2f), 0.02f, 8f);
                 AddViewpoint(group, "Creek Alcove", bank + Vector3.up * 1.2f + side * 0.6f, new Vector3(c.x, _creekWater[alcove] + 0.4f, c.z) - dir * 6f);
                 Discovery(group, bank, "Creek Alcove", "A bend in Willow Creek, out of sight of the trails. Raccoons come to wash their food at dusk.", 8f);
-                Residence(group, "Creek alcove", c + side * 1.5f, 8f, "raccoon");
+                Residence(group, "Creek alcove", c + side * 1.5f, 8f, "raccoon", "song_sparrow");
                 AddHotspot(group, "Alcove Water", HotspotType.Water, c, 6f);
                 _creekAlcove = bank;
             }

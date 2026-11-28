@@ -258,12 +258,12 @@ namespace WildLens.EditorTools
                 case DestinationKind.OldGrowth:
                     site.title = "Old-Growth Grove";
                     site.note = "The oldest trees in the reserve. A barred owl roosts here by day; a fox dens among the roots.";
-                    site.residents = new[] { "eastern_gray_squirrel", "red_fox", "barred_owl", "blue_jay" };
+                    site.residents = new[] { "eastern_gray_squirrel", "red_fox", "barred_owl", "blue_jay", "black_capped_chickadee" };
                     break;
                 case DestinationKind.ObservationBlind:
                     site.title = "Wildflower Meadow Blind";
                     site.note = "A wooden hide on the meadow's edge. Step inside and you all but disappear.";
-                    site.residents = new[] { "white_tailed_deer", "eastern_cottontail", "northern_cardinal", "wild_turkey" };
+                    site.residents = new[] { "white_tailed_deer", "eastern_cottontail", "northern_cardinal", "wild_turkey", "american_goldfinch" };
                     break;
             }
             _sites.Add(site);
@@ -845,6 +845,7 @@ namespace WildLens.EditorTools
             Vector3 farShore = TerrainUtil.Ground(s.centre + f * (PondRadius(s, s.centre + f * s.water) + 6f));
             AddHotspot(group, "Pond Edge Hotspot", HotspotType.Meadow, farShore, 10f);
             AddHotspot(group, "Pond Brush Hotspot", HotspotType.BrushPile, TerrainUtil.Ground(s.centre + side * (s.water * 1.2f + 5f)), 7f);
+            Residence(group, "Pond brush", TerrainUtil.Ground(s.centre + side * (s.water * 1.2f + 5f)), 7f, "song_sparrow"); // song sparrows in the pond's brush
             dest.wildlifeCentre = farShore; // across the water from the jetty
             Anchor(group, ScheduleRole.Water, farShore, 12f);
             AddHotspot(group, "Pond Shallows", HotspotType.Water, TerrainUtil.Ground(s.centre + side * PondRadius(s, s.centre + side * s.water)), 8f);

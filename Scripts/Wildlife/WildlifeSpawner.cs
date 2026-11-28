@@ -22,6 +22,26 @@ namespace WildLens.Wildlife
 
         private readonly List<AnimalAgent> _spawned = new List<AnimalAgent>();
         private Transform _container;
+        private int _ownStreamIndex;
+
+        /// <summary>
+        /// Species added after 1.7 draw their groups from their own random stream and their own individual seeds, so adding
+        /// them to a reserve never moves an animal that was already there (the shared stream below is consumed in species
+        /// order, then by residences). Append new ids here when a species is appended to SpeciesDefaults.CreateAll().
+        /// </summary>
+        private static readonly HashSet<string> OwnStreamSpecies = new HashSet<string>
+        {
+            "american_crow", "american_robin", "black_capped_chickadee", "american_goldfinch", "song_sparrow", "american_black_bear",
+        };
+
+        private static bool HasOwnStream(SpeciesDefinition s) => s != null && OwnStreamSpecies.Contains(s.speciesId);
+
+        private System.Random OwnStream(SpeciesDefinition s, int salt)
+        {
+            int h = 17;
+            foreach (char c in s.speciesId) h = h * 31 + c;
+            return new System.Random(unchecked(seed ^ h) + salt * 7919);
+        }
 
         public IReadOnlyList<AnimalAgent> Spawned => _spawned;
 
@@ -51,24 +71,27 @@ namespace WildLens.Wildlife
             Vector3? avoid = Camera.main != null ? Camera.main.transform.position : (Vector3?)null;
 
             int index = 0;
+            _ownStreamIndex = 0;
             foreach (var species in db.species)
             {
                 if (species == null) continue;
+                bool own = HasOwnStream(species);
+                var srng = own ? OwnStream(species, 0) : rng;
                 int groups = Mathf.RoundToInt(species.groupCount * populationMultiplier);
                 for (int g = 0; g < groups; g++)
                 {
-                    Vector3 home = FindHome(species, rng, avoid);
-                    int size = rng.Next(species.groupSize.x, species.groupSize.y + 1);
+                    Vector3 home = FindHome(species, srng, avoid);
+                    int size = srng.Next(species.groupSize.x, species.groupSize.y + 1);
                     for (int i = 0; i < size; i++)
                     {
                         Vector3 pos = home;
                         if (i > 0)
                         {
-                            float a = (float)rng.NextDouble() * Mathf.PI * 2f;
-                            float r = 1.5f + (float)rng.NextDouble() * 3.5f;
+                            float a = (float)srng.NextDouble() * Mathf.PI * 2f;
+                            float r = 1.5f + (float)srng.NextDouble() * 3.5f;
                             pos += new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r;
                         }
-                        Spawn(species, pos, home, seed + (++index) * 7919);
+                        Spawn(species, pos, home, own ? seed + (100000 + (++_ownStreamIndex)) * 7919 : seed + (++index) * 7919);
                     }
                 }
             }
@@ -80,7 +103,7 @@ namespace WildLens.Wildlife
         /// Reserve destinations name their resident species (deer at the pond, squirrels in the old-growth grove…):
         /// one group of each settles there, so travelling somewhere is rewarded with the wildlife it promises.
         /// </summary>
-        private int SpawnResidents(SpeciesDatabase db, System.Random rng, Vector3? avoid, int index)
+        private int SpawnResidents(SpeciesDatabase db, System.Random sharedRng, Vector3? avoid, int index)
         {
             var places = new List<(string[] ids, Vector3 centre, float radius, Vector3 water, float waterRadius)>();
             foreach (var dest in WildLens.Environment.ReserveDestination.All)
@@ -91,12 +114,16 @@ namespace WildLens.Wildlife
                 if (res != null && res.species != null)
                     places.Add((res.species, res.transform.position, res.radius, Vector3.zero, 0f));
 
+            int placeNumber = 0;
             foreach (var place in places)
             {
+                placeNumber++;
                 foreach (string id in place.ids)
                 {
                     var species = db.Get(id);
                     if (species == null) continue;
+                    bool own = HasOwnStream(species);
+                    var rng = own ? OwnStream(species, placeNumber) : sharedRng;
                     Vector3 centre = place.centre;
                     Vector3 home = TerrainUtil.Ground(centre);
                     if (species.habitat != HabitatPreference.Sky)
@@ -122,7 +149,7 @@ namespace WildLens.Wildlife
                             float a = (float)rng.NextDouble() * Mathf.PI * 2f;
                             pos = TerrainUtil.Ground(home + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (1.5f + (float)rng.NextDouble() * 3f));
                         }
-                        Spawn(species, pos, home, seed + (++index) * 7919);
+                        Spawn(species, pos, home, own ? seed + (100000 + (++_ownStreamIndex)) * 7919 : seed + (++index) * 7919);
                     }
                 }
             }

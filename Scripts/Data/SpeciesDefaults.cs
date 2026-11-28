@@ -4,7 +4,7 @@ using UnityEngine;
 namespace WildLens.Data
 {
     /// <summary>
-    /// Tuned default values for the reserve's species (the five originals, the 1.1 expansion, and the 1.4 and 1.5 additions: eighteen in all). The editor builder writes these out as assets,
+    /// Tuned default values for the reserve's species (the five originals, the 1.1 expansion, the 1.4 and 1.5 additions, and the six residents of the trailhead, glades, meadow and deep woods: twenty-four in all). The editor builder writes these out as assets,
     /// and the game falls back to them at runtime if no database asset is assigned. Tune the assets, not this file.
     /// </summary>
     public static class SpeciesDefaults
@@ -20,6 +20,9 @@ namespace WildLens.Data
                 Kingfisher(), Sandpiper(),
                 // 1.5: the waterfall's resident.
                 Phoebe(),
+                // 1.7: six species a place was waiting for (trailhead and road, glades, blind meadow, creek brush, deep woods).
+                // Appended, never reordered: ids and list order are permanent.
+                Crow(), Robin(), Chickadee(), Goldfinch(), SongSparrow(), BlackBear(),
             };
         }
 
@@ -379,6 +382,131 @@ namespace WildLens.Data
             s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 2f, 5f));
             s.behaviors.Add(new BehaviorOption(AnimalActivity.Grooming, 0.8f, 2f, 4f));
             s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        // ------------------------------------------------------------------ 1.7 residents (a place first)
+
+        public static SpeciesDefinition Crow()
+        {
+            var s = Songbird("american_crow", "American Crow", "Corvus brachyrhynchos",
+                "All black from bill to tail, bold and clever, and quick to learn where people leave crumbs. Watch the trailhead and " +
+                "the road verges; it is the loudest bird in the reserve in the first hours of the day.",
+                0.45f, 0.085f, new Color(0.06f, 0.06f, 0.07f), new Color(0.1f, 0.1f, 0.11f), new Color(0.03f, 0.03f, 0.04f),
+                HotspotType.MatureTree | HotspotType.Perch, 0, new Vector2Int(2, 3));
+            s.bodyPlan.tailLength = 0.18f;
+            s.walkSpeed = 6f; s.runSpeed = 10f; s.turnSpeed = 150f; s.gaitFrequency = 4.5f;
+            s.wanderRadius = 35f;
+            s.flightAltitude = new Vector2(4f, 10f); s.circleRadius = new Vector2(6f, 14f);
+            // Bolder than the songbirds, warier than a tame chickadee, nearer than the hawk.
+            Awareness(s, aware: 26f, alert: 15f, flee: 7f, gain: 1f, decay: 0.2f, patience: 3.5f, startle: 1.1f);
+            s.photoSizeScale = 0.55f; s.clearPhotoDistance = 22f; s.observationTime = 1f;
+            s.behaviors.Clear();
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 5f, 8f, 25f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 3f, 5f, 10f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition Robin()
+        {
+            var s = Songbird("american_robin", "American Robin", "Turdus migratorius",
+                "A grey-brown thrush with a brick-orange breast, running and pausing across open grass to listen for worms. " +
+                "It sings from the treetops at first light and keeps to the lawns and meadow edges by day.",
+                0.25f, 0.05f, new Color(0.34f, 0.31f, 0.28f), new Color(0.78f, 0.38f, 0.16f), new Color(0.13f, 0.11f, 0.1f),
+                HotspotType.Meadow, 1, new Vector2Int(2, 2));
+            s.bodyPlan.tailLength = 0.1f;
+            s.walkSpeed = 5f; s.gaitFrequency = 7f;
+            // The flying brain has no ground-foraging, so it perches long and flits short.
+            Awareness(s, aware: 18f, alert: 10f, flee: 5f, gain: 1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.photoSizeScale = 0.45f; s.clearPhotoDistance = 14f;
+            s.behaviors.Clear();
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 7f, 10f, 26f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2f, 4f, 8f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Woodland, RhythmPlace.Meadow, RhythmPlace.Brush, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition Chickadee()
+        {
+            var s = Songbird("black_capped_chickadee", "Black-capped Chickadee", "Poecile atricapillus",
+                "A tiny, round bird with a black cap and bib, white cheeks and a soft grey back. The tamest bird in the woods: " +
+                "stand still and it will come close, calling its own name, 'chick-a-dee-dee-dee'.",
+                0.13f, 0.045f, new Color(0.5f, 0.52f, 0.54f), new Color(0.88f, 0.87f, 0.82f), new Color(0.06f, 0.06f, 0.07f),
+                HotspotType.MatureTree, 0, new Vector2Int(2, 3));
+            s.bodyPlan.headColor = new Color(0.07f, 0.07f, 0.08f); // the black cap and bib
+            s.walkSpeed = 4f; s.gaitFrequency = 11f;
+            s.wanderRadius = 14f;
+            s.flightAltitude = new Vector2(3.5f, 5.5f); s.circleRadius = new Vector2(3f, 6f);
+            // The smallest distances in the reserve: it accepts you sooner than anything else here.
+            Awareness(s, aware: 10f, alert: 5.5f, flee: 2.5f, gain: 0.6f, decay: 0.35f, patience: 8f, startle: 0.6f);
+            s.photoSizeScale = 0.35f; s.clearPhotoDistance = 9f; s.observationTime = 0.9f;
+            s.behaviors.Clear();
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Perched, 6f, 6f, 16f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Flying, 2f, 3f, 6f));
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition Goldfinch()
+        {
+            var s = Songbird("american_goldfinch", "American Goldfinch", "Spinus tristis",
+                "In summer the male is lemon-yellow with a black cap and black wings, bouncing over the meadow in dipping flight. " +
+                "It feeds on wildflower and thistle seed and calls 'per-chick-o-ree' as it goes.",
+                0.12f, 0.04f, new Color(0.93f, 0.8f, 0.1f), new Color(0.95f, 0.88f, 0.3f), new Color(0.06f, 0.06f, 0.07f),
+                HotspotType.Meadow, 0, new Vector2Int(3, 4));
+            s.bodyPlan.wingPatches = true;
+            s.walkSpeed = 4.5f; s.gaitFrequency = 10f;
+            Awareness(s, aware: 15f, alert: 8.5f, flee: 4f, gain: 1.1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.photoSizeScale = 0.35f; s.clearPhotoDistance = 10f;
+            s.rhythm = new DailyRhythm(RhythmPlace.Brush, RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Meadow, RhythmPlace.Brush, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition SongSparrow()
+        {
+            var s = Songbird("song_sparrow", "Song Sparrow", "Melospiza melodia",
+                "A streaky brown sparrow with a dark spot at the centre of its breast, singing a bright, varied song from low brush. " +
+                "It stays close to thickets and the creek, pumping its tail as it dives back into cover.",
+                0.15f, 0.045f, new Color(0.45f, 0.34f, 0.24f), new Color(0.82f, 0.78f, 0.7f), new Color(0.25f, 0.17f, 0.12f),
+                HotspotType.BrushPile, 2, new Vector2Int(1, 1));
+            s.wanderRadius = 18f;
+            Awareness(s, aware: 16f, alert: 9f, flee: 4.5f, gain: 1.1f, decay: 0.25f, patience: 3f, startle: 1.2f);
+            s.photoSizeScale = 0.4f; s.clearPhotoDistance = 11f;
+            s.rhythm = new DailyRhythm(RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home, RhythmPlace.Home);
+            return s;
+        }
+
+        public static SpeciesDefinition BlackBear()
+        {
+            var s = New("american_black_bear", "American Black Bear", "Ursus americanus",
+                "A large, shy forest bear: black, with a tan muzzle, round ears and hardly any tail. It feeds on berries, grubs and sedges at the " +
+                "woods' edge at dawn and dusk and keeps well away from people; stay still and far back and it will settle.",
+                PlaceholderBody.Generic);
+            s.bodyPlan = new BodyPlan
+            {
+                archetype = BodyArchetype.Quadruped, length = 1.5f, height = 0.9f, legLength = 0.42f, neckLength = 0.18f,
+                headSize = 0.26f, snoutLength = 0.14f, earSize = 0.09f, tailLength = 0.08f, tailThickness = 0.1f,
+            };
+            s.primaryColor = new Color(0.07f, 0.065f, 0.06f);
+            s.secondaryColor = new Color(0.48f, 0.37f, 0.25f); // the tan muzzle (and a little under the chest)
+            s.accentColor = new Color(0.05f, 0.045f, 0.04f);
+            s.habitat = HabitatPreference.ForestEdge;
+            s.groupCount = 0; s.groupSize = new Vector2Int(1, 1); // exactly one, resident in the deep woods
+            s.spawnDistanceFromTrail = new Vector2(45f, 110f);
+            s.preferredHotspots = HotspotType.MatureTree; s.hotspotAffinity = 0.5f;
+            s.gait = GaitStyle.Walk;
+            s.walkSpeed = 1.1f; s.runSpeed = 9f; s.turnSpeed = 70f; s.gaitFrequency = 1.3f;
+            s.wanderRadius = 45f; s.behaviorChance = 0.75f; s.runLegChance = 0.02f; s.maxSlope = 40f;
+            // The widest berth in the reserve, and it only ever moves away; keep still at a distance and it settles.
+            Awareness(s, aware: 75f, alert: 50f, flee: 28f, gain: 1f, decay: 0.12f, patience: 5f, startle: 1f);
+            s.fleeDistanceRange = new Vector2(45f, 75f);
+            s.photoSizeScale = 1.15f; s.clearPhotoDistance = 60f; s.observationTime = 1.6f;
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Foraging, 5f, 4f, 10f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Sitting, 2.5f, 6f, 14f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.Resting, 2.5f, 10f, 22f));
+            s.behaviors.Add(new BehaviorOption(AnimalActivity.LookingAround, 2f, 3f, 6f));
+            s.rhythm = new DailyRhythm(RhythmPlace.MeadowEdge, RhythmPlace.Woodland, RhythmPlace.Home, RhythmPlace.Woodland, RhythmPlace.Water, RhythmPlace.Home);
             return s;
         }
 

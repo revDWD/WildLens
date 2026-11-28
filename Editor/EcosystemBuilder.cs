@@ -714,7 +714,10 @@ namespace WildLens.EditorTools
                 chosen.Add(p);
                 Anchor(parent, ScheduleRole.Woodland, p, 14f);
             }
+            _woodlandSpots = chosen; // kept so the deep-woods resident can be placed from them (no random draws)
         }
+
+        private List<Vector3> _woodlandSpots = new List<Vector3>();
 
         private Material _mist;
 
@@ -946,6 +949,51 @@ namespace WildLens.EditorTools
                 Vector3 edge = TerrainUtil.Ground(blind.centre + side * blind.radius * 0.75f);
                 Residence(parent, "Meadow-edge cottontails", edge, 10f, "eastern_cottontail", "groundhog");
             }
+
+            BuildNewResidents(parent);
+        }
+
+        /// <summary>
+        /// 1.7: the places that were waiting for a resident. Positions come only from existing site data (no random draws, so
+        /// nothing else in a build moves): crows and robins at the trailhead, a crow group at one road pull-off, and one
+        /// black bear in the woodland farthest from the trailhead. (Chickadees, goldfinches and sparrows are placed where
+        /// their places are built: grove, blind, pond, Fern Glade and Creek Alcove.)
+        /// </summary>
+        private void BuildNewResidents(Transform parent)
+        {
+            // Trailhead: between the Reserve Board and the bike bay. Birds only fly here and perch in nearby trees; the board
+            // and the bike are not perches (no EnvironmentFeature), so nothing sits on the roof or the bike.
+            if (PropBuilder.Footprints.Count > 0)
+            {
+                Vector3 board = PropBuilder.Footprints[0].position;
+                Vector3 bay = PropBuilder.BikeParking != Vector3.zero ? PropBuilder.BikeParking : board;
+                Residence(parent, "Trailhead", TerrainUtil.Ground((board + bay) * 0.5f), 8f, "american_crow", "american_robin");
+            }
+
+            // One Reserve Road pull-off (the middle one of the destination pads): crows work the road.
+            if (_destinationPads.Count > 0)
+                Residence(parent, "Road pull-off", _destinationPads[_destinationPads.Count / 2], 8f, "american_crow");
+
+            // The bear: one individual, in the woodland anchor farthest from the trailhead (well away from any path if possible).
+            Vector3 start = _trail.GetPoint(0f);
+            Vector3? den = null;
+            float bestScore = float.MinValue;
+            foreach (var w in _woodlandSpots)
+            {
+                float score = TerrainUtil.FlatDistance(w, start) + Mathf.Min(PathDistance(w), 40f);
+                if (score > bestScore) { bestScore = score; den = w; }
+            }
+            if (!den.HasValue)
+            {
+                // No woodland anchor on this terrain: the far side of the old-growth grove, away from the trailhead.
+                var grove = _sites.Find(s => s.kind == DestinationKind.OldGrowth);
+                if (grove != null)
+                {
+                    Vector3 away = TerrainUtil.Flat(grove.centre - start).normalized;
+                    den = TerrainUtil.Ground(grove.centre + away * grove.radius * 0.5f);
+                }
+            }
+            if (den.HasValue) Residence(parent, "Deep woods", TerrainUtil.Ground(den.Value), 10f, "american_black_bear");
         }
     }
 }
