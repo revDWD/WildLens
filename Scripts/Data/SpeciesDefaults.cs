@@ -387,12 +387,15 @@ namespace WildLens.Data
 
         // ------------------------------------------------------------------ 1.7 residents (a place first)
 
+        // 1.8: the songbird factory's 'length' is the BODY (breast to tail base, about 0.45 of the bird's total length, as for the
+        // cardinal 0.1 / jay 0.12 / blackbird 0.1); PlaceholderAnimalBuilder scales the hawk body by length / 0.42. The six below
+        // first passed the TOTAL length, which made their placeholders about 1.3 to 2 times too big next to the older birds.
         public static SpeciesDefinition Crow()
         {
             var s = Songbird("american_crow", "American Crow", "Corvus brachyrhynchos",
                 "All black from bill to tail, bold and clever, and quick to learn where people leave crumbs. Watch the trailhead and " +
                 "the road verges; it is the loudest bird in the reserve in the first hours of the day.",
-                0.45f, 0.085f, new Color(0.06f, 0.06f, 0.07f), new Color(0.1f, 0.1f, 0.11f), new Color(0.03f, 0.03f, 0.04f),
+                0.2f, 0.038f, new Color(0.06f, 0.06f, 0.07f), new Color(0.1f, 0.1f, 0.11f), new Color(0.03f, 0.03f, 0.04f),
                 HotspotType.MatureTree | HotspotType.Perch, 0, new Vector2Int(2, 3));
             s.bodyPlan.tailLength = 0.18f;
             s.walkSpeed = 6f; s.runSpeed = 10f; s.turnSpeed = 150f; s.gaitFrequency = 4.5f;
@@ -413,7 +416,7 @@ namespace WildLens.Data
             var s = Songbird("american_robin", "American Robin", "Turdus migratorius",
                 "A grey-brown thrush with a brick-orange breast, running and pausing across open grass to listen for worms. " +
                 "It sings from the treetops at first light and keeps to the lawns and meadow edges by day.",
-                0.25f, 0.05f, new Color(0.34f, 0.31f, 0.28f), new Color(0.78f, 0.38f, 0.16f), new Color(0.13f, 0.11f, 0.1f),
+                0.11f, 0.022f, new Color(0.34f, 0.31f, 0.28f), new Color(0.78f, 0.38f, 0.16f), new Color(0.13f, 0.11f, 0.1f),
                 HotspotType.Meadow, 1, new Vector2Int(2, 2));
             s.bodyPlan.tailLength = 0.1f;
             s.walkSpeed = 5f; s.gaitFrequency = 7f;
@@ -432,7 +435,7 @@ namespace WildLens.Data
             var s = Songbird("black_capped_chickadee", "Black-capped Chickadee", "Poecile atricapillus",
                 "A tiny, round bird with a black cap and bib, white cheeks and a soft grey back. The tamest bird in the woods: " +
                 "stand still and it will come close, calling its own name, 'chick-a-dee-dee-dee'.",
-                0.13f, 0.045f, new Color(0.5f, 0.52f, 0.54f), new Color(0.88f, 0.87f, 0.82f), new Color(0.06f, 0.06f, 0.07f),
+                0.06f, 0.021f, new Color(0.5f, 0.52f, 0.54f), new Color(0.88f, 0.87f, 0.82f), new Color(0.06f, 0.06f, 0.07f),
                 HotspotType.MatureTree, 0, new Vector2Int(2, 3));
             s.bodyPlan.headColor = new Color(0.07f, 0.07f, 0.08f); // the black cap and bib
             s.walkSpeed = 4f; s.gaitFrequency = 11f;
@@ -453,7 +456,7 @@ namespace WildLens.Data
             var s = Songbird("american_goldfinch", "American Goldfinch", "Spinus tristis",
                 "In summer the male is lemon-yellow with a black cap and black wings, bouncing over the meadow in dipping flight. " +
                 "It feeds on wildflower and thistle seed and calls 'per-chick-o-ree' as it goes.",
-                0.12f, 0.04f, new Color(0.93f, 0.8f, 0.1f), new Color(0.95f, 0.88f, 0.3f), new Color(0.06f, 0.06f, 0.07f),
+                0.055f, 0.018f, new Color(0.93f, 0.8f, 0.1f), new Color(0.95f, 0.88f, 0.3f), new Color(0.06f, 0.06f, 0.07f),
                 HotspotType.Meadow, 0, new Vector2Int(3, 4));
             s.bodyPlan.wingPatches = true;
             s.walkSpeed = 4.5f; s.gaitFrequency = 10f;
@@ -468,7 +471,7 @@ namespace WildLens.Data
             var s = Songbird("song_sparrow", "Song Sparrow", "Melospiza melodia",
                 "A streaky brown sparrow with a dark spot at the centre of its breast, singing a bright, varied song from low brush. " +
                 "It stays close to thickets and the creek, pumping its tail as it dives back into cover.",
-                0.15f, 0.045f, new Color(0.45f, 0.34f, 0.24f), new Color(0.82f, 0.78f, 0.7f), new Color(0.25f, 0.17f, 0.12f),
+                0.07f, 0.021f, new Color(0.45f, 0.34f, 0.24f), new Color(0.82f, 0.78f, 0.7f), new Color(0.25f, 0.17f, 0.12f),
                 HotspotType.BrushPile, 2, new Vector2Int(1, 1));
             s.wanderRadius = 18f;
             Awareness(s, aware: 16f, alert: 9f, flee: 4.5f, gain: 1.1f, decay: 0.25f, patience: 3f, startle: 1.2f);
@@ -485,7 +488,7 @@ namespace WildLens.Data
                 PlaceholderBody.Generic);
             s.bodyPlan = new BodyPlan
             {
-                archetype = BodyArchetype.Quadruped, length = 1.5f, height = 0.9f, legLength = 0.42f, neckLength = 0.18f,
+                archetype = BodyArchetype.Quadruped, length = 1.3f, height = 0.9f, legLength = 0.42f, neckLength = 0.18f,
                 headSize = 0.26f, snoutLength = 0.14f, earSize = 0.09f, tailLength = 0.08f, tailThickness = 0.1f,
             };
             s.primaryColor = new Color(0.07f, 0.065f, 0.06f);

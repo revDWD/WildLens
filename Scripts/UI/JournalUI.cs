@@ -28,6 +28,8 @@ namespace WildLens.UI
         private int _offset;                       // first species shown in the list window
         private Text _moreAbove, _moreBelow;
         private bool _dirty = true;
+        private float _nextWheelTime;               // wheel steps are at least this far apart (unscaled seconds)
+        private const float WheelCooldown = 0.12f;
 
         // Row pitch 92 px, row height 84 px, first row top at y = 136 below the book's top edge (book 880 px tall).
         // The list column ends at 810 px (divider) and the footer starts at 826 px, so 7 rows fit (last row ends at 772 px).
@@ -72,6 +74,12 @@ namespace WildLens.UI
                 // Wheel: direction only (backends report different scales). Wheel up = previous species.
                 float wheel = GameInput.ScrollRaw;
                 bool wheelUp = wheel > 0.0001f, wheelDown = wheel < -0.0001f;
+                if (wheelUp || wheelDown)
+                {
+                    // A free-spinning wheel reports many ticks a frame: one species per cooldown, not a blur through the list.
+                    if (Time.unscaledTime < _nextWheelTime) wheelUp = wheelDown = false;
+                    else _nextWheelTime = Time.unscaledTime + WheelCooldown;
+                }
                 if (GameInput.NavigateUpPressed || wheelUp) { _selected = (_selected - 1 + count) % count; _dirty = true; }
                 if (GameInput.NavigateDownPressed || wheelDown) { _selected = (_selected + 1) % count; _dirty = true; }
             }
@@ -257,7 +265,7 @@ namespace WildLens.UI
             UIFactory.Place(_notesText.rectTransform, new Vector2(0f, 1f), new Vector2(540f, -590f), new Vector2(970f, 180f));
             _notesText.lineSpacing = 1.2f;
 
-            var footer = UIFactory.CreateText("Footer", b, "W / S  select species        J / Tab / Esc  close", 20,
+            var footer = UIFactory.CreateText("Footer", b, "W / S / wheel  select species        J / Tab / Esc  close", 20,
                 new Color(UIFactory.Ink.r, UIFactory.Ink.g, UIFactory.Ink.b, 0.7f), TextAnchor.LowerCenter);
             UIFactory.Place(footer.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(900f, 30f));
         }

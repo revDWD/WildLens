@@ -17,6 +17,23 @@ namespace WildLens.EditorTools
         Procedural,
     }
 
+    /// <summary>
+    /// What <see cref="AnimalPrefabFactory"/> last built for a species (1.8): the model it came from, which factory version made it
+    /// and the size, yaw and tint used. <see cref="manual"/> is true when a person chose those values (Wildlife Pack Setup,
+    /// Animal Model Setup): such a prefab is never rebuilt automatically.
+    /// </summary>
+    [System.Serializable]
+    public class AnimalBuildRecord
+    {
+        public string speciesId;
+        public string sourceGuid;
+        public int factoryVersion;
+        public bool manual;
+        public float size;
+        public float yaw;
+        public bool tint;
+    }
+
     public class SliceBuildSettings : ScriptableObject
     {
         [Header("General")]
@@ -121,6 +138,10 @@ namespace WildLens.EditorTools
                  "WildLens > Wildlife Pack Setup adds a species here; setting a model for it (the window or Animal Model Setup) removes it. " +
                  "Settings made before 1.7.1 load with this empty.")]
         public List<string> keepPlaceholder = new List<string>();
+        [HideInInspector]
+        [Tooltip("1.8: how each species prefab was built (source model, factory version, size, yaw, tint, and whether you chose them). " +
+                 "Lets automatic set-up refresh prefabs made by an older version without touching ones you tuned. Older settings load with this empty.")]
+        public List<AnimalBuildRecord> animalBuilds = new List<AnimalBuildRecord>();
         [Tooltip("On rebuild, while the Environment Kit is empty, scan the project for free nature packs (trees, shrubs, rocks, " +
                  "ground and grass) and use them. A kit that already has contents is left as it is.")]
         public bool autoEnvironmentKit = true;

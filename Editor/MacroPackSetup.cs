@@ -48,14 +48,39 @@ namespace WildLens.EditorTools
             "bed", "bush", "net", "fish", "soup", "sign", "icon", "swarm", "particle", "particles", "vfx", "fx", "ui", "sprite",
             "decal", "card", "tile", "pattern", "print", "cloud", "tree", "costume", "hat", "mask",
             "ground", "terrain", "demo", "scene", "plane", "floor", "rock", "stump", "log", "grass", "material",
+            // 1.8: primitives, backdrops and bits of plant that sit beside a pack's models.
+            "sphere", "cube", "sky", "camera", "water", "background", "leaf", "leaves", "branch", "twig", "pebble", "stone",
         };
+
+        // A mushroom growing on a stump or log ("Mushroom_On_Stump") is still a mushroom: stump and log do not exclude it.
+        private static readonly string[] MushroomWords = { "mushroom", "shroom", "fungus", "fungi", "toadstool" };
+        private static readonly string[] WoodWords = { "stump", "log" };
+
+        private static bool IsWoodWord(string w)
+        {
+            foreach (var x in WoodWords) if (w == x || w == x + "s") return true;
+            return false;
+        }
+
+        private static bool HasMushroomWord(List<string> words)
+        {
+            foreach (var w in words)
+                foreach (var m in MushroomWords)
+                    if (w.Contains(m)) return true;
+            return false;
+        }
 
         /// <summary>Whole-word match of a name against the shared exclusion list.</summary>
         private static bool IsExcluded(List<string> words)
         {
+            bool mushroom = HasMushroomWord(words);
             foreach (var bad in NeverSmallLife)
                 foreach (var w in words)
-                    if (w == bad || w == bad + "s") return true;
+                    if (w == bad || w == bad + "s")
+                    {
+                        if (mushroom && IsWoodWord(w)) continue;
+                        return true;
+                    }
             return false;
         }
 
@@ -163,6 +188,14 @@ namespace WildLens.EditorTools
                     if (k.Length <= 4 ? (w == k || w == k + "s") : w.Contains(k)) return true;
             return false;
         }
+        /// <summary>Whether a folder-matched model may be a variant of the pick: the same rank, and 0.25 to 4 times its extent.</summary>
+        internal static bool SimilarFolderVariant(int rank, float extent, int bestRank, float bestExtent)
+        {
+            if (rank != bestRank) return false;
+            if (bestExtent <= 0.0001f) return extent <= 0.0001f;
+            float ratio = extent / bestExtent;
+            return ratio >= 0.25f && ratio <= 4f;
+        }
         // <pure-end>
 
         private const float MaxExtent = 3f;
@@ -267,6 +300,9 @@ namespace WildLens.EditorTools
                     {
                         if (c == best || !kinds.TryGetValue(c, out var ck) || ck != bestKind) continue;
                         if (bestKind == Kind.ByFolder && PackFolder(c.path) != bestPack) continue;
+                        // 1.8: a folder-only match is weak evidence, so a variant must be as good as the pick (same rank) and of
+                        // a similar size (a pack's "Models" folder also holds its leaves, stones and scenery).
+                        if (bestKind == Kind.ByFolder && !SimilarFolderVariant(ranks[c], c.extent, bestRank, best.extent)) continue;
                         if (c.asset == best.asset) continue;
                         pool.Add(c);
                     }

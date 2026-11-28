@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEditor;
 using UnityEditor.Animations;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using WildLens.Data;
@@ -268,7 +269,50 @@ namespace WildLens.EditorTools
                    s.IndexOf("TwoSided", System.StringComparison.OrdinalIgnoreCase) >= 0 || s.IndexOf("2Sided", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        // ---- real sizes (1.8)
+
+        /// <summary>
+        /// The real size in metres of each species a pack model can stand for, by species id. Birds: beak to tail along the body
+        /// (<see cref="IsBird"/> measures a model's +Z length); mammals: the larger of nose-to-tail length and height. A species that
+        /// is not listed (the five originals, the hawk) keeps its constant in <see cref="DefaultSize"/>. The heron is measured by
+        /// its standing HEIGHT instead (see <see cref="MeasuredByHeight"/>): a heron is tall, not long, so its length would make a giant.
+        /// Songbirds are deliberately not inflated: their photoSizeScale makes up for how small they are in the frame.
+        /// </summary>
+        private static readonly Dictionary<string, float> RealSize = new Dictionary<string, float>
+        {
+            { "northern_cardinal", 0.22f }, { "blue_jay", 0.28f }, { "red_winged_blackbird", 0.21f }, { "belted_kingfisher", 0.32f },
+            { "eastern_phoebe", 0.17f }, { "american_crow", 0.45f }, { "american_robin", 0.25f }, { "black_capped_chickadee", 0.13f },
+            { "american_goldfinch", 0.12f }, { "song_sparrow", 0.15f }, { "barred_owl", 0.50f }, { "wild_turkey", 1.0f },
+            { "great_blue_heron", 1.2f }, { "spotted_sandpiper", 0.19f },
+            { "american_black_bear", 1.6f }, { "coyote", 1.25f }, { "raccoon", 0.80f }, { "virginia_opossum", 0.75f }, { "groundhog", 0.60f },
+        };
+
+        /// <summary>Species whose size is the model's standing height (Y), not its length.</summary>
+        private static readonly HashSet<string> MeasuredByHeight = new HashSet<string> { "great_blue_heron" };
+
+        /// <summary>The listed real size of a species, or false (the original five, the hawk, unknown ids).</summary>
+        internal static bool TryRealSize(string speciesId, out float size)
+        {
+            size = 0f;
+            return !string.IsNullOrEmpty(speciesId) && RealSize.TryGetValue(speciesId, out size);
+        }
+
+        internal static bool IsMeasuredByHeight(string speciesId) => !string.IsNullOrEmpty(speciesId) && MeasuredByHeight.Contains(speciesId);
+
+        /// <summary>Whether a file name is one of the URP copies <c>{id}_{nn}_{material}_URP.mat</c> that material conversion makes for this species.</summary>
+        internal static bool IsConversionCopyName(string fileName, string id)
+        {
+            if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(id)) return false;
+            int n = id.Length;
+            return fileName.Length > n + 8 && fileName.StartsWith(id + "_", System.StringComparison.Ordinal) &&
+                   char.IsDigit(fileName[n + 1]) && char.IsDigit(fileName[n + 2]) && fileName[n + 3] == '_' &&
+                   fileName.EndsWith("_URP.mat", System.StringComparison.Ordinal);
+        }
+
         // <pure-end>
+
+        /// <summary>Bump when the factory's output improves enough that prefabs it made before should be rebuilt (1.8: real sizes, looping clips, pack scripts stripped, materials converted).</summary>
+        internal const int FactoryVersion = 2;
 
         /// <summary>Every clip in the given assets (models, animation FBXs, clips, controllers).</summary>
         public static List<AnimationClip> ClipsIn(IEnumerable<Object> sources)
@@ -327,12 +371,13 @@ namespace WildLens.EditorTools
         }
 
         /// <summary>
-        /// The species' real size (the larger of nose-to-tail-tip length and height), used to scale a model: the original
-        /// five from field measurements, the others from their body plan.
+        /// The species' real size (the larger of nose-to-tail-tip length and height), used to scale a model: from the
+        /// <see cref="RealSize"/> table (1.8), else the original five and the hawk from field measurements, else the body plan.
         /// </summary>
         public static float DefaultSize(SpeciesDefinition s)
         {
             if (s == null) return 1f;
+            if (TryRealSize(s.speciesId, out float real)) return real;
             switch (s.placeholderBody)
             {
                 case PlaceholderBody.Deer: return 1.9f;
@@ -364,60 +409,176 @@ namespace WildLens.EditorTools
             return null;
         }
 
-        /// <summary>Builds the controller and prefab and assigns it to the species. Returns the prefab.</summary>
+        /// <summary>
+        /// Builds the controller and prefab and assigns it to the species. Returns the prefab. <paramref name="manual"/> is true
+        /// (the default) when a person chose the size, yaw and tint (the two setup windows): the build is then recorded as theirs and
+        /// automatic set-up never rebuilds it. Automatic set-up passes false.
+        /// </summary>
         public static GameObject Create(SpeciesDefinition species, GameObject source, Dictionary<ClipRole, AnimationClip> clips,
-            float size, float yaw, bool tint, out string message)
+            float size, float yaw, bool tint, out string message, bool manual = true)
         {
             GeneratedAssets.EnsureFolder(Folder);
             string id = string.IsNullOrEmpty(species.speciesId) ? species.name : species.speciesId;
             var controller = BuildController(species, clips, $"{Folder}/{id}_Animator.controller");
-
-            // Wrapper root (what the spawner instantiates and the AI moves) → yaw-corrected, scaled model.
-            var root = new GameObject(species.displayName);
-            var model = (GameObject)PrefabUtility.InstantiatePrefab(source);
-            if (model == null) model = Object.Instantiate(source);
-            // A pack prefab is unpacked completely first: its scripts, colliders and bodies are then removed from OUR copy (the
-            // result is a new prefab that no longer depends on the pack's), and the pack's own assets are never modified.
-            UnpackCompletely(model);
-            model.transform.SetParent(root.transform, false);
-            StripPackComponents(model);
-            model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * model.transform.localRotation; // keep the file's own axis fix
-
-            var bounds = RendererBounds(model);
-            float measured = IsBird(species) ? bounds.size.z : Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
-            float scale = measured > 0.0001f ? size / measured : 1f;
-            model.transform.localScale = model.transform.localScale * scale;
-            // Feet on the origin, measured in the idle pose (a bind pose may be a T-pose or a bird in flight).
-            var idleClip = Clip(clips, ClipRole.Idle, ClipRole.Look);
-            if (idleClip != null) idleClip.SampleAnimation(model, 0f);
-            bounds = PosedBounds(model, root.transform);
-            model.transform.localPosition -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
-
-            var animator = model.GetComponentInChildren<Animator>();
-            if (animator == null) animator = model.AddComponent<Animator>();
-            animator.runtimeAnimatorController = controller;
-            animator.applyRootMotion = false; // the AI moves the animal; clips only animate the body
-            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
-
-            // Materials the active pipeline cannot draw (a built-in shader in URP is pink) are replaced by converted COPIES, then tinted.
-            int converted = 0;
-            string conversionNote = "";
-            try { converted = ConvertMaterialsForPipeline(model, id, Folder, out conversionNote); }
-            catch (System.Exception e) { conversionNote = "material conversion failed: " + e.Message; }
-            int tinted = tint ? Tint(model, species, id) : 0;
-
             string prefabPath = $"{Folder}/{id}.prefab";
-            var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-            Object.DestroyImmediate(root);
+
+            // Built in a private preview scene (the open scene is never touched or dirtied), and always cleaned up.
+            UnityEngine.SceneManagement.Scene preview = default;
+            bool havePreview = false;
+            try { preview = EditorSceneManager.NewPreviewScene(); havePreview = preview.IsValid(); }
+            catch (System.Exception) { havePreview = false; }
+
+            GameObject root = null, model = null, prefab;
+            float scale = 1f;
+            int converted = 0, tinted = 0, removedCopies = 0;
+            string conversionNote = "";
+            try
+            {
+                // Wrapper root (what the spawner instantiates and the AI moves) → yaw-corrected, scaled model.
+                root = new GameObject(species.displayName);
+                if (havePreview) UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, preview);
+                model = havePreview ? (GameObject)PrefabUtility.InstantiatePrefab(source, preview) : (GameObject)PrefabUtility.InstantiatePrefab(source);
+                if (model == null) model = Object.Instantiate(source);
+                if (havePreview && model.scene != preview) UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(model, preview);
+                // A pack prefab is unpacked completely first: its scripts, colliders and bodies are then removed from OUR copy (the
+                // result is a new prefab that no longer depends on the pack's), and the pack's own assets are never modified.
+                UnpackCompletely(model);
+                model.transform.SetParent(root.transform, false);
+                StripPackComponents(model);
+                model.transform.localRotation = Quaternion.Euler(0f, yaw, 0f) * model.transform.localRotation; // keep the file's own axis fix
+
+                // The idle pose is sampled on the object the Animator sits on (clip paths are relative to it), then the model is measured
+                // and grounded as POSED: a bind pose may be a T-pose or a bird in flight.
+                var animator = model.GetComponentInChildren<Animator>(true);
+                if (animator == null) animator = model.AddComponent<Animator>();
+                var idleClip = Clip(clips, ClipRole.Idle, ClipRole.Look);
+                if (idleClip != null) idleClip.SampleAnimation(animator.gameObject, 0f);
+
+                var bounds = PosedBounds(model, root.transform);
+                float measured = IsMeasuredByHeight(species.speciesId) ? bounds.size.y
+                    : IsBird(species) ? bounds.size.z : Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+                if (measured > 0.0001f) scale = size / measured;
+                else Debug.LogWarning($"[WildLens] {species.displayName}: the model '{source.name}' has no measurable size (no mesh, or its renderers only appear at runtime), so it was left at scale 1. Pick another model or set its scale by hand.");
+                model.transform.localScale = model.transform.localScale * scale;
+                if (idleClip != null) idleClip.SampleAnimation(animator.gameObject, 0f);
+                bounds = PosedBounds(model, root.transform);
+                model.transform.localPosition -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+
+                animator.runtimeAnimatorController = controller;
+                animator.applyRootMotion = false; // the AI moves the animal; clips only animate the body
+                animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+
+                // Materials the active pipeline cannot draw (a built-in shader in URP is pink) are replaced by converted COPIES, then tinted.
+                try { converted = ConvertMaterialsForPipeline(model, id, Folder, out conversionNote); }
+                catch (System.Exception e) { conversionNote = "material conversion failed: " + e.Message; }
+                tinted = tint ? Tint(model, species, id) : 0;
+                // Tint copies the converted materials, which leaves the conversion copies unreferenced: remove them (this species' own only).
+                try { removedCopies = DeleteUnusedConversionCopies(model, id); } catch (System.Exception) { }
+
+                prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            }
+            finally
+            {
+                if (root != null) Object.DestroyImmediate(root);
+                if (model != null) Object.DestroyImmediate(model); // only still alive when it never reached the root
+                if (havePreview) { try { EditorSceneManager.ClosePreviewScene(preview); } catch (System.Exception) { } }
+            }
 
             Undo.RecordObject(species, "Assign species prefab");
             species.prefab = prefab;
             EditorUtility.SetDirty(species);
+            try { RecordBuild(species, source, size, yaw, tint, manual); } catch (System.Exception e) { Debug.LogWarning("[WildLens] Could not record the build of " + species.displayName + ": " + e.Message); }
             AssetDatabase.SaveAssets();
             try { WildlifePackSetup.SetKeepPlaceholder(species.speciesId, false); } catch (System.Exception) { } // a model was set: no longer kept as a placeholder
             message = $"{species.displayName}: {prefabPath} (scale {scale:0.###}" + (converted > 0 ? $", {converted} materials converted for URP" : "") +
                       (tinted > 0 ? $", {tinted} materials tinted" : "") + (string.IsNullOrEmpty(conversionNote) ? "" : "; " + conversionNote) + ")";
             return prefab;
+        }
+
+        // ---- what was built from what (1.8)
+
+        /// <summary>The record of the last build for a species, or null (never built by 1.8, or settings from before it).</summary>
+        internal static AnimalBuildRecord FindRecord(SliceBuildSettings settings, string speciesId)
+        {
+            if (settings == null || settings.animalBuilds == null || string.IsNullOrEmpty(speciesId)) return null;
+            foreach (var r in settings.animalBuilds) if (r != null && r.speciesId == speciesId) return r;
+            return null;
+        }
+
+        /// <summary>Writes (or replaces) the species' build record in the settings asset. <paramref name="source"/> may be null (nothing traceable).</summary>
+        internal static void RecordBuild(SpeciesDefinition species, Object source, float size, float yaw, bool tint, bool manual)
+        {
+            if (species == null || string.IsNullOrEmpty(species.speciesId)) return;
+            string path = source != null ? AssetDatabase.GetAssetPath(source) : null;
+            WriteRecord(species.speciesId, string.IsNullOrEmpty(path) ? "" : AssetDatabase.AssetPathToGUID(path), size, yaw, tint, manual);
+        }
+
+        internal static void WriteRecord(string speciesId, string sourceGuid, float size, float yaw, bool tint, bool manual)
+        {
+            var settings = WildLensSliceBuilder.LoadOrCreateSettings();
+            if (settings == null) return;
+            if (settings.animalBuilds == null) settings.animalBuilds = new List<AnimalBuildRecord>();
+            var rec = FindRecord(settings, speciesId);
+            Undo.RecordObject(settings, "Record species build");
+            if (rec == null) { rec = new AnimalBuildRecord { speciesId = speciesId }; settings.animalBuilds.Add(rec); }
+            rec.sourceGuid = sourceGuid ?? "";
+            rec.factoryVersion = FactoryVersion;
+            rec.manual = manual;
+            rec.size = size; rec.yaw = yaw; rec.tint = tint;
+            EditorUtility.SetDirty(settings);
+        }
+
+        private static readonly string[] ModelExtensions = { ".fbx", ".obj", ".blend", ".gltf", ".glb", ".dae", ".3ds", ".prefab", ".ma", ".mb", ".max" };
+
+        private static bool IsModelPath(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !path.StartsWith("Assets/", System.StringComparison.Ordinal)) return false;
+            string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            return System.Array.IndexOf(ModelExtensions, ext) >= 0;
+        }
+
+        /// <summary>
+        /// The model files a species prefab was built from, best first (shared by the Asset Audit's "Used by species" column and the
+        /// automatic refresh of old prefabs): the assets its objects are linked to, then (1.7.1 unpacked pack prefabs, which removes
+        /// those links) the model files its meshes come from. The prefab's own path is never listed.
+        /// </summary>
+        internal static List<string> SourceModelPaths(GameObject prefab)
+        {
+            var list = new List<string>();
+            if (prefab == null) return list;
+            string own = AssetDatabase.GetAssetPath(prefab);
+            void Add(string p) { if (!string.IsNullOrEmpty(p) && p != own && !list.Contains(p)) list.Add(p); }
+            foreach (var t in prefab.GetComponentsInChildren<Transform>(true))
+            {
+                var src = PrefabUtility.GetCorrespondingObjectFromSource(t.gameObject);
+                if (src != null) Add(AssetDatabase.GetAssetPath(src));
+            }
+            foreach (var smr in prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                if (smr != null && smr.sharedMesh != null) { string mp = AssetDatabase.GetAssetPath(smr.sharedMesh); if (IsModelPath(mp)) Add(mp); }
+            foreach (var mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+                if (mf != null && mf.sharedMesh != null) { string mp = AssetDatabase.GetAssetPath(mf.sharedMesh); if (IsModelPath(mp)) Add(mp); }
+            return list;
+        }
+
+        private static int DeleteUnusedConversionCopies(GameObject model, string id)
+        {
+            var used = new HashSet<string>();
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+                foreach (var m in r.sharedMaterials)
+                {
+                    if (m == null) continue;
+                    string mp = AssetDatabase.GetAssetPath(m);
+                    if (!string.IsNullOrEmpty(mp)) used.Add(mp);
+                }
+            int removed = 0;
+            foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { Folder }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrEmpty(path) || System.IO.Path.GetDirectoryName(path).Replace('\\', '/') != Folder) continue; // the factory's own folder only
+                if (!IsConversionCopyName(System.IO.Path.GetFileName(path), id) || used.Contains(path)) continue;
+                if (AssetDatabase.DeleteAsset(path)) removed++;
+            }
+            return removed;
         }
 
         // ---- pack components (1.7.1)
@@ -699,15 +860,16 @@ namespace WildLens.EditorTools
                 Vector3 p = world - root.position;
                 if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
             }
-            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
+                if (smr == null || smr.sharedMesh == null) continue;
                 var baked = new Mesh();
                 smr.BakeMesh(baked, true);
                 var m = Matrix4x4.TRS(smr.transform.position, smr.transform.rotation, Vector3.one);
                 foreach (var v in baked.vertices) Add(m.MultiplyPoint3x4(v));
                 Object.DestroyImmediate(baked);
             }
-            foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>(true))
                 if (mf.sharedMesh != null)
                     foreach (var v in mf.sharedMesh.vertices) Add(mf.transform.TransformPoint(v));
             return any ? b : RendererBounds(model);
@@ -715,7 +877,7 @@ namespace WildLens.EditorTools
 
         private static Bounds RendererBounds(GameObject go)
         {
-            var renderers = go.GetComponentsInChildren<Renderer>();
+            var renderers = go.GetComponentsInChildren<Renderer>(true);
             if (renderers.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
             var b = renderers[0].bounds;
             foreach (var r in renderers) b.Encapsulate(r.bounds);
@@ -728,6 +890,9 @@ namespace WildLens.EditorTools
         /// by how much of the body they cover: the largest the species' primary colour, the next its secondary, the third
         /// its accent. Flat-coloured stylised packs take this well; a photographic texture is tinted, not replaced.
         /// </summary>
+        private const float DarkTintLuminance = 0.12f;
+        private static readonly Color DarkTintFloor = new Color(0.16f, 0.15f, 0.15f, 1f);
+
         private static int Tint(GameObject model, SpeciesDefinition s, string id)
         {
             var coverage = new Dictionary<Material, int>();
@@ -755,6 +920,8 @@ namespace WildLens.EditorTools
                 var copy = new Material(order[i]) { name = $"{id}_Tint{i}" };
                 Color c = colours[i];
                 c.a = 1f;
+                // A near-black multiplier turns a textured model into a black void (the fur detail is multiplied away): lift it a little.
+                if (c.grayscale < DarkTintLuminance) c = DarkTintFloor;
                 if (copy.HasProperty("_BaseColor")) copy.SetColor("_BaseColor", c);
                 if (copy.HasProperty("_Color")) copy.SetColor("_Color", c);
                 AssetDatabase.CreateAsset(copy, path);
@@ -771,6 +938,28 @@ namespace WildLens.EditorTools
             return copies.Count;
         }
 
+        private static bool OneShot(ClipRole r) => r == ClipRole.Land || r == ClipRole.TakeOff;
+
+        /// <summary>
+        /// Pack clips usually have Loop Time off, so a walk would play once and freeze. Every clip that is not already looping gets a
+        /// looped COPY stored inside the controller (the pack's clip and import settings are never touched); one-shot roles
+        /// (landing, take-off) keep the original. The same copy is used everywhere a clip is reused.
+        /// </summary>
+        private static AnimationClip LoopedCopy(AnimationClip clip, AnimatorController ctrl, Dictionary<AnimationClip, AnimationClip> copies)
+        {
+            if (clip == null || clip.isLooping) return clip;
+            if (copies.TryGetValue(clip, out var done)) return done;
+            var copy = Object.Instantiate(clip);
+            copy.name = clip.name + " (looped)";
+            copy.hideFlags = HideFlags.None;
+            var settings = AnimationUtility.GetAnimationClipSettings(copy);
+            settings.loopTime = true;
+            AnimationUtility.SetAnimationClipSettings(copy, settings);
+            AssetDatabase.AddObjectToAsset(copy, ctrl);
+            copies[clip] = copy;
+            return copy;
+        }
+
         private static AnimatorController BuildController(SpeciesDefinition species, Dictionary<ClipRole, AnimationClip> clips, string path)
         {
             AssetDatabase.DeleteAsset(path);
@@ -779,16 +968,29 @@ namespace WildLens.EditorTools
             ctrl.AddParameter("Activity", AnimatorControllerParameterType.Int);
             ctrl.AddParameter("GaitPhase", AnimatorControllerParameterType.Float);
             var sm = ctrl.layers[0].stateMachine;
+            var loops = new Dictionary<AnimationClip, AnimationClip>();
+
+            // The clip for a role (or its first fallback that has one), looped unless the role that supplied it is a one-shot.
+            AnimationClip Pick(ClipRole r, params ClipRole[] fallbacks)
+            {
+                if (clips.TryGetValue(r, out var c) && c != null) return OneShot(r) ? c : LoopedCopy(c, ctrl, loops);
+                foreach (var f in fallbacks)
+                    if (clips.TryGetValue(f, out c) && c != null) return OneShot(f) ? c : LoopedCopy(c, ctrl, loops);
+                return null;
+            }
 
             // Locomotion: idle → walk → trot → run on Speed, thresholds from the species' own speeds.
             var tree = new BlendTree { name = "Locomotion", blendType = BlendTreeType.Simple1D, blendParameter = "Speed", useAutomaticThresholds = false };
             AssetDatabase.AddObjectToAsset(tree, ctrl);
             float walk = Mathf.Max(0.3f, species.walkSpeed), run = Mathf.Max(walk * 2f, species.runSpeed);
-            var idle = Clip(clips, ClipRole.Idle, ClipRole.Look);
+            var idle = Pick(ClipRole.Idle, ClipRole.Look);
             if (idle != null) tree.AddChild(idle, 0f);
-            if (Clip(clips, ClipRole.Walk) != null) tree.AddChild(Clip(clips, ClipRole.Walk), walk);
-            if (Clip(clips, ClipRole.Trot) != null) tree.AddChild(Clip(clips, ClipRole.Trot), Mathf.Lerp(walk, run, 0.4f));
-            if (Clip(clips, ClipRole.Run) != null) tree.AddChild(Clip(clips, ClipRole.Run), run);
+            var walkClip = Pick(ClipRole.Walk);
+            if (walkClip != null) tree.AddChild(walkClip, walk);
+            var trotClip = Pick(ClipRole.Trot);
+            if (trotClip != null) tree.AddChild(trotClip, Mathf.Lerp(walk, run, 0.4f));
+            var runClip = Pick(ClipRole.Run);
+            if (runClip != null) tree.AddChild(runClip, run);
             var locomotion = sm.AddState("Locomotion");
             locomotion.motion = tree;
             sm.defaultState = locomotion;
@@ -808,20 +1010,20 @@ namespace WildLens.EditorTools
 
             var map = new Dictionary<AnimalActivity, AnimatorState>
             {
-                { AnimalActivity.Grazing, StateFor(Clip(clips, ClipRole.Eat)) },
-                { AnimalActivity.Foraging, StateFor(Clip(clips, ClipRole.Eat)) },
-                { AnimalActivity.Sniffing, StateFor(Clip(clips, ClipRole.Eat, ClipRole.Look)) },
-                { AnimalActivity.LookingAround, StateFor(Clip(clips, ClipRole.Look)) },
-                { AnimalActivity.Alert, StateFor(Clip(clips, ClipRole.Look)) },
-                { AnimalActivity.Grooming, StateFor(Clip(clips, ClipRole.Groom, ClipRole.Sit)) },
-                { AnimalActivity.Resting, StateFor(Clip(clips, ClipRole.Lie, ClipRole.Sit)) },
-                { AnimalActivity.Sitting, StateFor(Clip(clips, ClipRole.Sit, ClipRole.Lie)) },
-                { AnimalActivity.Perched, StateFor(Clip(clips, ClipRole.Idle)) },
-                { AnimalActivity.Flying, StateFor(Clip(clips, ClipRole.Fly)) },
-                { AnimalActivity.Soaring, StateFor(Clip(clips, ClipRole.Glide, ClipRole.Fly)) },
-                { AnimalActivity.Gliding, StateFor(Clip(clips, ClipRole.Glide, ClipRole.Fly)) },
-                { AnimalActivity.Landing, StateFor(Clip(clips, ClipRole.Land, ClipRole.Fly)) },
-                { AnimalActivity.TakingOff, StateFor(Clip(clips, ClipRole.TakeOff, ClipRole.Fly)) },
+                { AnimalActivity.Grazing, StateFor(Pick(ClipRole.Eat)) },
+                { AnimalActivity.Foraging, StateFor(Pick(ClipRole.Eat)) },
+                { AnimalActivity.Sniffing, StateFor(Pick(ClipRole.Eat, ClipRole.Look)) },
+                { AnimalActivity.LookingAround, StateFor(Pick(ClipRole.Look)) },
+                { AnimalActivity.Alert, StateFor(Pick(ClipRole.Look)) },
+                { AnimalActivity.Grooming, StateFor(Pick(ClipRole.Groom, ClipRole.Sit)) },
+                { AnimalActivity.Resting, StateFor(Pick(ClipRole.Lie, ClipRole.Sit)) },
+                { AnimalActivity.Sitting, StateFor(Pick(ClipRole.Sit, ClipRole.Lie)) },
+                { AnimalActivity.Perched, StateFor(Pick(ClipRole.Idle)) },
+                { AnimalActivity.Flying, StateFor(Pick(ClipRole.Fly)) },
+                { AnimalActivity.Soaring, StateFor(Pick(ClipRole.Glide, ClipRole.Fly)) },
+                { AnimalActivity.Gliding, StateFor(Pick(ClipRole.Glide, ClipRole.Fly)) },
+                { AnimalActivity.Landing, StateFor(Pick(ClipRole.Land, ClipRole.Fly)) },
+                { AnimalActivity.TakingOff, StateFor(Pick(ClipRole.TakeOff, ClipRole.Fly)) },
             };
             foreach (AnimalActivity a in System.Enum.GetValues(typeof(AnimalActivity)))
             {

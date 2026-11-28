@@ -141,6 +141,7 @@ namespace WildLens.EditorTools
             {
                 var rng = new System.Random(unchecked(_s.seed * 613 + 29 + StableHash(s.subjectId)));
                 int placed = 0;
+                var onLog = new Dictionary<Transform, int>(); // 1.8: at most two of a species on one log or stump
                 for (int i = 0; i < s.count; i++)
                 {
                     Vector3 surface;
@@ -157,7 +158,7 @@ namespace WildLens.EditorTools
                     if (!ok && habitat == SubjectHabitat.DeadWood)
                     {
                         if (wood == null) wood = FindDeadWood(envParent);
-                        ok = TryDeadWood(rng, wood, out surface);
+                        ok = TryDeadWood(rng, wood, onLog, out surface);
                         onGround = false;
                         if (!ok) { habitat = SubjectHabitat.WoodlandFloor; onGround = true; }
                     }
@@ -328,14 +329,26 @@ namespace WildLens.EditorTools
             return list;
         }
 
-        /// <summary>On top of a log or stump: a spot along its long axis, found by a ray onto its collider (else the top centre).</summary>
-        private static bool TryDeadWood(System.Random rng, List<Transform> wood, out Vector3 p)
+        private const int MaxPerLog = 2;
+
+        /// <summary>
+        /// On top of a log or stump: a spot along its long axis, found by a ray onto its collider (else the top centre). A log
+        /// that already carries <see cref="MaxPerLog"/> subjects of this species (counted in <paramref name="used"/>) is skipped;
+        /// with every log full this returns false and the caller sends the subject to the woodland floor.
+        /// </summary>
+        private static bool TryDeadWood(System.Random rng, List<Transform> wood, Dictionary<Transform, int> used, out Vector3 p)
         {
             p = default;
             if (wood == null || wood.Count == 0) return false;
+            var open = new List<Transform>();
+            foreach (var w in wood)
+                if (w != null && (!used.TryGetValue(w, out int n) || n < MaxPerLog)) open.Add(w);
+            if (open.Count == 0) return false;
+            Transform firstPick = null;
             for (int attempt = 0; attempt < 12; attempt++)
             {
-                var log = wood[rng.Next(wood.Count)];
+                var log = open[rng.Next(open.Count)];
+                if (firstPick == null) firstPick = log;
                 var rs = log.GetComponentsInChildren<Renderer>();
                 if (rs.Length == 0) continue;
                 Bounds b = rs[0].bounds;
@@ -349,15 +362,23 @@ namespace WildLens.EditorTools
                 float bestY = float.MinValue;
                 foreach (var h in hits)
                     if (h.collider != null && h.collider.transform.IsChildOf(log) && h.point.y > bestY) { bestY = h.point.y; found = true; }
-                if (found) { p = new Vector3(xz.x, bestY, xz.z); return true; }
+                if (found)
+                {
+                    p = new Vector3(xz.x, bestY, xz.z);
+                    used.TryGetValue(log, out int c);
+                    used[log] = c + 1;
+                    return true;
+                }
             }
-            // No collider answered (an art log without one): the top centre of the first log's bounds.
-            var first = wood[rng.Next(wood.Count)];
+            // No collider answered (an art log without one): the top centre of the first log tried.
+            var first = firstPick ?? open[0];
             var frs = first.GetComponentsInChildren<Renderer>();
             if (frs.Length == 0) return false;
             Bounds fb = frs[0].bounds;
             foreach (var r in frs) fb.Encapsulate(r.bounds);
             p = new Vector3(fb.center.x, fb.max.y, fb.center.z);
+            used.TryGetValue(first, out int fc);
+            used[first] = fc + 1;
             return true;
         }
 

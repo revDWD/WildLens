@@ -64,6 +64,60 @@ namespace WildLens.EditorTools
         };
 
         /// <summary>
+        /// Species where, among equally ranked candidates, a model whose name (or folder) has one of these words comes first, in
+        /// this order: a pack's "Bear_1..Bear_4" are colour variants, and a black bear should be the black or dark one.
+        /// </summary>
+        public static readonly Dictionary<string, string[]> Prefer = new Dictionary<string, string[]>
+        {
+            { "american_black_bear", new[] { "black", "dark" } },
+        };
+
+        /// <summary>
+        /// Species tinted to their own colours even when the model is the real thing (an Exact match): a pack's bears are usually
+        /// brown grizzlies, and the black bear is black.
+        /// </summary>
+        public static readonly HashSet<string> TintExact = new HashSet<string> { "american_black_bear" };
+
+        /// <summary>Whether a match is tinted by default: every stand-in, and the species in <see cref="TintExact"/>.</summary>
+        internal static bool TintByDefault(string speciesId, MatchKind kind) =>
+            kind == MatchKind.StandIn || (kind == MatchKind.Exact && speciesId != null && TintExact.Contains(speciesId));
+
+        /// <summary>Lower is preferred: the index of the first <see cref="Prefer"/> word in the model's name (then, further back, in its folder); a large number when none.</summary>
+        internal static int PreferScore(string speciesId, string name, string folder)
+        {
+            if (speciesId == null || !Prefer.TryGetValue(speciesId, out var words)) return 0;
+            for (int i = 0; i < words.Length; i++) if (HasWord(name, words[i])) return i;
+            for (int i = 0; i < words.Length; i++) if (HasWord(folder, words[i])) return 100 + i;
+            return 1000;
+        }
+
+        /// <summary>Words that make a folder or file name look like an animal pack, beyond the species keywords themselves.</summary>
+        internal static readonly string[] AnimalContainerWords = { "animal", "animals", "creature", "creatures", "wildlife", "bird", "birds", "fauna" };
+
+        private static List<string> _importKeys;
+
+        /// <summary>
+        /// Whether an imported model or prefab could be an animal: its file name or its folder has a species keyword, a reserved
+        /// animal word or an animal container word. The import watcher uses this so importing a tree or a rock pack does nothing.
+        /// </summary>
+        internal static bool LooksLikeAnimalImport(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath)) return false;
+            if (_importKeys == null)
+            {
+                var keys = new List<string>(AnimalContainerWords);
+                keys.AddRange(Reserved);
+                foreach (var kv in Names) { keys.AddRange(kv.Value.exact); keys.AddRange(kv.Value.standIn); }
+                _importKeys = keys;
+            }
+            string p = assetPath.Replace('\\', '/');
+            string stem = System.IO.Path.GetFileNameWithoutExtension(p);
+            string folder = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(p) ?? "");
+            var keyArray = _importKeys.ToArray();
+            return Has(Words(stem), keyArray) || Has(Words(folder), keyArray);
+        }
+
+        /// <summary>
         /// Animals that are future species of their own: never used as a stand-in, not even through a generic folder name
         /// ("Birds/Woodpecker" must not become the cardinal).
         /// </summary>
@@ -190,6 +244,7 @@ namespace WildLens.EditorTools
         /// <summary>
         /// The models that match a species, best first: the species itself over a stand-in; a model that is not another species'
         /// own over one that is; the keyword closest to the species ("wolf" before "dog"); the most recognised clip roles; the
+        /// preferred name for the species (<see cref="Prefer"/>: the black bear over the brown ones); the
         /// high-quality variant ("lb_crowHQ" over "lb_crow"); a prefab over a raw model; then by path, so the pick is the same
         /// on every machine.
         /// </summary>
@@ -211,6 +266,8 @@ namespace WildLens.EditorTools
                 if (a.rank != b.rank) return a.rank.CompareTo(b.rank);
                 var ma = models[a.model]; var mb = models[b.model];
                 if (ma.clips != mb.clips) return mb.clips.CompareTo(ma.clips);
+                int pa = PreferScore(speciesId, ma.name, ma.folder), pb = PreferScore(speciesId, mb.name, mb.folder);
+                if (pa != pb) return pa.CompareTo(pb);
                 if (a.hq != b.hq) return a.hq ? -1 : 1;
                 if (ma.prefab != mb.prefab) return ma.prefab ? -1 : 1;
                 return string.CompareOrdinal(ma.path, mb.path);
@@ -278,7 +335,7 @@ namespace WildLens.EditorTools
                     var labels = new string[row.candidates.Count];
                     for (int i = 0; i < labels.Length; i++) labels[i] = row.candidates[i].Label;
                     int pick = EditorGUILayout.Popup(row.pick, labels);
-                    if (pick != row.pick) { row.pick = pick; row.tint = row.Picked.kind == MatchKind.StandIn; }
+                    if (pick != row.pick) { row.pick = pick; row.tint = TintByDefault(row.species.speciesId, row.Picked.kind); }
                     row.size = EditorGUILayout.FloatField(row.size, GUILayout.Width(46));
                     EditorGUILayout.LabelField("m", GUILayout.Width(14));
                     row.yaw = EditorGUILayout.FloatField(row.yaw, GUILayout.Width(40));
@@ -317,19 +374,25 @@ namespace WildLens.EditorTools
 
         /// <summary>
         /// 1.6: the hands-off route. Every species without a model gets its best match (the animal itself, else a stand-in,
-        /// tinted) at its default size. Run by every rebuild and after animal packs are imported; species that already
-        /// have a model are never touched, so hand-made choices in the window stick. Returns how many were set up.
+        /// tinted) at its default size. Run by every rebuild and after animal packs are imported. A species that already has a
+        /// model is never replaced by a different one, so hand-made choices in the window stick; since 1.8 a prefab that this
+        /// automatic route built with an older factory is rebuilt from the same model (see <see cref="RefreshOldBuilds"/>).
+        /// Returns how many were set up or refreshed.
         /// </summary>
         public static int AutoSetUp(SpeciesDatabase db)
         {
             if (db == null || Application.isPlaying) return 0;
             var settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath);
+            int refreshed = 0;
+            try { refreshed = RefreshOldBuilds(db, settings); }
+            catch (System.Exception e) { Debug.LogWarning("[WildLens] Refreshing older wildlife models failed: " + e.Message); }
+            settings = AssetDatabase.LoadAssetAtPath<SliceBuildSettings>(WildLensSliceBuilder.SettingsPath); // a record may just have created it
             bool anyMissing = false;
             foreach (var sp in db.species)
                 if (sp != null && sp.prefab == null && !IsKeptPlaceholder(settings, sp.speciesId)) { anyMissing = true; break; }
-            if (!anyMissing) return 0;
+            if (!anyMissing) return refreshed;
             var models = FindAnimatedModels();
-            if (models.Count == 0) return 0;
+            if (models.Count == 0) return refreshed;
             var sb = new StringBuilder();
             var unmatched = new List<string>();
             int done = 0;
@@ -340,7 +403,7 @@ namespace WildLens.EditorTools
                 try
                 {
                     var c = row.Picked;
-                    AnimalPrefabFactory.Create(row.species, c.asset, AnimalPrefabFactory.Classify(c.clips), row.size, row.yaw, row.tint, out string message);
+                    AnimalPrefabFactory.Create(row.species, c.asset, AnimalPrefabFactory.Classify(c.clips), row.size, row.yaw, row.tint, out string message, manual: false);
                     sb.Append("\n  • ").Append(message).Append(c.kind == MatchKind.StandIn ? $" (stand-in: {c.asset.name})" : "");
                     done++;
                 }
@@ -354,7 +417,78 @@ namespace WildLens.EditorTools
                           (unmatched.Count > 0 ? "\nNo match yet (placeholder bodies): " + string.Join(", ", unmatched) + "." : "") +
                           "\nPress Play to see them. To change one, open WildLens ▸ Wildlife Pack Setup." +
                           "\nRun WildLens ▸ Asset Audit Report for the full list of what was found.");
-            return done;
+            return done + refreshed;
+        }
+
+        /// <summary>
+        /// 1.8: species prefabs the factory built before this version (wrong sizes, pack scripts left in, built-in materials, clips that
+        /// play once) are rebuilt from the same model with today's defaults. A species is refreshed only when ALL of these hold:
+        /// it has a prefab; it is not kept as a placeholder; its build record is missing or older than
+        /// <see cref="AnimalPrefabFactory.FactoryVersion"/>; the record (if any) is not <c>manual</c> (set by a person in a setup
+        /// window); and the prefab is the factory's own file (Assets/WildLens/Animals/{id}.prefab). The model is the recorded
+        /// one, else traced back from the prefab's meshes; a prefab whose model cannot be found is left alone (and recorded as
+        /// current, so it is not tried again). Recorded yaw and tint are kept, the size is the current default.
+        /// </summary>
+        internal static int RefreshOldBuilds(SpeciesDatabase db, SliceBuildSettings settings)
+        {
+            if (db == null || db.species == null) return 0;
+            var refreshedNames = new List<string>();
+            var failed = new List<string>();
+            bool touched = false;
+            foreach (var sp in db.species)
+            {
+                if (sp == null || sp.prefab == null || string.IsNullOrEmpty(sp.speciesId) || IsKeptPlaceholder(settings, sp.speciesId)) continue;
+                var rec = AnimalPrefabFactory.FindRecord(settings, sp.speciesId);
+                if (rec != null && (rec.manual || rec.factoryVersion >= AnimalPrefabFactory.FactoryVersion)) continue;
+                string id = sp.speciesId;
+                try
+                {
+                    // A prefab somebody assigned by hand (not the factory's file) is theirs: record it so it is never looked at again.
+                    if (AssetDatabase.GetAssetPath(sp.prefab) != $"{AnimalPrefabFactory.Folder}/{id}.prefab")
+                    {
+                        touched = true; AnimalPrefabFactory.WriteRecord(id, "", AnimalPrefabFactory.DefaultSize(sp), 0f, false, true);
+                        continue;
+                    }
+                    string srcPath = null;
+                    if (rec != null && !string.IsNullOrEmpty(rec.sourceGuid)) srcPath = AssetDatabase.GUIDToAssetPath(rec.sourceGuid);
+                    if (string.IsNullOrEmpty(srcPath) || AssetDatabase.LoadAssetAtPath<GameObject>(srcPath) == null)
+                    {
+                        srcPath = null;
+                        foreach (var candidate in AnimalPrefabFactory.SourceModelPaths(sp.prefab))
+                            if (AssetDatabase.LoadAssetAtPath<GameObject>(candidate) != null) { srcPath = candidate; break; }
+                    }
+                    var src = string.IsNullOrEmpty(srcPath) ? null : AssetDatabase.LoadAssetAtPath<GameObject>(srcPath);
+                    if (src == null || src.GetComponentInChildren<SkinnedMeshRenderer>(true) == null)
+                    {
+                        touched = true; AnimalPrefabFactory.WriteRecord(id, "", rec != null ? rec.size : AnimalPrefabFactory.DefaultSize(sp), rec != null ? rec.yaw : 0f, rec != null && rec.tint, false);
+                        continue; // cannot be traced: left alone, not retried
+                    }
+                    var clips = CollectClips(srcPath, src);
+                    if (clips.Count == 0)
+                    {
+                        touched = true; AnimalPrefabFactory.WriteRecord(id, AssetDatabase.AssetPathToGUID(srcPath), AnimalPrefabFactory.DefaultSize(sp), rec != null ? rec.yaw : 0f, rec != null && rec.tint, false);
+                        continue;
+                    }
+                    var kind = MatchAsset(src.name, System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(srcPath)), id, out _);
+                    bool tint = (rec != null ? rec.tint : kind == MatchKind.StandIn) || TintByDefault(id, kind);
+                    float yaw = rec != null ? rec.yaw : 0f;
+                    AnimalPrefabFactory.Create(sp, src, AnimalPrefabFactory.Classify(clips), AnimalPrefabFactory.DefaultSize(sp), yaw, tint, out _, manual: false);
+                    refreshedNames.Add(sp.displayName);
+                }
+                catch (System.Exception e)
+                {
+                    failed.Add(sp.displayName + " (" + e.Message + ")");
+                    try { touched = true; AnimalPrefabFactory.WriteRecord(id, rec != null ? rec.sourceGuid : "", rec != null ? rec.size : AnimalPrefabFactory.DefaultSize(sp), rec != null ? rec.yaw : 0f, rec != null && rec.tint, false); } catch (System.Exception) { }
+                }
+            }
+            if (touched) AssetDatabase.SaveAssets(); // records written without a build (foreign or untraceable prefabs)
+            if (refreshedNames.Count > 0)
+                Debug.Log("[WildLens] Wildlife models refreshed for 1.8 (sizes, looping clips, materials): " + string.Join(", ", refreshedNames) + "." +
+                          (failed.Count > 0 ? "\nCould not refresh: " + string.Join("; ", failed) + "." : "") +
+                          "\nRebuilt from the same models; a model you set by hand in a setup window is never rebuilt automatically.");
+            else if (failed.Count > 0)
+                Debug.LogWarning("[WildLens] Could not refresh older wildlife models: " + string.Join("; ", failed) + ".");
+            return refreshedNames.Count;
         }
 
         private static List<Row> BuildRows(SpeciesDatabase db, List<Model> models, SliceBuildSettings settings = null)
@@ -381,7 +515,7 @@ namespace WildLens.EditorTools
                 }
                 row.kept = IsKeptPlaceholder(settings, species.speciesId);
                 row.on = row.candidates.Count > 0 && species.prefab == null && !row.kept;
-                row.tint = row.Picked != null && row.Picked.kind == MatchKind.StandIn;
+                row.tint = row.Picked != null && TintByDefault(species.speciesId, row.Picked.kind);
                 rows.Add(row);
             }
             return rows;
@@ -403,6 +537,7 @@ namespace WildLens.EditorTools
             Undo.RecordObject(settings, keep ? "Keep species as placeholder" : "Use a model for species");
             if (keep) settings.keepPlaceholder.Add(speciesId); else settings.keepPlaceholder.RemoveAll(x => x == speciesId);
             EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets(); // SaveAssetIfDirty is not in the 2021.1 reference assemblies the compile check uses
         }
 
         private struct Model { public GameObject asset; public string path; public List<AnimationClip> clips; public int clipCount; }
@@ -508,12 +643,13 @@ namespace WildLens.EditorTools
 
         private static void OnPostprocessAllAssets(string[] imported, string[] deleted, string[] moved, string[] movedFrom)
         {
-            if (Application.isPlaying) return;
+            if (Application.isPlaying || Application.isBatchMode) return;
             foreach (var path in imported)
             {
                 if (path.StartsWith(GeneratedAssets.Root + "/")) continue;
                 string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
                 if (ext != ".fbx" && ext != ".prefab" && ext != ".blend" && ext != ".gltf" && ext != ".glb") continue;
+                if (!WildlifePackSetup.LooksLikeAnimalImport(path)) continue; // a tree or rock pack is not an animal pack
                 Pending = true;
                 Queue();
                 return;

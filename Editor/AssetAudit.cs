@@ -253,12 +253,9 @@ namespace WildLens.EditorTools
                 if (sp == null || sp.prefab == null) continue;
                 try
                 {
-                    string prefabPath = AssetDatabase.GetAssetPath(sp.prefab);
-                    foreach (var t in sp.prefab.GetComponentsInChildren<Transform>(true))
+                    // Shared with the automatic refresh of old prefabs (1.8): linked assets first, then the model files the meshes come from.
+                    foreach (string sp2 in AnimalPrefabFactory.SourceModelPaths(sp.prefab))
                     {
-                        var src = PrefabUtility.GetCorrespondingObjectFromSource(t.gameObject);
-                        string sp2 = src != null ? AssetDatabase.GetAssetPath(src) : null;
-                        if (string.IsNullOrEmpty(sp2) || sp2 == prefabPath) continue;
                         if (!usedBy.TryGetValue(sp2, out var l)) usedBy[sp2] = l = new List<string>();
                         if (!l.Contains(sp.speciesId)) l.Add(sp.speciesId);
                         if (!builtFrom.ContainsKey(sp.speciesId)) builtFrom[sp.speciesId] = sp2;
